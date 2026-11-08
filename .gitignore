@@ -1,0 +1,13 @@
+# 개발 프로필 설정을 공유한다. 기기별 스킬 링크와 상태는 로컬에 둔다.
+.agents/*
+!.agents/development-profile.json
+
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules/
+/out/
+/cache/
+/build/
+/.local/

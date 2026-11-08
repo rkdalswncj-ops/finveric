@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="증권사, 공동 운영기관, 감독기관의 역할과 판매절차 검증망의 기술 아키텍처">
+<title>금융투자상품 판매절차 검증망 · MVP 아키텍처</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #edf2f3;
+    --paper: #fff;
+    --ink: #162b34;
+    --muted: #48606a;
+    --line: #c5d5d8;
+    --teal: #075f5a;
+    --mint: #e0f0eb;
+    --navy: #143450;
+    --navy-light: #e7f0f8;
+    --sand: #fbf1d9;
+    --sans: "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    --mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 var(--sans); word-break: keep-all; overflow-wrap: anywhere; }
+  h1, h2, h3, p, figure, ul, dl, dd { margin: 0; }
+  h1, h2, h3 { line-height: 1.18; letter-spacing: -.04em; }
+  a { color: var(--teal); text-underline-offset: 3px; }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 3px solid #236ba0; outline-offset: 3px; }
+  .shell { max-width: 1370px; margin-inline: auto; padding: 25px 33px 27px; }
+  .hero { display: grid; gap: 6px; margin-bottom: 14px; }
+  .kicker, .path, code { font-family: var(--mono); }
+  .kicker { color: var(--teal); font-weight: 800; font-size: 12px; letter-spacing: .035em; }
+  h1 { font-size: clamp(30px, 3.7vw, 49px); }
+  .lede { color: var(--muted); }
+  .roles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 13px; }
+  .roles article { min-width: 0; background: var(--paper); border-top: 2px solid var(--teal); padding: 7px 9px; display: grid; gap: 2px; }
+  .roles h2 { font-size: 14px; }
+  .roles p { font-size: 12px; color: var(--muted); }
+  .board { border: 1px solid var(--line); background: var(--paper); padding: 15px; }
+  .toolbar { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .toolbar h2 { font-size: 20px; }
+  .modes { display: flex; gap: 5px; flex-wrap: wrap; }
+  .modes button { color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 4px; min-height: 36px; padding: 4px 10px; font-size: 13px; font-weight: 800; }
+  .modes button[aria-pressed="true"] { background: var(--teal); border-color: var(--teal); color: white; }
+  .topology { display: grid; grid-template-columns: minmax(0, .92fr) 92px minmax(0, 1.2fr) 92px minmax(0, 1.02fr); }
+  .zone { min-width: 0; display: grid; grid-template-rows: auto 1fr; border: 1px solid var(--line); background: #f8fafb; }
+  .zone-head { padding: 9px 12px; display: grid; gap: 4px; background: var(--navy-light); border-bottom: 1px solid var(--line); }
+  .zone-head h3 { font-size: 19px; }
+  .zone-head .kicker { color: var(--navy); }
+  .api .zone-head { background: var(--mint); }
+  .api .zone-head .kicker { color: var(--teal); }
+  .chain { border-color: var(--navy); background: var(--navy); color: white; }
+  .chain .zone-head { background: var(--navy); border-color: #537491; }
+  .chain .zone-head .kicker { color: #bfd6e8; }
+  .nodes { display: grid; align-content: start; gap: 8px; padding: 11px; }
+  .node { border: 1px solid var(--line); background: var(--paper); color: var(--ink); display: grid; gap: 4px; padding: 8px 9px; }
+  .node.prover { background: #f2faf7; border-color: #a9ccc0; }
+  .node.ledger { background: var(--navy-light); }
+  .node b { font-size: 15px; line-height: 1.25; }
+  .node p, .zone-note { color: var(--muted); font-size: 13px; }
+  .path { color: var(--teal); font-size: 11px; font-weight: 750; }
+  .chain .path { color: var(--navy); }
+  .chain .zone-note { color: #e1eef6; }
+  .between { text-align: center; font-size: 11px; color: var(--teal); font-weight: 800; }
+  .arrows { display: grid; align-content: center; gap: 18px; padding: 0 6px; }
+  .edge { display: grid; gap: 5px; text-align: center; color: var(--teal); font-size: 11px; font-weight: 800; }
+  .edge i { position: relative; display: block; height: 0; border-top: 2px solid currentColor; }
+  .edge i::after { content: ""; position: absolute; top: -5px; right: -3px; border: 4px solid transparent; border-left: 7px solid currentColor; }
+  .edge.return { color: var(--navy); }
+  .edge.return i { border-top-style: dashed; }
+  .edge.return i::after { left: -3px; right: auto; border-left-color: transparent; border-right: 7px solid currentColor; }
+  .read-path { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: baseline; background: var(--navy-light); color: var(--navy); margin-top: 10px; padding: 8px 10px; font-size: 13px; }
+  .read-path b { white-space: nowrap; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .split article { display: grid; align-content: start; gap: 3px; background: #f1f8f5; border: 1px solid var(--line); padding: 8px 10px; }
+  .split article + article { background: #f0f5fa; }
+  .split b { font-size: 14px; }
+  .split p { color: var(--muted); font-size: 13px; }
+  .deployment { margin-top: 9px; padding: 8px 10px; background: var(--sand); color: #55471e; font-size: 13px; }
+  .appendix { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin-top: 13px; }
+  .appendix article { border-top: 2px solid var(--teal); padding-top: 7px; display: grid; align-content: start; gap: 6px; }
+  .appendix h2 { font-size: 17px; }
+  .appendix p { color: var(--muted); font-size: 14px; }
+  .foot { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 11px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 1000px) {
+    .shell { padding-inline: 17px; }
+    .topology { grid-template-columns: minmax(0, 1fr) 61px minmax(0, 1.15fr) 61px minmax(0, 1fr); }
+    .arrows { padding-inline: 4px; }
+  }
+  @media (max-width: 740px) {
+    .shell { padding: 16px 10px 23px; }
+    .board { padding: 9px; }
+    .roles { grid-template-columns: 1fr 1fr; }
+    .topology, .appendix { grid-template-columns: 1fr; }
+    .arrows { display: flex; flex-wrap: wrap; gap: 5px 14px; padding: 6px 3px; }
+    .edge { display: flex; gap: 4px; }
+    .edge::before { content: "↓"; font: 800 14px/1 var(--mono); }
+    .edge.return::before { content: "↑"; }
+    .edge i { display: none; }
+  }
+  @media (max-width: 475px) { .split, .read-path { grid-template-columns: 1fr; gap: 4px; } }
+  @media print { :root { print-color-adjust: exact; } .shell { padding: 0; } .board { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main class="shell">
+  <header class="hero">
+    <p class="kicker">금융감독 연계 인프라 구상 · 기말 MVP</p>
+    <h1>금융투자상품 판매절차 검증망</h1>
+    <p class="lede">증권사는 판매 증빙을 남긴다. 감독기관은 같은 가입 건에 어떤 규칙이 적용됐고 확정 조건을 충족했는지 원장에서 검증한다.</p>
+  </header>
+
+  <section class="roles" aria-label="운영 구상의 참여 주체">
+    <article><h2>금융소비자</h2><p>설명을 확인하고 가입한다. 본인의 가입 결과를 확인한다.</p></article>
+    <article><h2>증권사</h2><p>판매 증빙을 제출하고 계약서와 응답 원본을 관리한다.</p></article>
+    <article><h2>공동 운영기관 · 가정</h2><p>규칙 등록 절차와 기관별 원장 권한을 관리한다.</p></article>
+    <article><h2>감독기관 · 가정</h2><p>검사와 분쟁조정에 필요한 판매 건을 독립 조회한다.</p></article>
+  </section>
+
+  <figure class="board" aria-labelledby="architecture-title">
+    <div class="toolbar">
+      <h2 id="architecture-title">증권사 제출과 감독기관 조회</h2>
+      <div class="modes" role="group" aria-label="시연 환경">
+        <button type="button" data-mode="local" aria-pressed="true">로컬 발표</button>
+        <button type="button" data-mode="shared" aria-pressed="false">Vercel 공유 데모</button>
+      </div>
+    </div>
+    <div class="topology">
+      <section class="zone" aria-labelledby="web-title">
+        <header class="zone-head">
+          <p class="kicker" id="web-host">브라우저 · 로컬 Vite</p>
+          <h3 id="web-title">가입 웹</h3>
+        </header>
+        <div class="nodes">
+          <div class="node">
+            <span class="path">apps/web</span>
+            <b>React 19 · Vite 8</b>
+            <p>TypeScript, React Router 7, CSS Modules를 쓴다.</p>
+          </div>
+          <div class="node">
+            <b>고객 가입과 기관 조회</b>
+            <p>고객은 진단·설명·모의 서명을 진행한다. 모의 감독기관은 별도 조회 화면을 쓴다.</p>
+          </div>
+          <p class="zone-note">모의 고객은 웹에서 답한다. API가 테스트 계정으로 거래를 보낸다.</p>
+        </div>
+      </section>
+      <div class="arrows" aria-label="웹에서 API로 가입 요청, API에서 웹으로 결과">
+        <span class="edge">가상 답변·서명 요청<i aria-hidden="true"></i></span>
+        <span class="edge return">가입 상태·거래 ID<i aria-hidden="true"></i></span>
+      </div>
+      <section class="zone api" aria-labelledby="api-title">
+        <header class="zone-head">
+          <p class="kicker" id="api-host">체인 밖 · 로컬 Node.js 22</p>
+          <h3 id="api-title">가입 API와 증명 모듈</h3>
+        </header>
+        <div class="nodes">
+          <div class="node">
+            <span class="path">apps/api</span>
+            <b>Fastify 5 · TypeScript · viem 2</b>
+            <p>REST 입력을 검사한다. 고객 확인 키로 답변 커밋먼트를 등록하고, 판매사 키로 모의 서명을 기록한다.</p>
+          </div>
+          <p class="between">가상 답변 ↓ &nbsp; ↑ 증명과 공개 입력</p>
+          <div class="node prover">
+            <span class="path">circuits</span>
+            <b>Circom 2.2.3 · snarkjs 0.7.6</b>
+            <p>Circom 회로에 규칙 v1을 담는다. API는 가상 답변을 입력해 Groth16 증명을 생성한다.</p>
+          </div>
+          <p class="zone-note">가상 답변은 서버 메모리에 임시 보관한다.</p>
+        </div>
+      </section>
+      <div class="arrows" aria-label="API가 체인에 증명과 서명 확인을 제출하고 체인에서 거래 결과를 읽음">
+        <span class="edge">viem · 증명 제출<i aria-hidden="true"></i></span>
+        <span class="edge return">거래 영수증·상태<i aria-hidden="true"></i></span>
+      </div>
+      <section class="zone chain" aria-labelledby="chain-title">
+        <header class="zone-head">
+          <p class="kicker" id="chain-host">온체인 · Anvil 로컬 체인</p>
+          <h3 id="chain-title">Solidity 가입 원장</h3>
+        </header>
+        <div class="nodes">
+          <div class="node ledger">
+            <span class="path">contracts/src</span>
+            <b>EnrollmentLedger → Verifier</b>
+            <p>같은 가입 건의 커밋먼트와 서명 확인을 검사한다. 생성된 Verifier가 ZKP를 통과시키면 가입 상태를 확정한다.</p>
+          </div>
+          <div class="node">
+            <span class="path">Foundry · Solidity 0.8.30</span>
+            <b>forge · anvil · cast</b>
+            <p>forge로 빌드·테스트·배포한다. anvil에서 로컬 시연한다. cast로 거래와 원장 상태를 확인한다.</p>
+          </div>
+          <p class="zone-note">서명 누락이나 다른 가입 건의 증명이면 미확정 상태에 남는다.</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="read-path">
+      <b>모의 감독기관 조회</b>
+      <span>가입 ID로 조회 → viem 읽기 클라이언트 → <strong id="read-rpc">Anvil RPC</strong> → 규칙 버전·확정 상태·거래 ID</span>
+    </div>
+    <div class="split" aria-label="데이터 저장 위치">
+      <article><b>체인 밖 데이터</b><p>가상 고객의 답변·점수, 비공개 임의값, 모의 계약서 원본, 테스트 서명 키</p></article>
+      <article><b>체인에 보내는 값</b><p>원장 도메인, 무작위 가입 ID, 답변 커밋먼트, ZKP, 모의 서명 확인과 계약서 해시</p></article>
+    </div>
+    <figcaption class="deployment" id="deployment-note" role="status">발표 기본 구성. 웹, API, Anvil을 한 노트북에서 실행한다. 가상 가입이 확정되면 웹과 cast로 같은 원장 상태를 확인한다.</figcaption>
+  </figure>
+
+  <section class="appendix" aria-label="개발과 배포 구성">
+    <article>
+      <h2>저장소와 테스트</h2>
+      <p>Node.js 22와 npm 10 workspaces를 쓴다. JS 의존성은 스캐폴딩 때 lockfile로 고정한다. forge test로 원장을 검증한다. node:test와 Fastify inject로 API를 검사한다. Playwright로 웹 가입과 원장 조회를 연결해 확인한다.</p>
+    </article>
+    <article>
+      <h2>링크 공유용 환경</h2>
+      <p>Vercel에 React 웹을, Render에 Fastify API를, Sepolia에 Solidity 계약을 배포한다. 증명 파일과 테스트 서명 키는 API 쪽에 둔다. Render 무료 인스턴스는 유휴 시 중지될 수 있으므로 발표는 로컬 구성을 기본으로 잡는다.</p>
+    </article>
+  </section>
+  <footer class="foot">
+    <span>기말 MVP 설계안 · 2026-11-05</span>
+    <a href="els-zkp-mvp-prd.md">MVP PRD</a>
+    <a href="els-zkp-enrollment.html">가입 흐름 시안</a>
+    <a href="https://www.fsc.go.kr/no010101/88082">금융위 ELS 검사 결과 조치</a>
+    <a href="https://www.getfoundry.sh/">Foundry</a>
+    <a href="https://github.com/iden3/snarkjs#25-turn-the-verifier-into-a-smart-contract">snarkjs</a>
+    <a href="https://vercel.com/docs/frameworks/frontend/vite">Vercel Vite 안내</a>
+    <a href="https://render.com/docs/free#spinning-down-on-idle">Render 무료 인스턴스</a>
+  </footer>
+</main>
+<script>
+  const environments = {
+    local: {
+      web: '브라우저 · 로컬 Vite',
+      api: '체인 밖 · 로컬 Node.js 22',
+      chain: '온체인 · Anvil 로컬 체인',
+      rpc: 'Anvil RPC',
+      note: '발표 기본 구성. 웹, API, Anvil을 한 노트북에서 실행한다. 가상 가입이 확정되면 웹과 cast로 같은 원장 상태를 확인한다.'
+    },
+    shared: {
+      web: '브라우저 · Vercel 정적 웹',
+      api: '체인 밖 · Render Node.js 서비스',
+      chain: '온체인 · Sepolia 테스트넷',
+      rpc: 'Sepolia RPC',
+      note: '공유 구성. 세 곳을 모두 연결하면 외부에서 가입을 시연할 수 있다. 가상 데이터와 전용 테스트 계정을 쓴다.'
+    }
+  };
+  const buttons = [...document.querySelectorAll('[data-mode]')];
+  for (const button of buttons) {
+    button.addEventListener('click', () => {
+      const environment = environments[button.dataset.mode];
+      for (const item of buttons) item.setAttribute('aria-pressed', String(item === button));
+      document.getElementById('web-host').textContent = environment.web;
+      document.getElementById('api-host').textContent = environment.api;
+      document.getElementById('chain-host').textContent = environment.chain;
+      document.getElementById('read-rpc').textContent = environment.rpc;
+      document.getElementById('deployment-note').textContent = environment.note;
+    });
+  }
+</script>
+</body>
+</html>
