@@ -1,32 +1,8 @@
-import type { Hex } from "viem";
-import {
-  PRODUCTS,
-  PROFILE_NAMES,
-  type ChainSale,
-  type Trace,
-} from "../../core/src/index.ts";
+import { PRODUCTS, PROFILE_NAMES } from "../../core/src/index.ts";
+import type { SaleDto } from "../../core/src/api.ts";
 
-/** 판매사 API(/api/sales)가 돌려주는 판매 건. */
-export type Sale = {
-  id: string;
-  productId: Hex;
-  createdAt: string;
-  amount: number;
-  attempts: {
-    round: number;
-    profile?: number;
-    confirmed: boolean;
-    commitment: string;
-  }[];
-  traces: Trace[];
-  submissionPending?: boolean;
-  state: Omit<ChainSale, "amount" | "nav" | "units" | "pricedAt"> & {
-    amount: string;
-    nav: string;
-    units: string;
-    pricedAt: string;
-  };
-};
+/** 판매사 API(/api/sales)가 돌려주는 판매 건. 형식은 core의 API 계약을 따른다. */
+export type Sale = SaleDto;
 
 export const short = (value?: string) =>
   value ? `${value.slice(0, 10)}…${value.slice(-6)}` : "—";

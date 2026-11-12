@@ -9,6 +9,12 @@ import {
   type Deployment,
   type PreparedProof,
 } from "../../../../packages/core/src/index.ts";
+import type {
+  ConfirmRequest,
+  DiagnoseDto,
+  DiagnoseRequest,
+  Wire,
+} from "../../../../packages/core/src/api.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
 import { api } from "../../../../packages/ui/src/api.ts";
 import {
@@ -59,10 +65,7 @@ type VerifiedDraft = {
   ledger: string;
   productId: Hex;
 };
-type ProofWire<T> = T extends bigint
-  ? string
-  : { [Key in keyof T]: ProofWire<T[Key]> };
-type WirePreparedProof = ProofWire<PreparedProof>;
+type WirePreparedProof = Wire<PreparedProof>;
 type UnverifiedDraft = VerifiedDraft & { proof: WirePreparedProof };
 
 function loadVerifiedDraft(id: string): VerifiedDraft | undefined {
@@ -193,10 +196,10 @@ export function Enrollment({
           };
         }
         const { salt, round: expectedRound } = draftRequest.current;
-        const draft = await api<Sale & { preparedProof: WirePreparedProof }>(
-          `/sales/${sale.id}/diagnose`,
-          { ...response, salt },
-        );
+        const draft = await api<DiagnoseDto>(`/sales/${sale.id}/diagnose`, {
+          ...response,
+          salt,
+        } satisfies DiagnoseRequest);
         const attempt = draft.attempts.at(-1);
         if (
           !attempt ||
@@ -264,7 +267,7 @@ export function Enrollment({
         profile: currentProof.profile,
         explanationAccepted: true,
         higherRiskAccepted: needsHigherRisk && higherRiskAccepted,
-      });
+      } satisfies ConfirmRequest);
       markEnrolled(sale.id);
       setVerified(undefined);
     });

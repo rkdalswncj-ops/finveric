@@ -15,6 +15,7 @@ import {
   saleProductName,
   type Sale,
 } from "../../../../packages/ui/src/sale.ts";
+import type { SaleAction } from "../../../../packages/core/src/api.ts";
 import ui from "../../../../packages/ui/src/ui.module.css";
 import local from "./operations.module.css";
 import { receiptEvents, registrationActions, traceLabel } from "../traces.ts";
@@ -31,7 +32,7 @@ export function Chain({
 }: {
   traces: Trace[];
   sale?: Sale;
-  action: (a: string) => unknown;
+  action: (a: SaleAction) => unknown;
   busy: boolean;
   refresh: () => unknown;
   deployment?: Deployment;

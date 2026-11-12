@@ -15,12 +15,20 @@ import {
   RULE_HASH,
   classifyProfile,
   diagnosisCommitment,
-  type Answers,
   type Diagnosis,
+  type PreparedProof,
   type Trace,
 } from "../../../../packages/core/src/index.ts";
+import type {
+  AbandonResponse,
+  ConfirmRequest,
+  DiagnoseRequest,
+  DiagnoseView,
+  OpenSaleResponse,
+  SaleView,
+} from "../../../../packages/core/src/api.ts";
 import type { FundService } from "../service.ts";
-import type { Confirmation, StoredSale, StoredTrace } from "./types.ts";
+import type { StoredSale, StoredTrace } from "./types.ts";
 import { reconcile, recordEnrollmentReceipt } from "./ledger.ts";
 import { productRegistration, requireProduct } from "./products.ts";
 import { enrollmentTrace, publicSale } from "./records.ts";
@@ -41,7 +49,9 @@ export function ensureDraft(record: StoredSale) {
 }
 
 /** 확인한 진단 회차의 증명을 원장 호출 형식으로 바꾼다. */
-export async function preparedProof(diagnosis: Diagnosis) {
+export async function preparedProof(
+  diagnosis: Diagnosis,
+): Promise<PreparedProof> {
   if (!diagnosis.confirmed || !diagnosis.proof || !diagnosis.publicSignals)
     throw new Error("진단 결과를 먼저 확인해 주세요.");
   const [a, b, c, signals] = await solidityProof(
@@ -56,7 +66,7 @@ async function settleEnrollment(
   svc: FundService,
   record: StoredSale,
   trace: StoredTrace,
-) {
+): Promise<SaleView> {
   const { txHash, rawTransaction } = trace;
   if (!txHash || !rawTransaction)
     throw new Error("제출한 가입 거래를 찾을 수 없어요.");
@@ -90,7 +100,10 @@ async function settleEnrollment(
 }
 
 /** 새 판매 ID로 임시 가입 신청을 만든다. 상품과 진단 규칙이 원장에 등록되어 있어야 한다. */
-export async function open(svc: FundService, productId: Hex = PRODUCT_ID) {
+export async function open(
+  svc: FundService,
+  productId: Hex = PRODUCT_ID,
+): Promise<OpenSaleResponse> {
   const product = requireProduct(productId);
   const [{ documentHash, minimumProfile }, rule] = await Promise.all([
     productRegistration(svc, product.id),
@@ -126,8 +139,8 @@ export async function open(svc: FundService, productId: Hex = PRODUCT_ID) {
 export async function diagnose(
   svc: FundService,
   id: string,
-  { loss, experience, salt }: Answers & { salt: string },
-) {
+  { loss, experience, salt }: DiagnoseRequest,
+): Promise<DiagnoseView> {
   const answers = { loss, experience };
   validateAnswers(answers);
   if (!/^[1-9][0-9]{0,76}$/.test(salt) || BigInt(salt) >= FIELD)
@@ -215,8 +228,8 @@ export async function diagnose(
 export async function confirm(
   svc: FundService,
   id: string,
-  confirmation: Confirmation,
-) {
+  confirmation: ConfirmRequest,
+): Promise<SaleView> {
   const record = svc.find(id);
   const product = requireProduct(record.productId);
   const last = record.attempts.at(-1);
@@ -303,7 +316,10 @@ export async function confirm(
 }
 
 /** 가입을 중단하고 임시 기록을 폐기한다. 원장에는 아무것도 남지 않는다. */
-export async function abandon(svc: FundService, record: StoredSale) {
+export async function abandon(
+  svc: FundService,
+  record: StoredSale,
+): Promise<AbandonResponse> {
   await reconcile(svc);
   ensureDraft(record);
   svc.sales = svc.sales.filter((sale) => sale !== record);

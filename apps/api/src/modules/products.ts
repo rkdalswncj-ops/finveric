@@ -6,6 +6,7 @@ import {
   RULE_HASH,
   type Product,
 } from "../../../../packages/core/src/index.ts";
+import type { RegisterResponse } from "../../../../packages/core/src/api.ts";
 import type { FundService } from "../service.ts";
 import { send } from "./ledger.ts";
 
@@ -33,7 +34,7 @@ export async function productRegistration(svc: FundService, productId: Hex) {
  * 운용사가 세 상품의 설명서를, 판매사가 진단 규칙 v3을 원장에 등록한다.
  * 이미 같은 값이 있으면 거래를 보내지 않는다. 다른 값이 있으면 거절한다.
  */
-export async function register(svc: FundService) {
+export async function register(svc: FundService): Promise<RegisterResponse> {
   const registrations = await Promise.all(
     PRODUCTS.map((product) => productRegistration(svc, product.id)),
   );

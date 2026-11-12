@@ -18,6 +18,7 @@ import {
   status,
   type Sale,
 } from "../../../../packages/ui/src/sale.ts";
+import type { SaleAction } from "../../../../packages/core/src/api.ts";
 import ui from "../../../../packages/ui/src/ui.module.css";
 import local from "./operations.module.css";
 import { Empty, History } from "../components.tsx";
@@ -34,7 +35,7 @@ export function Review({
   sales: Sale[];
   sale?: Sale;
   select: (id: string) => void;
-  action: (action: string) => unknown;
+  action: (action: SaleAction) => unknown;
   busy: boolean;
 }) {
   const [filter, setFilter] = useState("전체");

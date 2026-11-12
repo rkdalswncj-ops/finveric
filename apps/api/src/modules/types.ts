@@ -1,14 +1,7 @@
 import type { Hex, TransactionSerializedEIP1559 } from "viem";
 import type { SaleRecord, Trace } from "../../../../packages/core/src/index.ts";
 
-/** 고객이 최종 확인한 진단 회차와 동의. */
-export type Confirmation = {
-  round: number;
-  commitment: string;
-  profile: number;
-  explanationAccepted: true;
-  higherRiskAccepted: boolean;
-};
+// 서버 안에서만 쓰는 저장 형식. API 요청·응답 형식은 packages/core/src/api.ts에 있다.
 
 /** 서버만 보관하는 처리 기록. 서명한 가입 거래 원문은 공개하지 않는다. */
 export type StoredTrace = Trace & {

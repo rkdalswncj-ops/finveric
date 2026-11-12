@@ -16,12 +16,19 @@ import {
   LayoutGrid,
   ShieldCheck,
 } from "lucide-react";
-import {
-  PRODUCTS,
-  type OriginalBundle,
-  type Product,
-  type Trace,
-} from "../../../packages/core/src/index.ts";
+import { PRODUCTS, type Product } from "../../../packages/core/src/index.ts";
+import type {
+  AbandonResponse,
+  ConfigDto,
+  ExportKind,
+  ExportResponse,
+  OpenSaleRequest,
+  OpenSaleResponse,
+  RegisterResponse,
+  SaleAction,
+  SaleActionDto,
+  TraceDto,
+} from "../../../packages/core/src/api.ts";
 import { Button } from "../../../packages/ui/src/button.tsx";
 import { api, saveFile } from "../../../packages/ui/src/api.ts";
 import { AccessCodeForm } from "../../../packages/ui/src/components.tsx";
@@ -93,7 +100,7 @@ export function App() {
   const deployment = useDeployment(setError);
   const [sales, setSales] = useState<Sale[]>([]);
   const [salesReady, setSalesReady] = useState(false);
-  const [traces, setTraces] = useState<Trace[]>([]);
+  const [traces, setTraces] = useState<TraceDto[]>([]);
   const [selected, setSelected] = useState(
     sessionStorage.getItem("finveric-sale") ?? "",
   );
@@ -119,14 +126,14 @@ export function App() {
   const reload = useCallback(async () => {
     const [newSales, newTraces] = await Promise.all([
       api<Sale[]>("/sales"),
-      api<Trace[]>("/traces"),
+      api<TraceDto[]>("/traces"),
     ]);
     setSales(newSales);
     setTraces(newTraces);
     setSalesReady(true);
   }, []);
   useEffect(() => {
-    api<{ requiresToken: boolean }>("/config")
+    api<ConfigDto>("/config")
       .then((c) => {
         setTokenRequired(c.requiresToken);
         return reload();
@@ -168,9 +175,9 @@ export function App() {
         navigate(channel.enroll);
         return;
       }
-      const result = await api<{ id: string }>("/sales", {
+      const result = await api<OpenSaleResponse>("/sales", {
         productId: product.id,
-      });
+      } satisfies OpenSaleRequest);
       setDraftId(result.id);
       sessionStorage.setItem("finveric-draft", result.id);
       navigate(channel.enroll);
@@ -181,7 +188,7 @@ export function App() {
     !draft.submissionPending &&
     run("가입을 중단하고 있어요", async () => {
       const product = saleProduct(draft);
-      await api(`/sales/${draft.id}/action/abandon`, {});
+      await api<AbandonResponse>(`/sales/${draft.id}/action/abandon`, {});
       sessionStorage.removeItem("finveric-draft");
       sessionStorage.removeItem(draftProofKey(draft.id));
       setDraftId("");
@@ -193,18 +200,19 @@ export function App() {
     setRecordsProduct(saleProduct(draft)?.id ?? "");
     select(id);
   };
-  const action = (name: string) =>
+  const action = (name: SaleAction) =>
     sale &&
     run("가입 상태 업데이트 중", () =>
-      api(`/sales/${sale.id}/action/${name}`, {}),
+      api<SaleActionDto>(`/sales/${sale.id}/action/${name}`, {}),
     );
-  const download = (kind: string, modified = false) =>
+  const download = (kind: ExportKind, modified = false) =>
     record &&
     run("파일 준비 중", async () => {
-      const value = await api<OriginalBundle>(
+      const value = await api<ExportResponse[ExportKind]>(
         `/sales/${record.id}/export/${kind}`,
       );
-      if (modified && value.attempts.length)
+      // 변경 탐지 시연: 원본 사본의 첫 답변만 바꾼다.
+      if (modified && "attempts" in value && value.attempts.length)
         value.attempts[0].answers.loss =
           (value.attempts[0].answers.loss + 1) % 3;
       saveFile(
@@ -250,7 +258,9 @@ export function App() {
               traces={traces}
               busy={!!busy}
               register={() =>
-                run("상품·규칙 등록 중", () => api("/register", {}))
+                run("상품·규칙 등록 중", () =>
+                  api<RegisterResponse>("/register", {}),
+                )
               }
             />
           }

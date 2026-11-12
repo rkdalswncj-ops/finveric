@@ -1,21 +1,21 @@
 import { createPublicClient, http, keccak256, type Hex } from "viem";
 import { environment, deployment } from "../../../scripts/environment.ts";
 import { proofKeyHash } from "../../../scripts/artifacts.ts";
-import {
-  json,
-  type Answers,
-  type Trace,
-} from "../../../packages/core/src/index.ts";
+import { json, type Trace } from "../../../packages/core/src/index.ts";
+import type {
+  ConfirmRequest,
+  DiagnoseRequest,
+  SaleAction,
+  SaleActionView,
+} from "../../../packages/core/src/api.ts";
 import { createStore, FileStore, type SaleStore } from "./store.ts";
-import type { Confirmation, StoredSale } from "./modules/types.ts";
+import type { StoredSale } from "./modules/types.ts";
 import * as enrollment from "./modules/enrollment.ts";
 import * as ledger from "./modules/ledger.ts";
 import * as products from "./modules/products.ts";
 import * as purchase from "./modules/purchase.ts";
 import * as records from "./modules/records.ts";
 import * as review from "./modules/review.ts";
-
-export type { Confirmation } from "./modules/types.ts";
 
 /**
  * API의 상태와 실행 규칙: 배포 설정, 판매 기록, 저장, 잠금, 시작 검사.
@@ -168,13 +168,13 @@ export class FundService {
   open(productId?: Hex) {
     return enrollment.open(this, productId);
   }
-  diagnose(id: string, answers: Answers & { salt: string }) {
-    return enrollment.diagnose(this, id, answers);
+  diagnose(id: string, request: DiagnoseRequest) {
+    return enrollment.diagnose(this, id, request);
   }
-  confirm(id: string, confirmation: Confirmation) {
-    return enrollment.confirm(this, id, confirmation);
+  confirm(id: string, request: ConfirmRequest) {
+    return enrollment.confirm(this, id, request);
   }
-  async action(id: string, action: string) {
+  async action(id: string, action: SaleAction): Promise<SaleActionView> {
     const record = this.find(id);
     switch (action) {
       case "abandon":

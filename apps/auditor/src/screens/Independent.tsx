@@ -15,6 +15,10 @@ import type {
 import type { verifyEvidence } from "../../../../packages/core/src/verify.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
 import { api } from "../../../../packages/ui/src/api.ts";
+import type {
+  ConfigDto,
+  ExportResponse,
+} from "../../../../packages/core/src/api.ts";
 import {
   AccessCodeForm,
   Badge,
@@ -102,9 +106,7 @@ export function Independent({
       })
       .catch(async () => {
         if (!active) return;
-        const config = await api<{ requiresToken: boolean }>("/config").catch(
-          () => undefined,
-        );
+        const config = await api<ConfigDto>("/config").catch(() => undefined);
         if (active)
           setHistory({
             status: "error",
@@ -170,8 +172,8 @@ export function Independent({
       if (fromHistory) {
         try {
           [evidence, witness] = await Promise.all([
-            api<EvidenceReceipt>(`/sales/${saleId}/export/receipt`),
-            api<OriginalBundle>(`/sales/${saleId}/export/original`),
+            api<ExportResponse["receipt"]>(`/sales/${saleId}/export/receipt`),
+            api<ExportResponse["original"]>(`/sales/${saleId}/export/original`),
           ]);
         } catch {
           throw new Error(

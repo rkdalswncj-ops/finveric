@@ -23,6 +23,7 @@ import {
   won,
   type Sale,
 } from "../../../../packages/ui/src/sale.ts";
+import type { ExportKind } from "../../../../packages/core/src/api.ts";
 import ui from "../../../../packages/ui/src/ui.module.css";
 import local from "./channel.module.css";
 import { Empty, History, SaleSelect } from "../components.tsx";
@@ -44,7 +45,7 @@ export function Records({
   productFilter: string;
   filterProducts: (id: string) => void;
   select: (id: string) => void;
-  download: (kind: string, modified?: boolean) => unknown;
+  download: (kind: ExportKind, modified?: boolean) => unknown;
   busy: boolean;
 }) {
   const enrollment = enrollmentTrace(sale);

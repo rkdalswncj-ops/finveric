@@ -6,6 +6,7 @@ import {
   type OriginalBundle,
   type Trace,
 } from "../../../../packages/core/src/index.ts";
+import type { SaleView } from "../../../../packages/core/src/api.ts";
 import type { FundService } from "../service.ts";
 import type { StoredSale, StoredTrace } from "./types.ts";
 import { chainSale, reconcile } from "./ledger.ts";
@@ -27,7 +28,10 @@ export function enrollmentTrace(record: StoredSale) {
 }
 
 /** 공개 조회용 판매 건. 답변·임의값·서명 거래 원문은 넣지 않는다. */
-export async function publicSale(svc: FundService, record: StoredSale) {
+export async function publicSale(
+  svc: FundService,
+  record: StoredSale,
+): Promise<SaleView> {
   const product = requireProduct(record.productId);
   const onchain = enrollmentTrace(record)
     ? await chainSale(svc, record.id)
@@ -70,7 +74,7 @@ export async function publicSale(svc: FundService, record: StoredSale) {
 }
 
 /** 모든 처리 기록을 시간순으로 돌려준다. 대기 중인 거래는 먼저 영수증을 대조한다. */
-export async function publicTraces(svc: FundService) {
+export async function publicTraces(svc: FundService): Promise<Trace[]> {
   await reconcile(svc);
   return [
     ...svc.systemTraces,

@@ -2,20 +2,24 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { timingSafeEqual } from "node:crypto";
-import type { Hex } from "viem";
+import { DOCUMENT, PRODUCTS, json } from "../../../packages/core/src/index.ts";
 import {
-  DOCUMENT,
-  PRODUCTS,
-  json,
-  type Answers,
-} from "../../../packages/core/src/index.ts";
-import { FundService, type Confirmation } from "./service.ts";
+  confirmBodySchema,
+  diagnoseBodySchema,
+  exportParamsSchema,
+  saleActionParamsSchema,
+  saleIdParamsSchema,
+  type ConfigResponse,
+  type ConfirmRequest,
+  type DiagnoseRequest,
+  type ExportParams,
+  type HealthResponse,
+  type OpenSaleRequest,
+  type SaleActionParams,
+  type SaleIdParams,
+} from "../../../packages/core/src/api.ts";
+import { FundService } from "./service.ts";
 
-const idSchema = {
-  type: "object",
-  required: ["id"],
-  properties: { id: { type: "string", pattern: "^[1-9][0-9]{0,76}$" } },
-};
 /** 로컬 Vite 개발 서버. client·auditor 앱이 각자 다른 포트를 쓴다. */
 const DEV_ORIGINS = [5173, 5174].flatMap((port) => [
   `http://localhost:${port}`,
@@ -105,11 +109,12 @@ export async function createApp(service = new FundService()) {
         : "서버 연결과 온체인 처리 기록을 확인하세요.";
     reply.code(409).send({ error: safe });
   });
-  app.get("/api/health", async () => ({
+  // 요청·응답 형식은 packages/core/src/api.ts의 DTO와 스키마를 따른다.
+  app.get("/api/health", async (): Promise<HealthResponse> => ({
     ok: true,
     chainId: service.dep.chainId,
   }));
-  app.get("/api/config", async () => ({
+  app.get("/api/config", async (): Promise<ConfigResponse> => ({
     deployment: service.dep,
     product: DOCUMENT,
     products: PRODUCTS,
@@ -120,9 +125,9 @@ export async function createApp(service = new FundService()) {
       Promise.all(service.sales.map((s) => service.publicSale(s))),
     ),
   );
-  app.get<{ Params: { id: string } }>(
+  app.get<{ Params: SaleIdParams }>(
     "/api/sales/:id",
-    { schema: { params: idSchema } },
+    { schema: { params: saleIdParamsSchema } },
     async (req) =>
       service.view(() => service.publicSale(service.find(req.params.id))),
   );
@@ -132,106 +137,43 @@ export async function createApp(service = new FundService()) {
   app.post("/api/register", async () =>
     service.exclusive(() => service.register()),
   );
-  app.post<{ Body: { productId?: Hex } | undefined }>(
-    "/api/sales",
-    async (req) => {
-      const body = req.body;
-      if (
-        body !== undefined &&
-        (!body || typeof body !== "object" || Array.isArray(body))
-      )
-        throw new Error("가입할 펀드를 확인해 주세요.");
-      const productId = body?.productId;
-      if (
-        productId !== undefined &&
-        (typeof productId !== "string" ||
-          !/^0x[0-9a-fA-F]{64}$/.test(productId))
-      )
-        throw new Error("가입할 펀드를 확인해 주세요.");
-      return service.exclusive(() => service.open(productId));
-    },
-  );
-  app.post<{ Params: { id: string }; Body: Answers & { salt: string } }>(
+  // 본문 없이 보내도 된다. 그래서 스키마 대신 직접 검사한다.
+  app.post<{ Body: OpenSaleRequest | undefined }>("/api/sales", async (req) => {
+    const body = req.body;
+    if (
+      body !== undefined &&
+      (!body || typeof body !== "object" || Array.isArray(body))
+    )
+      throw new Error("가입할 펀드를 확인해 주세요.");
+    const productId = body?.productId;
+    if (
+      productId !== undefined &&
+      (typeof productId !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(productId))
+    )
+      throw new Error("가입할 펀드를 확인해 주세요.");
+    return service.exclusive(() => service.open(productId));
+  });
+  app.post<{ Params: SaleIdParams; Body: DiagnoseRequest }>(
     "/api/sales/:id/diagnose",
-    {
-      schema: {
-        params: idSchema,
-        body: {
-          type: "object",
-          additionalProperties: false,
-          required: ["loss", "experience", "salt"],
-          properties: {
-            loss: { type: "integer", minimum: 0, maximum: 2 },
-            experience: { type: "integer", minimum: 0, maximum: 2 },
-            salt: { type: "string", pattern: "^[1-9][0-9]{0,76}$" },
-          },
-        },
-      },
-    },
+    { schema: { params: saleIdParamsSchema, body: diagnoseBodySchema } },
     async (req) =>
       service.exclusive(() => service.diagnose(req.params.id, req.body)),
   );
-  app.post<{ Params: { id: string }; Body: Confirmation }>(
+  app.post<{ Params: SaleIdParams; Body: ConfirmRequest }>(
     "/api/sales/:id/confirm",
-    {
-      schema: {
-        params: idSchema,
-        body: {
-          type: "object",
-          additionalProperties: false,
-          required: [
-            "round",
-            "commitment",
-            "profile",
-            "explanationAccepted",
-            "higherRiskAccepted",
-          ],
-          properties: {
-            round: { type: "integer", minimum: 1, maximum: 10 },
-            commitment: { type: "string", pattern: "^[1-9][0-9]{0,76}$" },
-            profile: { type: "integer", minimum: 1, maximum: 3 },
-            explanationAccepted: { const: true },
-            higherRiskAccepted: { type: "boolean" },
-          },
-        },
-      },
-    },
+    { schema: { params: saleIdParamsSchema, body: confirmBodySchema } },
     async (req) =>
       service.exclusive(() => service.confirm(req.params.id, req.body)),
   );
-  app.post<{ Params: { id: string; action: string } }>(
+  app.post<{ Params: SaleActionParams }>(
     "/api/sales/:id/action/:action",
-    {
-      schema: {
-        params: {
-          type: "object",
-          required: ["id", "action"],
-          properties: {
-            id: { type: "string", pattern: "^[1-9][0-9]{0,76}$" },
-            action: {
-              enum: ["review", "abandon", "purchase"],
-            },
-          },
-        },
-      },
-    },
+    { schema: { params: saleActionParamsSchema } },
     async (req) =>
       service.exclusive(() => service.action(req.params.id, req.params.action)),
   );
-  app.get<{ Params: { id: string; kind: string } }>(
+  app.get<{ Params: ExportParams }>(
     "/api/sales/:id/export/:kind",
-    {
-      schema: {
-        params: {
-          type: "object",
-          required: ["id", "kind"],
-          properties: {
-            id: { type: "string", pattern: "^[1-9][0-9]{0,76}$" },
-            kind: { enum: ["receipt", "original"] },
-          },
-        },
-      },
-    },
+    { schema: { params: exportParamsSchema } },
     async (req, reply) => {
       reply.header(
         "Content-Disposition",
