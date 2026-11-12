@@ -20,7 +20,7 @@ Docker만 있으면 된다. Anvil, API, client, auditor를 한 컨테이너에�
 docker compose up --build
 ```
 
-첫 실행은 이미지를 만들고, 증명 키를 만들고, 컨트랙트를 배포하므로 몇 분 걸린다. 로그에 `FINVERIC 기관 업무`가 보이면 [client 앱](http://localhost:5173)과 [auditor 앱](http://localhost:5174/auditor/)을 연다. 원장 상태와 판매 기록은 Docker 볼륨에 남는다. `docker compose down`으로 멈춘다. `docker compose down -v`는 기록까지 지운다.
+첫 실행은 이미지를 만들고, 증명 키를 만들고, 컨트랙트를 배포하므로 몇 분 걸린다. 컨트랙트가 준비되면 `docker compose ps`의 상태가 `healthy`로 바뀐다. 이 상태는 [health API](http://localhost:3001/api/health)가 RPC·원장·저장소를 점검한 결과다. 그 뒤 [client 앱](http://localhost:5173/client/)과 [auditor 앱](http://localhost:5174/auditor/)을 연다. 원장 상태와 판매 기록은 Docker 볼륨에 남는다. `docker compose down`으로 멈춘다. `docker compose down -v`는 기록까지 지운다.
 
 ### Node
 
@@ -31,7 +31,7 @@ npm ci
 npm run dev
 ```
 
-[client 앱 열기](http://127.0.0.1:5173) · [auditor 앱 열기](http://127.0.0.1:5174/auditor/). 첫 실행은 증명 키를 만들고 컨트랙트를 배포하므로 시간이 더 걸린다. 기본 포트는 client 5173, auditor 5174, API 3001, Anvil 8545다. 먼저 client 앱의 **상품·문서 관리**에서 세 상품의 설명서 v1과 진단 규칙 v3을 등록한다. **판매 채널 시연**의 펀드 찾기에서 가입을 시작한다. `Ctrl+C`로 종료한다.
+[client 앱 열기](http://127.0.0.1:5173/client/) · [auditor 앱 열기](http://127.0.0.1:5174/auditor/). 첫 실행은 증명 키를 만들고 컨트랙트를 배포하므로 시간이 더 걸린다. 기본 포트는 client 5173, auditor 5174, API 3001, Anvil 8545다. 먼저 client 앱의 **상품·문서 관리**에서 세 상품의 설명서 v1과 진단 규칙 v3을 등록한다. **판매 채널 시연**의 펀드 찾기에서 가입을 시작한다. `Ctrl+C`로 종료한다.
 
 서버를 실행한 상태에서 다른 터미널로 `npm run demo`를 실행한다. 세 상품의 가입과 상품별 위험 확인을 시연한다. 고객 확인 뒤 상품마다 가입 거래 한 건을 제출한다. RPC 독립 검증과 원본 변경 탐지 결과는 `.local/demo/v4/`에 저장한다. auditor 앱의 **독립 검증**에서 `receipt.json`과 `original.json`을 열어 대조한다. `modified.json`은 불일치를 보여준다.
 

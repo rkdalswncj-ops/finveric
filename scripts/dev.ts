@@ -108,7 +108,7 @@ try {
   });
   run("npm", ["run", "dev", "-w", "@finveric/auditor"]);
   console.log(
-    "FINVERIC 기관 업무: http://127.0.0.1:5173 · 독립 검증: http://127.0.0.1:5174/auditor/ · Ctrl+C로 종료",
+    "FINVERIC 기관 업무: http://127.0.0.1:5173/client/ · 독립 검증: http://127.0.0.1:5174/auditor/ · Ctrl+C로 종료",
   );
 } catch (error) {
   stop();

@@ -48,6 +48,14 @@ test("공유 저장소 잠금은 인스턴스 사이에서 한 작업만 실행�
   assert.equal(await a.read(), second);
 });
 
+test("저장소 연결 점검(ping)은 기록을 읽지 않고 응답만 확인한다", async () => {
+  const upstash = fakeUpstash();
+  await store(upstash).ping();
+  assert.equal(upstash.commands, 1);
+  const file = new FileStore(join(tmpdir(), "finveric-ping-test", "s.json"));
+  await file.ping();
+});
+
 test("잠금 밖에서는 공유 저장소에 쓰지 않는다", async () => {
   await assert.rejects(store(fakeUpstash()).write("x"), /잠금 안에서만 저장/);
 });

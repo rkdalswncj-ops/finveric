@@ -8,14 +8,20 @@ import tailwindcss from "@tailwindcss/vite";
 export const sharedPublic = fileURLToPath(new URL("./public", import.meta.url));
 
 /**
- * 개발 서버에서도 배포와 같이 루트 경로(/deployment.json)로 검증 설정을 제공한다.
- * auditor 개발 서버는 /auditor/ 아래에서 실행되므로 이 미들웨어가 필요하다.
+ * 개발 서버를 배포와 같은 경로로 맞춘다.
+ * - 루트(/)는 앱 경로(/client/, /auditor/)로 보낸다. 배포의 루트 리다이렉트와 같다.
+ * - 검증 설정은 배포처럼 사이트 루트(/deployment.json)에서 제공한다.
  */
-function deploymentFiles(): Plugin {
+function devServerPaths(base: string): Plugin {
   return {
-    name: "finveric-deployment-files",
+    name: "finveric-dev-server-paths",
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
+        if (base !== "/" && req.url?.split("?")[0] === "/") {
+          res.statusCode = 302;
+          res.setHeader("location", base);
+          return res.end();
+        }
         const name = req.url
           ?.split("?")[0]
           .match(/^\/(deployment(?:-v[1-3])?\.json)$/)?.[1];
@@ -42,7 +48,7 @@ export function finvericVite({
   return defineConfig({
     base,
     publicDir,
-    plugins: [react(), tailwindcss(), deploymentFiles()],
+    plugins: [react(), tailwindcss(), devServerPaths(base)],
     server: {
       // Docker에서는 FINVERIC_HOST=0.0.0.0으로 컨테이너 밖에서 접속하게 한다.
       host: process.env.FINVERIC_HOST ?? "127.0.0.1",

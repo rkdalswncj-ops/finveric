@@ -5,7 +5,7 @@ import { App } from "./App.tsx";
 import "../../../packages/ui/src/theme.css";
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename="/client">
       <App />
     </BrowserRouter>
   </React.StrictMode>,

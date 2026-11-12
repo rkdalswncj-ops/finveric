@@ -1,4 +1,6 @@
 import {
+  accessSync,
+  constants,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -21,6 +23,8 @@ export interface SaleStore {
   read(): Promise<string | undefined>;
   write(data: string): Promise<void>;
   lock<T>(operation: () => Promise<T>): Promise<T>;
+  /** 저장소에 접근할 수 있는지 가볍게 확인한다. health 점검에 쓴다. */
+  ping(): Promise<void>;
 }
 
 export class FileStore implements SaleStore {
@@ -47,6 +51,13 @@ export class FileStore implements SaleStore {
   // 한 프로세스 안의 순서는 FundService의 큐가 지킨다.
   lock<T>(operation: () => Promise<T>) {
     return operation();
+  }
+  async ping() {
+    try {
+      accessSync(dirname(this.file), constants.R_OK | constants.W_OK);
+    } catch {
+      throw new Error("판매 기록 파일에 접근하지 못했습니다.");
+    }
   }
 }
 
@@ -100,6 +111,10 @@ export class RedisStore implements SaleStore {
   async read() {
     const result = await this.command(["GET", this.dataKey]);
     return typeof result === "string" ? result : undefined;
+  }
+  async ping() {
+    if ((await this.command(["PING"])) !== "PONG")
+      throw new Error("판매 기록 저장소가 응답하지 않습니다.");
   }
   async write(data: string) {
     if (!this.owner)

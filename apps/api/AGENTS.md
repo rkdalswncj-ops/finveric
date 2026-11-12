@@ -26,6 +26,7 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
 | `src/modules/review.ts`       | 준법 담당자: 세 번째 진단부터 검토 서명                                              |
 | `src/modules/purchase.ts`     | 기존 펀드 업무 인프라: 모의 매입                                                     |
 | `src/modules/records.ts`      | 공개 조회, 처리 기록, 고객 증빙(영수증·원본)                                         |
+| `src/modules/health.ts`       | 운영: RPC·원장·저장소 점검(`/api/health`, 실패 시 503)                               |
 | `src/modules/transactions.ts` | 원장 거래 처리 기록: 제출 기록, 영수증 대조                                          |
 | `src/repositories/sales.ts`   | `SaleRepository`: 판매 건·처리 기록, 저장, 잠금(`transaction`, `read`)               |
 | `src/repositories/store.ts`   | 저장 방식: 로컬 `FileStore`, Vercel `RedisStore`                                     |

@@ -53,7 +53,8 @@ if (deployment.chainId !== chainIds[network])
 if (deployment.ledgerVersion !== 4 || deployment.ruleVersion !== 3)
   fail("가입 원장 v4와 진단 규칙 v3 배포 설정이 필요합니다.");
 
-// client(기관 업무·판매 채널 시연)는 사이트 루트, auditor(독립 검증)는 /auditor/에 둔다.
+// client(기관 업무·판매 채널 시연)는 /client/, auditor(독립 검증)는 /auditor/에 둔다.
+// 루트(/)는 /client/로 보낸다. 검증 설정은 두 앱이 함께 쓰도록 사이트 루트에 둔다.
 const client = "apps/client/dist";
 const auditor = "apps/auditor/dist";
 for (const web of [client, auditor])
@@ -62,12 +63,18 @@ for (const web of [client, auditor])
 
 const out = ".vercel/output";
 rmSync(out, { recursive: true, force: true });
-cpSync(client, `${out}/static`, { recursive: true });
+cpSync(client, `${out}/static/client`, { recursive: true });
 cpSync(auditor, `${out}/static/auditor`, { recursive: true });
 writeFileSync(
   `${out}/static/deployment.json`,
   JSON.stringify(deployment, null, 2) + "\n",
 );
+// 이전 원장(v1~v3)의 검증 설정. 로컬에만 있고 Git에는 없다.
+for (const version of [1, 2, 3]) {
+  const legacy = `packages/ui/public/deployment-v${version}.json`;
+  if (existsSync(legacy))
+    cpSync(legacy, `${out}/static/deployment-v${version}.json`);
+}
 
 const func = `${out}/functions/api.func`;
 await build({
@@ -115,10 +122,11 @@ writeFileSync(
     {
       version: 3,
       routes: [
+        { src: "^/$", status: 308, headers: { Location: "/client/" } },
         { src: "^/api(?:/(.*))?$", dest: "/api?__path=$1" },
         { handle: "filesystem" },
+        { src: "^/client(?:/.*)?$", dest: "/client/index.html" },
         { src: "^/auditor(?:/.*)?$", dest: "/auditor/index.html" },
-        { src: "^/(.*)$", dest: "/index.html" },
       ],
     },
     null,

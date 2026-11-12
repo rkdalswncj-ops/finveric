@@ -1,5 +1,5 @@
 # 로컬 시연: docker compose up --build
-# client http://localhost:5173 · auditor http://localhost:5174/auditor/ · API http://localhost:3001/api/health
+# client http://localhost:5173/client/ · auditor http://localhost:5174/auditor/ · API http://localhost:3001/api/health
 services:
   finveric:
     build: .
@@ -15,6 +15,17 @@ services:
       - circuits:/app/circuits/build
       - contracts-out:/app/out
       - contracts-cache:/app/cache
+    # /api/health가 RPC·원장·저장소를 점검한다. 첫 실행은 키 생성과 배포로 몇 분 걸린다.
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3001/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 300s
     init: true
     stop_grace_period: 15s
 

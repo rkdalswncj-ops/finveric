@@ -73,6 +73,10 @@ export class SaleRepository {
       ),
     ];
   }
+  /** 저장소에 접근할 수 있는지 확인한다. 기록은 읽지 않는다. */
+  ping() {
+    return this.store.ping();
+  }
   /** 제출했지만 영수증을 아직 대조하지 않은 거래가 있는지. */
   hasPendingTransaction() {
     return this.traces().some(

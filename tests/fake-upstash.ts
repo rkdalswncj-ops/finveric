@@ -13,6 +13,8 @@ export function fakeUpstash() {
   const run = (args: string[]): unknown => {
     const [name, ...rest] = args;
     switch (name) {
+      case "PING":
+        return "PONG";
       case "GET":
         return get(rest[0]) ?? null;
       case "SET": {

@@ -15,6 +15,7 @@ import {
 import { SaleRepository, type StoredSale } from "./repositories/sales.ts";
 import { readChainId, readCodeHash } from "./gateways/ledger.ts";
 import * as enrollment from "./modules/enrollment.ts";
+import * as monitoring from "./modules/health.ts";
 import * as products from "./modules/products.ts";
 import * as purchase from "./modules/purchase.ts";
 import * as records from "./modules/records.ts";
@@ -101,6 +102,10 @@ export class FundService {
 
   // ── 업무 메서드 (modules/로 넘긴다) ─────────────────────────
 
+  /** RPC, 원장, 판매 기록 저장소 점검. */
+  health() {
+    return monitoring.health(this);
+  }
   reconcile(recoverInterrupted = false) {
     return transactions.reconcile(this, recoverInterrupted);
   }

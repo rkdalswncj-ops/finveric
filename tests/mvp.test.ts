@@ -750,6 +750,38 @@ test(
       },
     );
     await t.test(
+      "health는 RPC·원장·저장소를 점검하고 하나라도 실패하면 503이다",
+      async () => {
+        const healthy = await app.inject({ url: "/api/health" });
+        assert.equal(healthy.statusCode, 200, healthy.body);
+        const body = healthy.json();
+        assert.equal(body.ok, true);
+        assert.equal(body.chainId, dep.chainId);
+        for (const name of ["rpc", "ledger", "store"])
+          assert.equal(body.checks[name].ok, true, name);
+
+        // 닫힌 포트의 RPC. 저장소 점검은 그대로 통과해야 한다.
+        const broken = new FundService({
+          env: { ...env, rpcUrl: "http://127.0.0.1:1" },
+          dep,
+          file: directory + "/health.json",
+        });
+        const brokenApp = await createApp(broken);
+        try {
+          const failed = await brokenApp.inject({ url: "/api/health" });
+          assert.equal(failed.statusCode, 503, failed.body);
+          const result = failed.json();
+          assert.equal(result.ok, false);
+          assert.equal(result.checks.rpc.ok, false);
+          assert.equal(result.checks.store.ok, true);
+          // 오류에 RPC 주소를 노출하지 않는다.
+          assert.doesNotMatch(failed.body, /127\.0\.0\.1:1|http/);
+        } finally {
+          await brokenApp.close();
+        }
+      },
+    );
+    await t.test(
       "서버 재시작 뒤 확정 이력을 복구하고 거래를 중복 제출하지 않는다",
       async () => {
         const trace = service

@@ -106,7 +106,20 @@ export const exportParamsSchema = {
 // ── 응답 DTO ─────────────────────────────────────────────────
 // `...View`는 서버가 만드는 값(bigint 포함), `...Dto`는 웹이 받는 값이다.
 
-export type HealthResponse = { ok: true; chainId: number };
+/** 의존성 하나의 점검 결과. 실패 이유는 우리가 쓴 문장만 담는다. */
+export type HealthCheck = { ok: boolean; ms: number; error?: string };
+
+/**
+ * GET `/api/health`. RPC 연결과 체인 ID, 원장 코드, 판매 기록 저장소를 점검한다.
+ * 모두 정상이면 200, 하나라도 실패하면 503이다. 접근 코드 없이 열린다.
+ */
+export type HealthResponse = {
+  ok: boolean;
+  network: string;
+  chainId: number;
+  ledger: Hex;
+  checks: { rpc: HealthCheck; ledger: HealthCheck; store: HealthCheck };
+};
 
 /** GET `/api/config`. 검증 설정과 상품 목록. */
 export type ConfigResponse = {

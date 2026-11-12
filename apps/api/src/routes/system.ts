@@ -12,10 +12,13 @@ export function systemRoutes(
   service: FundService,
   { requiresToken }: { requiresToken: boolean },
 ) {
-  app.get("/api/health", async (): Promise<HealthResponse> => ({
-    ok: true,
-    chainId: service.dep.chainId,
-  }));
+  // 모두 정상이면 200, 하나라도 실패하면 503. Docker healthcheck와 배포 확인에 쓴다.
+  app.get("/api/health", async (_req, reply): Promise<HealthResponse> => {
+    const result = await service.health();
+    if (!result.ok) reply.code(503);
+    reply.header("Cache-Control", "no-store");
+    return result;
+  });
   app.get("/api/config", async (): Promise<ConfigResponse> => ({
     deployment: service.dep,
     product: DOCUMENT,
