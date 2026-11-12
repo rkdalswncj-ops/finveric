@@ -25,8 +25,8 @@
   padding: 0 9px;
   color: var(--foreground);
   font-size: var(--type-heading);
-  font-weight: 750;
-  letter-spacing: -0.04em;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   text-decoration: none;
 }
 .brand > span {
@@ -34,7 +34,7 @@
   height: 30px;
   background: var(--primary);
   color: var(--primary-foreground);
-  border-radius: 9px;
+  border-radius: var(--rounded-control);
   display: grid;
   place-items: center;
 }
@@ -63,17 +63,16 @@
   padding: 11px 12px;
   min-height: 44px;
   color: var(--muted-foreground);
-  border-radius: 8px;
+  border-radius: var(--rounded-control);
   font-size: var(--type-ui);
   font-weight: 600;
   margin-bottom: 5px;
 }
-.navItem:hover {
-  background: var(--muted);
-}
+/* 현재 메뉴는 색에 더해 왼쪽 막대로 표시한다. 좁은 화면(가로 메뉴)에서는 아래 막대다. */
 .navItem.active {
   color: var(--primary);
   background: var(--primary-surface);
+  box-shadow: inset 3px 0 0 var(--primary);
   font-weight: 700;
 }
 .sidebarEnd {
@@ -87,15 +86,11 @@
   gap: 8px;
   min-height: 36px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--rounded-control);
   color: var(--muted-foreground);
-  font-size: var(--type-caption);
+  font-size: var(--type-ui);
   font-weight: 600;
   text-decoration: none;
-}
-.entryLink:hover {
-  background: var(--muted);
-  color: var(--foreground);
 }
 .sidebarFoot {
   padding: 14px 10px 0;
@@ -162,7 +157,8 @@
   color: var(--muted-foreground);
   white-space: nowrap;
 }
-.blue {
+/* 처리를 기다리는 상태(승인 대기, 청약, 숙려 중)와 안내 */
+.info {
   background: var(--primary-surface);
   color: var(--primary);
 }
@@ -180,10 +176,10 @@
 }
 .notice {
   padding: 14px 17px;
-  border-radius: 8px;
+  border-radius: var(--rounded-control);
   background: var(--muted);
   color: var(--muted-foreground);
-  font-size: var(--type-caption);
+  font-size: var(--type-detail);
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -218,7 +214,7 @@
   background: var(--primary-surface);
   color: var(--primary);
   padding: 14px 17px;
-  border-radius: 8px;
+  border-radius: var(--rounded-control);
   margin-bottom: 20px;
 }
 .spin {
@@ -229,13 +225,24 @@
     transform: rotate(360deg);
   }
 }
+/* 움직임을 줄이면 돌지 않고 천천히 깜박인다. theme.css의 * 규칙보다 이 클래스가 앞선다. */
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: pulse 1.6s ease-in-out infinite alternate !important;
+  }
+}
+@keyframes pulse {
+  to {
+    opacity: 0.4;
+  }
+}
 .access {
   display: flex;
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--rounded-control);
   padding: 16px;
   margin-bottom: 24px;
   font-size: var(--type-ui);
@@ -249,14 +256,19 @@
   gap: 7px;
   flex-wrap: wrap;
 }
-.chips button {
+/* 필터 칩. 화면을 바꾸는 칩은 링크(a)로 쓴다. */
+.chips button,
+.chips a {
+  display: inline-flex;
+  align-items: center;
   min-height: 38px;
   background: var(--card);
   border: 1px solid var(--border);
   color: var(--muted-foreground);
-  border-radius: 7px;
+  border-radius: var(--rounded-control);
   padding: 7px 13px;
-  font-size: var(--type-caption);
+  font-size: var(--type-ui);
+  text-decoration: none;
 }
 .chips .chipActive {
   background: var(--foreground);
@@ -271,8 +283,21 @@
 .panel {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--rounded-surface);
   min-width: 0;
+}
+/* 표가 패널 아래 끝에 닿으면 마지막 행의 아래 선이 패널 테두리와 겹친다. 그 선은 그리지 않는다. */
+:is(.panel.tableWrap, .panel > .tableWrap:last-child) tbody tr:last-child > * {
+  border-bottom: 0;
+}
+/* 패널 안 표의 제목. 패널 제목(h2)과 같은 크기다. */
+caption.tableCaption {
+  padding: 18px 20px 12px;
+  color: var(--foreground);
+  font-size: var(--type-title);
+  font-weight: 700;
+  line-height: var(--type-line-heading);
+  letter-spacing: -0.01em;
 }
 .pad {
   padding: 24px;
@@ -376,7 +401,7 @@
 }
 .cardList li {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--rounded-control);
   padding: 14px 16px;
 }
 .cardList li:first-child {
@@ -412,13 +437,14 @@
   width: min(400px, calc(100vw - 32px));
   margin: auto;
   padding: 24px;
-  border: 0;
-  border-radius: 16px;
+  /* 투명 테두리: 강제 색상 모드에서 창의 테두리가 보인다. */
+  border: 1px solid transparent;
+  border-radius: var(--rounded-action);
   background: var(--card);
   color: var(--foreground);
 }
 .dialog::backdrop {
-  background: rgb(25 31 40 / 0.45);
+  background: var(--overlay);
 }
 .dialog h2 {
   font-size: var(--type-title);
@@ -464,7 +490,7 @@
   padding: 20px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--rounded-surface);
   color: inherit;
   text-decoration: none;
 }
@@ -481,12 +507,12 @@
   color: var(--muted-foreground);
   font-size: var(--type-caption);
 }
-a.stat:hover {
-  border-color: var(--primary);
-}
-/* 표에서 고른 행 */
+/* 표에서 고른 행. 옅은 바탕에 더해 첫 칸 왼쪽 막대로 표시한다. */
 .selectedRow {
   background: var(--primary-surface);
+}
+.selectedRow > :first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
 }
 /* 글자 링크처럼 보이는 버튼. 글자 크기는 주변을 따른다. */
 .linkButton {
@@ -504,6 +530,22 @@ a.stat:hover {
   height: 1px;
   overflow: hidden;
   clip-path: inset(50%);
+}
+/* 마우스가 있는 기기에서만 hover를 쓴다. 터치 뒤에 hover가 남지 않는다. */
+@media (hover: hover) {
+  .navItem:hover {
+    background: var(--muted);
+  }
+  .entryLink:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+  .chips :is(button, a):not(.chipActive):hover {
+    background: var(--muted);
+  }
+  a.stat:hover {
+    border-color: var(--primary);
+  }
 }
 @media (min-width: 1600px) {
   .main {
@@ -597,6 +639,9 @@ a.stat:hover {
   .navItem svg {
     width: 15px;
   }
+  .navItem.active {
+    box-shadow: inset 0 -3px 0 var(--primary);
+  }
   .topbar {
     min-height: 56px;
     padding: 12px 24px;
@@ -612,9 +657,6 @@ a.stat:hover {
     flex-direction: column;
     gap: 16px;
   }
-  .heading p {
-    font-size: var(--type-ui);
-  }
   .pad {
     padding: 20px;
   }
@@ -625,16 +667,14 @@ a.stat:hover {
     align-items: flex-start;
     flex-direction: column;
   }
-  .facts > div {
-    font-size: var(--type-caption);
-  }
   .actions > button {
     flex: 1 1 100%;
   }
   .shell > .skip {
     left: 24px;
   }
-  .chips button {
+  .chips button,
+  .chips a {
     min-height: 44px;
   }
   .alert {

@@ -27,14 +27,10 @@ export function LedgerLine({ ledger }: { ledger: Ledger }) {
       <Button
         variant="outline"
         type="button"
-        disabled={ledger.loading}
+        busy={ledger.loading}
         onClick={() => void ledger.reload()}
       >
-        {ledger.loading ? (
-          <LoaderCircle className={s.spin} size={15} />
-        ) : (
-          <RefreshCw size={15} />
-        )}
+        {!ledger.loading && <RefreshCw size={16} />}
         원장 다시 읽기
       </Button>
     </div>

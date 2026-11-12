@@ -10,14 +10,14 @@
   gap: 10px;
   font-weight: 800;
   font-size: var(--type-heading);
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
 }
 .brand span {
   display: grid;
   place-items: center;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: var(--rounded-control);
   background: var(--primary);
   color: var(--primary-foreground);
 }
@@ -44,12 +44,14 @@
   padding: 24px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--rounded-surface);
   color: inherit;
   text-decoration: none;
 }
-.role:hover {
-  border-color: var(--primary);
+@media (hover: hover) {
+  .role:hover {
+    border-color: var(--primary);
+  }
 }
 .role:focus-visible {
   outline: 2px solid var(--ring);
@@ -108,7 +110,7 @@
   padding: 24px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--rounded-surface);
 }
 .ledger h2 {
   margin: 0 0 16px;

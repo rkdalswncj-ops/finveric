@@ -1,7 +1,4 @@
-/* 판매사 업무: 대시보드, 진단 기준, 상품 관리, 판매·검토, 위험 신호, 온체인 처리 */
-.tableCaption {
-  padding: 16px;
-}
+/* 판매사 업무: 대시보드, 진단 기준, 상품 관리, 판매·검토, 위험 신호, 온체인 처리. 표 제목은 ui의 tableCaption이다. */
 .spaced {
   margin-top: 24px;
 }
@@ -53,12 +50,9 @@
   text-align: left;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--rounded-control);
   padding: 12px 14px;
   font-size: var(--type-ui);
-}
-.versionList button:hover {
-  background: var(--muted);
 }
 .versionList .versionActive {
   border-color: var(--primary);
@@ -83,7 +77,7 @@
 }
 .questionEdit {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--rounded-control);
   padding: 14px 16px 16px;
   margin: 16px 0;
   min-width: 0;
@@ -207,11 +201,10 @@
   border-bottom: 1px solid var(--border);
   background: var(--card);
 }
-.logList > button:hover {
-  background: var(--muted);
-}
+/* 고른 기록. 옅은 바탕에 더해 왼쪽 막대로 표시한다(ui의 selectedRow와 같다). */
 .logList > .logSelected {
   background: var(--primary-surface);
+  box-shadow: inset 3px 0 0 var(--primary);
 }
 .logList time {
   font-family: var(--type-mono);
@@ -235,8 +228,11 @@
   padding: 24px;
   min-width: 0;
 }
-.logDetail h2 {
-  font-size: var(--type-heading);
+@media (hover: hover) {
+  .versionList button:hover,
+  .logList > button:not(.logSelected):hover {
+    background: var(--muted);
+  }
 }
 @media (max-width: 1150px) {
   .editorGrid {

@@ -171,7 +171,7 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
       </section>
       <section className={`${s.panel} ${s.tableWrap} ${s.section}`}>
         <table>
-          <caption className={s.panelNote}>신호 조건</caption>
+          <caption className={s.tableCaption}>신호 조건</caption>
           <thead>
             <tr>
               <th scope="col">신호</th>

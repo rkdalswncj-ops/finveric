@@ -4,24 +4,37 @@ import { AlertTriangle, FileText } from "lucide-react";
 import { Button } from "./button.tsx";
 import s from "./ui.module.css";
 
+/**
+ * 상태 색. 색은 상태를 뜻할 때만 쓴다. 종류(추가·삭제, 필수 등)는 neutral로 쓴다.
+ * info는 처리를 기다리는 상태(승인 대기, 청약, 숙려 중)와 안내다.
+ */
+export type Tone = "neutral" | "info" | "success" | "warning" | "danger";
+const TONE_CLASSES: Record<Tone, string> = {
+  neutral: "",
+  info: s.info,
+  success: s.success,
+  warning: s.warning,
+  danger: s.danger,
+};
+
 export function Badge({
   children,
   tone = "neutral",
 }: {
   children: ReactNode;
-  tone?: string;
+  tone?: Tone;
 }) {
-  return <span className={`${s.badge} ${s[tone] ?? ""}`}>{children}</span>;
+  return <span className={`${s.badge} ${TONE_CLASSES[tone]}`}>{children}</span>;
 }
 export function Notice({
   children,
   tone = "neutral",
 }: {
   children: ReactNode;
-  tone?: string;
+  tone?: Tone;
 }) {
   return (
-    <div className={`${s.notice} ${s[tone] ?? ""}`}>
+    <div className={`${s.notice} ${TONE_CLASSES[tone]}`}>
       <AlertTriangle size={17} />
       <div>{children}</div>
     </div>
@@ -147,7 +160,7 @@ export function AccessCodeForm({
         onChange={(e) => setAccessCode(e.target.value)}
         autoComplete="off"
       />
-      <Button disabled={busy}>연결하기</Button>
+      <Button busy={busy}>연결하기</Button>
     </form>
   );
 }

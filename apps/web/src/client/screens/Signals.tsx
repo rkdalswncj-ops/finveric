@@ -56,7 +56,7 @@ export function Signals({
         title="위험 신호를 확인하세요"
         description={`진단 ${SIGNAL_THRESHOLDS.repeatAttempts}회 이상, 투자성향이 오른 회차로 청약, 부적합 가입 확정, 설명 확인 ${SIGNAL_THRESHOLDS.shortExplanationSeconds}초 미만, ${SIGNAL_THRESHOLDS.shortIntervalSeconds / 60}분 안의 재진단을 신호로 표시합니다. 근거는 원장 기록입니다.`}
       />
-      <div className={s.chips} aria-label="위험 신호 종류 필터">
+      <div className={s.chips} role="group" aria-label="위험 신호 종류 필터">
         {(["", ...SIGNAL_KINDS] as const).map((value) => (
           <button
             key={value || "all"}

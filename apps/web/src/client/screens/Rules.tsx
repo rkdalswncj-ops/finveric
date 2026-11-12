@@ -229,7 +229,7 @@ function RuleEditor({
           <Button
             variant="ghost"
             onClick={() => (changed ? setConfirmCancel(true) : cancel())}
-            disabled={busy}
+            blocked={busy}
           >
             편집 취소
           </Button>
@@ -399,7 +399,7 @@ function RuleEditor({
             </div>
             <Button
               variant="outline"
-              disabled={question.choices.length >= MAX_CHOICES}
+              blocked={question.choices.length >= MAX_CHOICES}
               onClick={() =>
                 edit((draft) => {
                   draft.questions[q].choices.push({ text: "", score: 0 });
@@ -413,7 +413,7 @@ function RuleEditor({
         ))}
         <Button
           variant="outline"
-          disabled={doc.questions.length >= MAX_QUESTIONS}
+          blocked={doc.questions.length >= MAX_QUESTIONS}
           onClick={() =>
             edit((draft) => {
               draft.questions.push({
@@ -504,7 +504,8 @@ function RuleEditor({
             ]}
           />
           <Button
-            disabled={busy || (showErrors && errors.length > 0)}
+            busy={busy}
+            blocked={showErrors && errors.length > 0}
             onClick={() =>
               errors.length ? setShowErrors(true) : void register()
             }
@@ -605,7 +606,7 @@ export function Rules({
         description="문항, 선택지 점수, 추출 조건, 등급 구간, 적합성 기준을 버전으로 등록합니다. 등록한 버전은 고칠 수 없고, 바꾸려면 새 버전을 등록합니다."
       >
         {!editing && base && (
-          <Button disabled={busy} onClick={() => setEditing(true)}>
+          <Button blocked={busy} onClick={() => setEditing(true)}>
             <Plus size={16} />새 버전 만들기
           </Button>
         )}

@@ -1,7 +1,4 @@
-/* 감독기관 화면: 대시보드, 분쟁 조회, 기준·상품 감사, 위험 신호, 보고서 */
-.page h2 {
-  font-size: var(--type-heading);
-}
+/* 감독기관 화면: 대시보드, 분쟁 조회, 기준·상품 감사, 위험 신호, 보고서. 패널 제목(h2)과 표 제목(ui의 tableCaption)은 같은 크기다. */
 .ledgerLine {
   display: flex;
   flex-wrap: wrap;
@@ -32,14 +29,6 @@
   justify-content: space-between;
   gap: 12px;
   padding: 18px 20px 0;
-}
-caption.tableCaption {
-  padding: 18px 20px 12px;
-  color: var(--foreground);
-  font-size: var(--type-heading);
-  font-weight: 700;
-  line-height: var(--type-line-heading);
-  letter-spacing: -0.01em;
 }
 .panelNote {
   color: var(--muted-foreground);
@@ -86,11 +75,15 @@ caption.tableCaption {
   white-space: normal;
   min-width: 220px;
 }
+/* 분쟁 조회의 조회 방법 칩(ui의 .chips) */
+.modes {
+  margin-bottom: 16px;
+}
 .toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--type-caption);
+  font-size: var(--type-ui);
   color: var(--muted-foreground);
   min-height: 44px;
 }
@@ -107,23 +100,15 @@ caption.tableCaption {
   gap: 12px;
   padding: 18px;
   border: 1px dashed var(--input);
-  border-radius: 8px;
+  border-radius: var(--rounded-control);
   font-size: var(--type-ui);
   margin: 12px 0;
 }
+/* 파일 선택 버튼 모양은 theme.css의 ::file-selector-button이다. */
 .upload input {
   font-size: var(--type-caption);
   width: 100%;
   min-height: 30px;
-}
-.upload input::file-selector-button {
-  background: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  color: var(--foreground);
-  min-height: 32px;
-  margin-right: 8px;
-  cursor: pointer;
 }
 .sources {
   border: 0;
@@ -179,7 +164,7 @@ caption.tableCaption {
 }
 .split > div {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--rounded-control);
   padding: 14px 16px;
   display: grid;
   gap: 6px;
@@ -251,7 +236,7 @@ caption.tableCaption {
 }
 .cards > div {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--rounded-control);
   padding: 14px 16px;
   font-size: var(--type-ui);
 }
@@ -261,7 +246,7 @@ caption.tableCaption {
 }
 .cards p {
   color: var(--muted-foreground);
-  font-size: var(--type-caption);
+  font-size: var(--type-ui);
 }
 .diff {
   list-style: none;
@@ -288,11 +273,13 @@ caption.tableCaption {
   margin-top: 4px;
   overflow-wrap: anywhere;
 }
+/* 추가·삭제는 상태가 아니라 종류다. 상태 색을 쓰지 않고 취소선과 굵기로 구분한다. */
 .diff del {
-  color: var(--destructive);
+  color: var(--muted-foreground);
 }
 .diff ins {
-  color: var(--success);
+  color: var(--foreground);
+  font-weight: 600;
   text-decoration: none;
 }
 .compare {

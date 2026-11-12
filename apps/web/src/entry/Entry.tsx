@@ -15,6 +15,7 @@ import {
   API_DOCS_HREF,
   CHANNEL_APP_HREF,
 } from "../../../../packages/ui/src/links.ts";
+import ui from "../../../../packages/ui/src/ui.module.css";
 import s from "./entry.module.css";
 
 const roles = [
@@ -98,7 +99,8 @@ export function Entry() {
             <li key={extra.href}>
               <a href={extra.href} target="_blank" rel="noreferrer">
                 {extra.label}
-                <ExternalLink size={14} aria-label="새 탭에서 열기" />
+                <span className={ui.srOnly}> (새 탭에서 열기)</span>
+                <ExternalLink size={14} aria-hidden="true" />
               </a>
             </li>
           ))}

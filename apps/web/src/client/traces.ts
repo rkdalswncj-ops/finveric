@@ -6,6 +6,7 @@ import {
   type LedgerError,
 } from "../../../../packages/core/src/index.ts";
 import type { TraceDto } from "../../../../packages/core/src/api.ts";
+import type { Tone } from "../../../../packages/ui/src/components.tsx";
 
 /** 원장 함수 이름의 작업 이름. 원장 밖 기록(증명 생성, 관리자 승인 서명, 가입 중단)은 API가 한국어로 쓴다. */
 const ACTION_LABELS: Readonly<Record<string, string>> = {
@@ -63,10 +64,10 @@ export function ledgerRejection(trace: TraceDto) {
     : undefined;
 }
 
-/** 처리 상태 표시. 대기, 완료, 원장 거절, 실패를 구분한다. */
-export function traceStatus(trace: TraceDto): [label: string, tone: string] {
+/** 처리 상태 표시. 대기, 완료, 원장 거절, 실패를 구분한다. 영수증을 기다리는 대기는 info다. */
+export function traceStatus(trace: TraceDto): [label: string, tone: Tone] {
   if (trace.status === "confirmed") return ["완료", "success"];
-  if (trace.status === "pending") return ["대기", "neutral"];
+  if (trace.status === "pending") return ["대기", "info"];
   return ledgerRejection(trace) ? ["원장 거절", "warning"] : ["실패", "danger"];
 }
 

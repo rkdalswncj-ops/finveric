@@ -243,7 +243,7 @@ function RecordDetail({
         )}
         <Button
           variant="outline"
-          disabled={!!busy}
+          blocked={!!busy}
           onClick={() => download(sale.id, "receipt")}
         >
           <Download size={16} />
@@ -251,7 +251,7 @@ function RecordDetail({
         </Button>
         <Button
           variant="outline"
-          disabled={!!busy}
+          blocked={!!busy}
           onClick={() => download(sale.id, "original")}
         >
           <Download size={16} />

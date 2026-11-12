@@ -182,10 +182,7 @@ export function Dashboard({
                 ),
               ],
               ["기준 이름", rule?.document.name ?? "—"],
-              [
-                "기준 해시",
-                <code title={rule?.hash}>{short(rule?.hash)}</code>,
-              ],
+              ["기준 해시", rule ? <code>{rule.hash}</code> : "—"],
               [
                 "판매 상품",
                 selling.length ? (

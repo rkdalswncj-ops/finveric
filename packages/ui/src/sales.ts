@@ -12,6 +12,7 @@ import type {
   SaleDto,
   TraceDto,
 } from "../../core/src/api.ts";
+import type { Tone } from "./components.tsx";
 
 export type Sale = SaleDto;
 export type ProductEntry = ProductEntryDto;
@@ -104,12 +105,13 @@ export const STATUS_LABELS: Readonly<Record<StatusKey, string>> = {
   confirmed: "확정",
   withdrawn: "철회",
 };
-export const STATUS_TONES: Readonly<Record<StatusKey, string>> = {
+/** 처리를 기다리는 상태(승인 대기, 청약, 숙려 중)는 info, 끝났거나 멈춘 상태는 success(확정)나 neutral이다. */
+export const STATUS_TONES: Readonly<Record<StatusKey, Tone>> = {
   draft: "neutral",
-  approval: "warning",
+  approval: "info",
   abandoned: "neutral",
-  subscribed: "blue",
-  cooling: "blue",
+  subscribed: "info",
+  cooling: "info",
   confirmed: "success",
   withdrawn: "neutral",
 };

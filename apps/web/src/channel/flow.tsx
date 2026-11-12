@@ -1,7 +1,7 @@
 // 증권사 앱 예시의 단계 화면 부품: 단계 머리글, 아래 동작 막대, 가입 시작. 확인 창은 packages/ui의 ConfirmDialog다.
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import { ChevronLeft, LoaderCircle } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import type { ProductEntryDto } from "../../../../packages/core/src/api.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
 import { ConfirmDialog } from "../../../../packages/ui/src/components.tsx";
@@ -10,7 +10,6 @@ import {
   saleProduct,
   type Sale,
 } from "../../../../packages/ui/src/sales.ts";
-import ui from "../../../../packages/ui/src/ui.module.css";
 import s from "./flow.module.css";
 
 /**
@@ -68,28 +67,30 @@ export function StepHeader({
           <span style={{ width: `${percent}%` }} />
         </div>
       </div>
-      <p className={s.caption} title={caption}>
-        {caption}
-      </p>
+      <p className={s.caption}>{caption}</p>
     </>
   );
 }
 
-/** 단계의 주요 동작. 처리 중에는 같은 자리에서 회전 표시를 보이고 다시 누를 수 없다. */
+/**
+ * 단계의 주요 동작. 처리 중(busy)에는 같은 자리에서 회전 표시를 보이고 누름을 무시한다.
+ * 아직 누를 수 없으면(blocked: 확인란, 숙려, 승인 대기) 흐린 모양으로 두고 누름을 무시한다.
+ * 두 경우 모두 네이티브 disabled를 쓰지 않는다. 초점과 Tab 순서가 그대로 남는다.
+ */
 export function PrimaryAction({
   label,
   onClick,
   to,
-  disabled,
+  blocked,
   busy,
 }: {
   label: string;
   onClick?: () => void;
   to?: string;
-  disabled?: boolean;
+  blocked?: boolean;
   busy?: boolean;
 }) {
-  if (to && !busy && !disabled)
+  if (to && !busy && !blocked)
     return (
       <Button size="large" asChild>
         <Link to={to} onClick={onClick}>
@@ -98,15 +99,7 @@ export function PrimaryAction({
       </Button>
     );
   return (
-    <Button
-      size="large"
-      disabled={disabled || busy}
-      aria-busy={busy || undefined}
-      onClick={onClick}
-    >
-      {busy && (
-        <LoaderCircle size={18} className={ui.spin} aria-hidden="true" />
-      )}
+    <Button size="large" busy={busy} blocked={blocked} onClick={onClick}>
       {label}
     </Button>
   );

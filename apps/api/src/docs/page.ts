@@ -1,6 +1,6 @@
 // GET /api/docs: 사람이 읽는 API 문서. HTML·CSS·JS를 한 응답에 넣는다(외부 파일·CDN 없음).
 // Vercel 함수 번들(esbuild CJS)에 문자열로 들어간다. 디스크에서 파일을 읽지 않는다.
-// 화면은 /api/openapi.json을 읽어 그린다. 색과 간격은 DESIGN.md 토큰(packages/ui/src/theme.css)과 같다.
+// 화면은 /api/openapi.json을 읽어 그린다. 색, 글자 크기, 반경은 DESIGN.md 토큰(packages/ui/src/theme.css)과 같다.
 
 const STYLE = `
 :root {
@@ -15,6 +15,7 @@ const STYLE = `
   --primary: #2563eb;
   --primary-foreground: #ffffff;
   --primary-hover: #1d4ed8;
+  --primary-surface: #edf3ff;
   --ring: #1d4ed8;
   --success: #116149;
   --success-surface: #eaf6ef;
@@ -23,9 +24,24 @@ const STYLE = `
   --destructive: #a32535;
   --destructive-surface: #fff1f1;
   --rounded-control: 8px;
+  --rounded-surface: 12px;
+  /* 글자 크기와 줄 높이. packages/ui/src/theme.css의 --type-* 값과 같다. 이 화면은 그 파일을 가져올 수 없어 값을 옮겨 둔다. */
+  --type-caption: 0.75rem;
+  --type-ui: 0.8125rem;
+  --type-detail: 0.875rem;
+  --type-body: 0.9375rem;
+  --type-body-lg: 1rem;
+  --type-heading: 1.125rem;
+  --type-title: 1.25rem;
+  --type-title-lg: 1.5rem;
+  --type-page: 1.75rem;
+  --type-line-heading: 1.3;
+  --type-line-body: 1.6;
   --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  font-synthesis: none;
+  font-synthesis-style: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 * { box-sizing: border-box; }
 html { scroll-padding-top: 16px; }
@@ -33,17 +49,22 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: var(--type-body);
+  line-height: var(--type-line-body);
   word-break: keep-all;
   overflow-wrap: break-word;
 }
 h1, h2, h3, h4, p, ul, dl, dd, pre { margin: 0; }
-h1, h2, h3, h4 { line-height: 1.4; letter-spacing: -0.02em; font-weight: 700; }
+h1, h2, h3, h4 {
+  line-height: var(--type-line-heading);
+  letter-spacing: -0.01em;
+  font-weight: 700;
+  text-wrap: balance;
+}
+p { text-wrap: pretty; }
 a { color: var(--primary); text-underline-offset: 3px; }
-a:hover { color: var(--primary-hover); }
 :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 4px; }
-code, pre { font-family: var(--mono); font-size: 0.875rem; }
+code, pre { font-family: var(--mono); font-size: var(--type-detail); }
 p code, li code, dd code {
   background: var(--muted);
   border-radius: 4px;
@@ -69,8 +90,8 @@ p code, li code, dd code {
   padding: 20px 16px;
 }
 .brand { display: flex; align-items: baseline; gap: 8px; color: var(--foreground); text-decoration: none; }
-.brand strong { font-size: 18px; letter-spacing: 0.02em; }
-.brand span { color: var(--muted-foreground); font-size: 14px; }
+.brand strong { font-size: var(--type-heading); font-weight: 800; letter-spacing: -0.01em; }
+.brand span { color: var(--muted-foreground); font-size: var(--type-detail); }
 .toc { margin-top: 16px; }
 .toc > summary {
   cursor: pointer;
@@ -96,7 +117,7 @@ p code, li code, dd code {
 .toc[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
 .toc-body { padding-top: 12px; display: grid; gap: 20px; }
 .toc-title {
-  font-size: 13px;
+  font-size: var(--type-ui);
   font-weight: 600;
   color: var(--muted-foreground);
   letter-spacing: 0;
@@ -109,18 +130,17 @@ p code, li code, dd code {
   gap: 8px;
   min-height: 36px;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--rounded-control);
   color: var(--foreground);
   text-decoration: none;
-  font-size: 14px;
+  font-size: var(--type-detail);
 }
-.toc-group a:hover { background: var(--muted); }
 .toc-group .method { min-width: 44px; text-align: center; }
 
 main { width: 100%; max-width: 960px; padding: 32px 16px 80px; }
 main:focus { outline: none; }
-.eyebrow { color: var(--muted-foreground); font-size: 14px; font-weight: 600; }
-h1 { font-size: 28px; margin-top: 4px; }
+.eyebrow { color: var(--muted-foreground); font-size: var(--type-detail); font-weight: 600; }
+h1 { font-size: var(--type-page); letter-spacing: -0.02em; margin-top: 4px; }
 .lead { margin-top: 12px; color: var(--muted-foreground); max-width: 72ch; }
 .facts {
   margin-top: 24px;
@@ -129,22 +149,23 @@ h1 { font-size: 28px; margin-top: 4px; }
   gap: 1px;
   background: var(--border);
   border: 1px solid var(--border);
-  border-radius: var(--rounded-control);
+  border-radius: var(--rounded-surface);
   overflow: hidden;
 }
 .facts div { background: var(--card); padding: 12px 16px; min-width: 0; }
-.facts dt { font-size: 13px; color: var(--muted-foreground); }
-.facts dd { font-family: var(--mono); font-size: 14px; overflow-wrap: anywhere; }
+.facts dt { font-size: var(--type-ui); color: var(--muted-foreground); }
+.facts dd { font-family: var(--mono); font-size: var(--type-detail); overflow-wrap: anywhere; }
 
 .intro { margin-top: 32px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
 .intro section {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--rounded-control);
+  border-radius: var(--rounded-surface);
   padding: 20px;
   min-width: 0;
 }
-.intro h2 { font-size: 17px; margin-bottom: 8px; }
+.intro h2 { font-size: var(--type-title); margin-bottom: 8px; }
+.intro p, .errors li { max-width: 72ch; }
 .intro p + p, .intro p + ul, .intro ul + p { margin-top: 8px; }
 .intro ul { padding-left: 20px; display: grid; gap: 4px; }
 
@@ -157,50 +178,50 @@ h1 { font-size: 28px; margin-top: 4px; }
 }
 
 .tag { margin-top: 56px; }
-.tag > h2 { font-size: 22px; }
+.tag > h2 { font-size: var(--type-title-lg); letter-spacing: -0.02em; }
 .tag > p { margin-top: 6px; color: var(--muted-foreground); max-width: 72ch; }
 .op {
   margin-top: 20px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--rounded-control);
+  border-radius: var(--rounded-surface);
   padding: 20px 16px;
   min-width: 0;
 }
 .op-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.path { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
-.op h3 { font-size: 19px; margin-top: 10px; }
+.path { font-size: var(--type-body); font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.op h3 { font-size: var(--type-heading); margin-top: 10px; }
 .op h3 a { color: inherit; text-decoration: none; }
-.op h3 a:hover { text-decoration: underline; }
 .op .desc { margin-top: 6px; max-width: 72ch; }
-.meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font-size: 13px; color: var(--muted-foreground); }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font-size: var(--type-ui); color: var(--muted-foreground); }
 .meta div { display: flex; gap: 6px; align-items: center; min-width: 0; }
-.meta dd code { font-size: 13px; }
+.meta dd code { font-size: var(--type-ui); }
 .block { margin-top: 20px; }
-.block > h4 { font-size: 14px; color: var(--muted-foreground); font-weight: 600; margin-bottom: 8px; }
+.block > h4 { font-size: var(--type-detail); color: var(--muted-foreground); font-weight: 600; margin-bottom: 8px; }
 
+/* 메서드는 종류다. 상태 색(성공·주의)을 쓰지 않고 두 메서드 모두 파란 안내 색이다. */
 .method {
   display: inline-block;
-  font: 600 12px/1 var(--mono);
+  font: 600 var(--type-caption)/1 var(--mono);
   padding: 5px 8px;
-  border-radius: 6px;
+  border-radius: 5px;
+  background: var(--primary-surface);
+  color: var(--primary);
 }
-.method.get { background: var(--success-surface); color: var(--success); }
-.method.post { background: var(--primary); color: var(--primary-foreground); }
+/* 필수·선택과 인증 표시는 종류다. 중립 배지에 굵기로만 구분한다. */
 .badge {
   display: inline-block;
-  font-size: 12px;
+  font-size: var(--type-caption);
   line-height: 1;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: 5px;
   background: var(--muted);
   color: var(--muted-foreground);
   white-space: nowrap;
 }
-.badge.req { background: var(--warning-surface); color: var(--warning); }
-.badge.lock { background: var(--warning-surface); color: var(--warning); }
-.badge.open { background: var(--success-surface); color: var(--success); }
-.code-status { font: 600 13px/1 var(--mono); padding: 4px 6px; border-radius: 4px; }
+.badge.req { color: var(--foreground); font-weight: 600; }
+/* 응답 상태 코드는 실제 상태다. 성공·주의·실패 색을 쓴다. */
+.code-status { font: 600 var(--type-ui)/1 var(--mono); padding: 4px 6px; border-radius: 5px; }
 .code-status.ok { background: var(--success-surface); color: var(--success); }
 .code-status.client { background: var(--warning-surface); color: var(--warning); }
 .code-status.server { background: var(--destructive-surface); color: var(--destructive); }
@@ -209,29 +230,29 @@ h1 { font-size: 28px; margin-top: 4px; }
 .field { padding: 10px 0; border-bottom: 1px solid var(--border); min-width: 0; }
 .field-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .field-name { font-weight: 600; overflow-wrap: anywhere; background: none; padding: 0; }
-.type { font-family: var(--mono); font-size: 13px; color: var(--muted-foreground); overflow-wrap: anywhere; }
-.field-desc { margin-top: 4px; font-size: 14px; }
-.rules { margin-top: 4px; font-size: 13px; color: var(--muted-foreground); display: grid; gap: 2px; }
-.rules code { font-size: 12px; }
+.type { font-family: var(--mono); font-size: var(--type-ui); color: var(--muted-foreground); overflow-wrap: anywhere; }
+.field-desc { margin-top: 4px; font-size: var(--type-detail); }
+.rules { margin-top: 4px; font-size: var(--type-ui); color: var(--muted-foreground); display: grid; gap: 2px; }
+.rules code { font-size: var(--type-caption); }
 .nested { margin-top: 8px; }
 .nested > summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--type-ui);
   color: var(--primary);
   min-height: 32px;
   display: inline-flex;
   align-items: center;
 }
 .nested > :not(summary) { margin-left: 12px; padding-left: 12px; border-left: 2px solid var(--muted); }
-.note { font-size: 14px; color: var(--muted-foreground); }
+.note { font-size: var(--type-detail); color: var(--muted-foreground); }
 .alt + .alt { margin-top: 16px; }
-.alt-name { font-family: var(--mono); font-size: 13px; font-weight: 600; margin: 8px 0 4px; }
+.alt-name { font-family: var(--mono); font-size: var(--type-ui); font-weight: 600; margin: 8px 0 4px; }
 
 .response + .response { margin-top: 16px; }
 .response-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
-.response-head .media { font-family: var(--mono); font-size: 13px; color: var(--muted-foreground); }
+.response-head .media { font-family: var(--mono); font-size: var(--type-ui); color: var(--muted-foreground); }
 .errors { list-style: none; padding: 0; display: grid; gap: 8px; }
-.errors li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: start; font-size: 14px; }
+.errors li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: start; font-size: var(--type-detail); }
 
 .example-head {
   display: flex;
@@ -240,7 +261,7 @@ h1 { font-size: 28px; margin-top: 4px; }
   gap: 8px;
   margin-bottom: 8px;
 }
-.example-head h4 { font-size: 14px; color: var(--muted-foreground); font-weight: 600; }
+.example-head h4 { font-size: var(--type-detail); color: var(--muted-foreground); font-weight: 600; }
 .example pre {
   background: var(--muted);
   color: var(--foreground);
@@ -250,7 +271,7 @@ h1 { font-size: 28px; margin-top: 4px; }
   overflow-x: auto;
   max-height: 420px;
   line-height: 1.5;
-  font-size: 13px;
+  font-size: var(--type-ui);
 }
 .copy {
   min-height: 36px;
@@ -260,13 +281,19 @@ h1 { font-size: 28px; margin-top: 4px; }
   background: var(--card);
   color: var(--foreground);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--type-detail);
   cursor: pointer;
 }
-.copy:hover { background: var(--muted); }
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+/* 마우스가 있는 기기에서만 hover를 쓴다. 터치 뒤에 hover가 남지 않는다. */
+@media (hover: hover) {
+  a:hover { color: var(--primary-hover); }
+  .toc-group a:hover { background: var(--muted); }
+  .op h3 a:hover { text-decoration: underline; }
+  .copy:hover { background: var(--muted); }
 }
 
 @media (min-width: 768px) {
@@ -663,9 +690,9 @@ export const DOCS_PAGE = `<!doctype html>
       <h1>FINVERIC API</h1>
       <p class="lead" id="lead">증권사 앱과 판매사 콘솔이 쓰는 API입니다.</p>
       <dl class="facts">
-        <div><dt>기본 주소</dt><dd id="base">-</dd></div>
+        <div><dt>기본 주소</dt><dd id="base">—</dd></div>
         <div><dt>명세</dt><dd><a href="openapi.json">/api/openapi.json</a></dd></div>
-        <div><dt>버전</dt><dd id="version">-</dd></div>
+        <div><dt>버전</dt><dd id="version">—</dd></div>
       </dl>
     </header>
     <div class="intro" id="intro"></div>

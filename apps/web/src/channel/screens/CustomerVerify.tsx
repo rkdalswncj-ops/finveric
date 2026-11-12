@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Check, LoaderCircle, SearchX } from "lucide-react";
+import { AlertTriangle, Check, SearchX } from "lucide-react";
 import type {
   Deployment,
   EvidenceReceipt,
@@ -15,7 +15,6 @@ import {
 import {
   dateTime,
   networkName,
-  short,
 } from "../../../../../packages/ui/src/format.ts";
 import s from "./customer.module.css";
 
@@ -159,7 +158,7 @@ export function CustomerVerify({
             type="text"
             inputMode="numeric"
             value={id}
-            disabled={loading}
+            readOnly={loading}
             onChange={(e) => {
               setId(e.target.value);
               setResult(undefined);
@@ -188,18 +187,12 @@ export function CustomerVerify({
         </label>
         {error && <Notice tone="danger">{error}</Notice>}
         <Button
-          className={s.submit}
+          size="large"
           type="submit"
-          disabled={!deployment || !id.trim() || loading}
+          busy={loading}
+          blocked={!deployment || !id.trim()}
         >
-          {loading ? (
-            <>
-              <LoaderCircle size={17} />
-              기록을 확인하고 있어요
-            </>
-          ) : (
-            "확인하기"
-          )}
+          {loading ? "기록을 확인하고 있어요" : "확인하기"}
         </Button>
       </form>
       {result && outcome && (
@@ -266,10 +259,10 @@ export function CustomerVerify({
                       {REFERENCE_NAMES[reference.kind]}
                       {reference.attempt ? ` ${reference.attempt}회차` : ""} ·
                       블록 {reference.block}
+                      <small>
+                        <code>{reference.txHash}</code>
+                      </small>
                     </span>
-                    <code title={reference.txHash}>
-                      {short(reference.txHash)}
-                    </code>
                   </li>
                 ))}
               </ul>

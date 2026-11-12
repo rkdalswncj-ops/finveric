@@ -58,7 +58,7 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
 - 판매 건 동작은 동작마다 경로가 따로 있다(`/api/sales/:id/action/<동작>`). 동작마다 태그가 다르기 때문이다.
 - 응답 스키마는 문서 전용이다. 경로의 `schema.response`에 넣지 않는다. 넣으면 응답 직렬화가 바뀌고, 문서 생성이 실패한다. 응답 스키마는 `packages/core/src/api.ts`에 두고 `operations.ts`에서 가리킨다.
 - 공통 오류(400·401·403·409·429)와 인증 표시는 `src/docs/openapi.ts`가 더한다. 오류 응답을 바꾸면 이 파일의 설명도 고친다.
-- 문서 화면은 외부 파일과 CDN을 쓰지 않는다. Vercel 함수 번들에 문자열로 들어간다. 색은 DESIGN.md 토큰을 그대로 쓴다.
+- 문서 화면은 외부 파일과 CDN을 쓰지 않는다. Vercel 함수 번들에 문자열로 들어간다. 색, 글자 크기(`--type-*`), 반경은 DESIGN.md 토큰을 그대로 쓴다. `packages/ui/src/theme.css`를 가져올 수 없으므로 값을 `STYLE`의 `:root`에 옮겨 둔다. 토큰을 바꾸면 두 곳을 함께 고친다.
 
 ## 원장 거래
 

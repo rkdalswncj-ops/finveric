@@ -8,7 +8,11 @@ import {
 } from "../../../../../packages/core/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import { api, type LoadState } from "../../../../../packages/ui/src/api.ts";
-import { Badge, Heading } from "../../../../../packages/ui/src/components.tsx";
+import {
+  Badge,
+  ConfirmDialog,
+  Heading,
+} from "../../../../../packages/ui/src/components.tsx";
 import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import { API_DOCS_HREF } from "../../../../../packages/ui/src/links.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
@@ -35,23 +39,27 @@ export function ApiKeys({
   const [name, setName] = useState("");
   const [issued, setIssued] = useState<IssuedApiKeyDto>();
   const [copy, setCopy] = useState<"" | "done" | "failed">("");
-  const [revoking, setRevoking] = useState("");
+  /** 폐기를 묻는 키. 확인 창이 열려 있다. */
+  const [revoking, setRevoking] = useState<ApiKeyDto>();
+  /** 발급 버튼이 처리 중인지. 다른 처리(폐기) 중에는 발급 버튼을 막기만 한다. */
+  const [issuing, setIssuing] = useState(false);
   const active = keys.filter((key) => !key.revokedAt).length;
   const full = active >= MAX_ACTIVE_API_KEYS;
 
   const issue = async () => {
+    setIssuing(true);
     const created = await run("API 키를 발급하고 있습니다", () =>
       api<IssuedApiKeyDto>("/keys", {
         name: name.trim(),
       } satisfies IssueApiKeyRequest),
     );
+    setIssuing(false);
     if (!created) return;
     setIssued(created);
     setCopy("");
     setName("");
   };
   const revoke = async (key: ApiKeyDto) => {
-    setRevoking("");
     await run(`${key.name} 키를 폐기하고 있습니다`, () =>
       api<ApiKeyDto>(`/keys/${key.id}/revoke`, {}),
     );
@@ -75,7 +83,8 @@ export function ApiKeys({
         <Button variant="outline" asChild>
           <a href={API_DOCS_HREF} target="_blank" rel="noreferrer">
             API 문서
-            <ExternalLink size={14} aria-label="새 탭에서 열기" />
+            <span className={s.srOnly}> (새 탭에서 열기)</span>
+            <ExternalLink size={14} aria-hidden="true" data-icon="end" />
           </a>
         </Button>
       </Heading>
@@ -137,7 +146,13 @@ export function ApiKeys({
                 aria-describedby="issue-key-help"
               />
             </label>
-            <Button type="submit" disabled={busy || full || !name.trim()}>
+            {/* 키가 가득 차면 정말 쓸 수 없다(disabled). 처리 중과 빈 이름은 초점을 지키도록 aria-disabled다. */}
+            <Button
+              type="submit"
+              disabled={full}
+              busy={issuing}
+              blocked={(busy && !issuing) || !name.trim()}
+            >
               발급하기
             </Button>
           </form>
@@ -194,26 +209,11 @@ export function ApiKeys({
                         )}
                       </td>
                       <td className={s.rowAction}>
-                        {key.revokedAt ? null : revoking === key.id ? (
-                          <span className={s.confirm}>
-                            <Button
-                              disabled={busy}
-                              onClick={() => void revoke(key)}
-                            >
-                              폐기하기
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              onClick={() => setRevoking("")}
-                            >
-                              취소
-                            </Button>
-                          </span>
-                        ) : (
+                        {key.revokedAt ? null : (
                           <Button
                             variant="outline"
-                            disabled={busy}
-                            onClick={() => setRevoking(key.id)}
+                            blocked={busy}
+                            onClick={() => setRevoking(key)}
                             aria-label={`${key.name} 키 폐기`}
                           >
                             폐기
@@ -230,13 +230,22 @@ export function ApiKeys({
               아직 발급한 키가 없습니다. 위에서 키를 발급하세요.
             </p>
           )}
-          {revoking && (
-            <p role="status" className={s.tableNote}>
-              폐기하면 이 키로 보낸 요청이 바로 거절됩니다. 되돌릴 수 없습니다.
-            </p>
-          )}
         </section>
       </div>
+      {/* 되돌릴 수 없는 동작이다. 안전한 선택(취소)이 주요 버튼이고 처음 초점을 받는다. */}
+      <ConfirmDialog
+        open={!!revoking}
+        title="API 키를 폐기할까요?"
+        text={`${revoking?.name ?? ""} 키로 보낸 요청이 바로 거절됩니다. 되돌릴 수 없습니다.`}
+        confirmLabel="폐기하기"
+        cancelLabel="취소"
+        onCancel={() => setRevoking(undefined)}
+        onConfirm={() => {
+          const key = revoking;
+          setRevoking(undefined);
+          if (key) void revoke(key);
+        }}
+      />
     </>
   );
 }

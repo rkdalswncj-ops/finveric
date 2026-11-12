@@ -29,15 +29,25 @@
   --warning-surface: #fff3d7;
   --destructive: #a32535;
   --destructive-surface: #fff1f1;
-  /* 상품 유형 기호(증권사 앱 예시의 상품 카드). ELS는 primary를 쓴다. */
-  --product-fund: #31785b;
-  --product-fund-surface: #ecf5f1;
+  /* 상품 유형 기호(증권사 앱 예시의 상품 카드). ELS는 primary를 쓴다. 펀드 색은 success와 색상이 겹치지 않게 청록이다. */
+  --product-fund: #0b777c;
+  --product-fund-surface: #eaf5f5;
   --product-elb: #7566ad;
   --product-elb-surface: #f0effa;
-  /* 끌어서 고른 글자와 스크롤 막대 */
+  /* 끌어서 고른 글자와 스크롤 막대. 스크롤 막대는 muted 바탕에서 3:1 이상이다. */
   --selection: #dce8ff;
   --selection-foreground: #173e91;
-  --scrollbar: #b0b8c1;
+  --scrollbar: #848e9a;
+  /* 떠 있는 요소의 그림자와 확인 창 뒤의 덮개. foreground에 투명도를 준 값이다. */
+  --shadow: #191f282e;
+  --overlay: #191f2873;
+  /*
+   * 모서리 반경. control은 버튼·입력·칩과 패널 안의 작은 상자, surface는 패널·카드,
+   * action은 고객 화면의 주요 버튼과 확인 창이다. 배지는 5px 하나를 쓴다.
+   */
+  --rounded-control: 8px;
+  --rounded-surface: 12px;
+  --rounded-action: 16px;
 
   /*
    * 글자 크기. rem이라 브라우저 글자 크기 설정을 따른다(16px = 1rem).
@@ -46,11 +56,11 @@
    */
   --type-caption: 0.75rem; /* 12px. 최소 크기. 배지, 보조 설명, 표 메모, 코드·해시, 탭 이름 */
   --type-ui: 0.8125rem; /* 13px. 콘솔의 표, 버튼, 메뉴, 패널 설명 */
-  --type-detail: 0.875rem; /* 14px. 제목 아래 설명, 고객 화면의 보조 문단 */
+  --type-detail: 0.875rem; /* 14px. 제목 아래 설명, 알림, 고객 화면의 보조 문단 */
   --type-body: 0.9375rem; /* 15px. 본문 기본값 */
   --type-body-lg: 1rem; /* 16px. h3, 고객 설명 카드 본문, 640px 이하의 입력 */
-  --type-heading: 1.125rem; /* 18px. 패널·섹션 제목, 상품 카드 제목, 브랜드 */
-  --type-title: 1.25rem; /* 20px. h2, 결과 제목, 역할 카드 제목 */
+  --type-heading: 1.125rem; /* 18px. 상품 카드 제목, 브랜드 */
+  --type-title: 1.25rem; /* 20px. h2, 패널·섹션·표 제목, 결과 제목, 역할 카드 제목 */
   --type-title-lg: 1.5rem; /* 24px. 고객 화면 h1, 단계 제목, 비율 수치 */
   --type-page: 1.75rem; /* 28px. 콘솔 h1, 요약 수치 */
   --type-display: 2rem; /* 32px. 진입 화면 제목, 숙려 남은 시간 */
@@ -64,6 +74,8 @@
     "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   /* 한글 글꼴에는 기울임꼴이 없다. 가짜 기울임만 막고, 굵기 합성은 대체 글꼴을 위해 둔다. */
   font-synthesis-style: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 * {
   box-sizing: border-box;
@@ -130,6 +142,10 @@ p {
 svg {
   flex-shrink: 0;
 }
+/* 아이콘 선 굵기를 크기와 관계없이 같게 둔다(화면 기준 2px). */
+svg.lucide :is(path, line, polyline, circle, rect, polygon, ellipse) {
+  vector-effect: non-scaling-stroke;
+}
 button:disabled {
   cursor: not-allowed;
   opacity: 0.48;
@@ -147,7 +163,7 @@ input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
 select,
 textarea {
   border: 1px solid var(--input);
-  border-radius: 8px;
+  border-radius: var(--rounded-control);
   background: var(--card);
   color: var(--foreground);
   min-height: 44px;
@@ -174,6 +190,17 @@ textarea {
 input {
   caret-color: var(--primary);
 }
+input[type="file"]::file-selector-button {
+  min-height: 32px;
+  margin-right: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-control);
+  background: var(--muted);
+  color: var(--foreground);
+  font: inherit;
+  cursor: pointer;
+}
 input[type="radio"],
 input[type="checkbox"] {
   width: 18px;
@@ -193,7 +220,7 @@ pre {
 pre {
   background: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--rounded-control);
   padding: 18px;
   white-space: pre-wrap;
   max-height: 500px;
@@ -246,7 +273,7 @@ th {
   gap: 8px;
   min-height: 44px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--rounded-control);
   padding: 10px 16px;
   font-weight: 600;
   font-size: var(--type-ui);
@@ -254,23 +281,21 @@ th {
   white-space: normal;
   text-align: center;
   line-height: 1.5;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 뒤에 붙은 아이콘(data-icon="end")은 오른쪽 여백을 줄여 글자와 아이콘이 가운데에 보이게 한다. */
+.button:has(> [data-icon="end"]) {
+  padding-inline-end: 14px;
 }
 .button.primary {
   background: var(--primary);
   color: var(--primary-foreground);
   border-color: var(--primary);
 }
-.button.primary:hover:not(:disabled) {
-  background: var(--primary-hover);
-}
 .button.button-outline {
   background: var(--card);
   color: var(--foreground);
   border-color: var(--border);
-}
-.button.button-outline:hover:not(:disabled),
-.button.ghost:hover:not(:disabled) {
-  background: var(--muted);
 }
 .button.ghost {
   background: transparent;
@@ -278,14 +303,54 @@ th {
 }
 .button.large {
   min-height: 56px;
-  border-radius: 16px;
+  border-radius: var(--rounded-action);
   font-size: var(--type-body);
+}
+/* 마우스가 있는 기기에서만 hover를 쓴다. 터치 뒤에 hover가 남지 않는다. */
+@media (hover: hover) {
+  .button.primary:hover:not(:disabled, [aria-disabled="true"]) {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
+  .button.button-outline:hover:not(:disabled, [aria-disabled="true"]),
+  .button.ghost:hover:not(:disabled, [aria-disabled="true"]) {
+    background: var(--muted);
+  }
+}
+/*
+ * 버튼 상태(button.tsx).
+ * - 처리 중(busy): aria-busy와 aria-disabled. 모양은 그대로 두고 회전 표시를 넣는다.
+ * - 아직 누를 수 없음(blocked): aria-disabled. 흐린 모양이다. 초점과 Tab 순서는 그대로다.
+ * - disabled: 정말 쓸 수 없고 초점이 그 위에 없을 때만 쓴다. blocked와 같은 모양이다.
+ */
+.button[aria-busy="true"] {
+  cursor: progress;
+}
+.button:disabled,
+.button[aria-disabled="true"]:not([aria-busy="true"]) {
+  cursor: not-allowed;
+  opacity: 1;
+  background: var(--muted);
+  border-color: var(--border);
+  color: var(--muted-foreground);
+}
+/* 누르는 동안 살짝 줄인다. 움직임을 줄이는 설정에서는 하지 않는다. */
+@media (prefers-reduced-motion: no-preference) {
+  .button {
+    transition-property: scale;
+    transition-duration: 150ms;
+    transition-timing-function: ease-out;
+  }
+  .button:not(:disabled, [aria-disabled="true"]):active {
+    scale: 0.96;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }

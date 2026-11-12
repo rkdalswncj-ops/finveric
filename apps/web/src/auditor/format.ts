@@ -13,6 +13,7 @@ import type {
   LedgerSnapshot,
 } from "../../../../packages/core/src/ledger.ts";
 import type { VerificationReference } from "../../../../packages/core/src/verify.ts";
+import type { Tone } from "../../../../packages/ui/src/components.tsx";
 
 /** 긴 해시·주소·판매 ID를 앞뒤만 보여 준다. 전체 값은 title로 둔다. */
 export const short = (value: string, head = 6, tail = 4) =>
@@ -34,8 +35,9 @@ export const STATUS_LABELS: Readonly<Record<LedgerSaleStatus, string>> = {
   confirmed: "가입 확정",
   withdrawn: "철회",
 };
-export const STATUS_TONES: Readonly<Record<LedgerSaleStatus, string>> = {
-  subscribed: "neutral",
+/** 처리를 기다리는 청약·숙려 중은 info, 끝난 확정은 success, 멈춘 철회는 neutral이다. */
+export const STATUS_TONES: Readonly<Record<LedgerSaleStatus, Tone>> = {
+  subscribed: "info",
   confirmed: "success",
   withdrawn: "neutral",
 };

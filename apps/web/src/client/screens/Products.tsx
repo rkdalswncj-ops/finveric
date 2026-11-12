@@ -25,7 +25,6 @@ import {
   Notice,
 } from "../../../../../packages/ui/src/components.tsx";
 import { api, type LoadState } from "../../../../../packages/ui/src/api.ts";
-import { short } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
@@ -158,7 +157,7 @@ function ProductForm({
           </h2>
           <Button
             variant="ghost"
-            disabled={busy}
+            blocked={busy}
             onClick={() => (changed ? setConfirmCancel(true) : cancel())}
           >
             편집 취소
@@ -339,7 +338,8 @@ function ProductForm({
             ]}
           />
           <Button
-            disabled={busy || (showErrors && errors.length > 0)}
+            busy={busy}
+            blocked={showErrors && errors.length > 0}
             onClick={() =>
               errors.length ? setShowErrors(true) : void submit()
             }
@@ -400,7 +400,7 @@ export function Products({
         description="상품 유형, 위험등급, 고난도·파생결합증권 여부, 판매대상 고객군, 설명서를 버전으로 등록합니다. 등록한 버전은 고칠 수 없습니다."
       >
         {!form && (
-          <Button disabled={busy} onClick={() => setForm(blankProduct(seller))}>
+          <Button blocked={busy} onClick={() => setForm(blankProduct(seller))}>
             <Plus size={16} />새 상품 만들기
           </Button>
         )}
@@ -422,67 +422,71 @@ export function Products({
         />
       ) : (
         <>
-          <section className={`${s.panel} ${s.tableWrap}`}>
-            <table>
-              <caption className={s.tableCaption}>
-                판매 상품 · 청약에는 최신 등록 버전을 씁니다.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">상품</th>
-                  <th scope="col">유형</th>
-                  <th scope="col">위험등급</th>
-                  <th scope="col">속성</th>
-                  <th scope="col">최신 버전</th>
-                  <th scope="col">원장 등록</th>
-                  <th scope="col">보기</th>
-                </tr>
-              </thead>
-              <tbody>
-                {groups.map(({ id, latest, versions }) => {
-                  const { document } = latest.product;
-                  return (
-                    <tr
-                      key={id}
-                      className={group?.id === id ? s.selectedRow : ""}
-                    >
-                      <td className={s.wrapCell}>
-                        <strong>{productName(document)}</strong>
-                      </td>
-                      <td>{document.type}</td>
-                      <td>{gradeName(document.riskGrade)}</td>
-                      <td>
-                        {[
-                          document.complex && "고난도",
-                          document.derivative && "파생결합증권",
-                        ]
-                          .filter(Boolean)
-                          .join(" · ") || "—"}
-                      </td>
-                      <td>
-                        v{latest.product.version}
-                        {versions.length > 1 && ` · ${versions.length}개 버전`}
-                      </td>
-                      <td>
-                        <Badge tone={latest.registered ? "success" : "warning"}>
-                          {latest.registered ? "등록" : "등록 전"}
-                        </Badge>
-                      </td>
-                      <td>
-                        <Button
-                          variant="ghost"
-                          onClick={() => setSelected(id)}
-                          aria-label={`${document.name} 보기`}
-                        >
-                          보기
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {groups.length === 0 && (
+          <section className={s.panel}>
+            <div className={s.tableWrap}>
+              <table>
+                <caption className={s.tableCaption}>판매 상품</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">상품</th>
+                    <th scope="col">유형</th>
+                    <th scope="col">위험등급</th>
+                    <th scope="col">속성</th>
+                    <th scope="col">최신 버전</th>
+                    <th scope="col">원장 등록</th>
+                    <th scope="col">보기</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groups.map(({ id, latest, versions }) => {
+                    const { document } = latest.product;
+                    return (
+                      <tr
+                        key={id}
+                        className={group?.id === id ? s.selectedRow : ""}
+                      >
+                        <td className={s.wrapCell}>
+                          <strong>{productName(document)}</strong>
+                        </td>
+                        <td>{document.type}</td>
+                        <td>{gradeName(document.riskGrade)}</td>
+                        <td>
+                          {[
+                            document.complex && "고난도",
+                            document.derivative && "파생결합증권",
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || "—"}
+                        </td>
+                        <td>
+                          v{latest.product.version}
+                          {versions.length > 1 &&
+                            ` · ${versions.length}개 버전`}
+                        </td>
+                        <td>
+                          <Badge
+                            tone={latest.registered ? "success" : "warning"}
+                          >
+                            {latest.registered ? "등록" : "등록 전"}
+                          </Badge>
+                        </td>
+                        <td>
+                          <Button
+                            variant="ghost"
+                            onClick={() => setSelected(id)}
+                            aria-label={`${document.name} 보기`}
+                            aria-current={group?.id === id ? "true" : undefined}
+                          >
+                            보기
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {groups.length === 0 ? (
               <p className={s.empty}>
                 {load === "ready"
                   ? "등록한 상품이 없습니다."
@@ -490,6 +494,8 @@ export function Products({
                     ? "상품을 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
                     : "상품을 불러오고 있습니다."}
               </p>
+            ) : (
+              <p className={s.tableNote}>청약에는 최신 등록 버전을 씁니다.</p>
             )}
           </section>
           {group && (
@@ -522,16 +528,11 @@ export function Products({
                           {gradeName(entry.product.document.riskGrade)}
                         </span>
                         <small>
-                          설명서 지문{" "}
-                          <code title={entry.product.documentHash}>
-                            {short(entry.product.documentHash)}
-                          </code>
+                          설명서 지문 <code>{entry.product.documentHash}</code>
                         </small>
                         <small>
                           등록 거래{" "}
-                          <code title={entry.txHash}>
-                            {short(entry.txHash)}
-                          </code>
+                          {entry.txHash ? <code>{entry.txHash}</code> : "—"}
                         </small>
                         <Badge
                           tone={
@@ -554,7 +555,7 @@ export function Products({
                 </ul>
                 <Button
                   variant="outline"
-                  disabled={busy || !group.latest.registered}
+                  blocked={busy || !group.latest.registered}
                   onClick={() =>
                     setForm(structuredClone(group.latest.product.document))
                   }

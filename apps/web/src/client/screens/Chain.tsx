@@ -83,8 +83,8 @@ export function Chain({
         title="온체인 처리 기록"
         description="증명 생성, 관리자 승인 서명, 거래 제출, 영수증, 원장 거절을 시간순으로 봅니다. 기록을 골라 처리 근거를 확인하세요."
       >
-        <Button variant="outline" disabled={busy} onClick={refresh}>
-          <RefreshCw size={16} />
+        <Button variant="outline" busy={busy} onClick={refresh}>
+          {!busy && <RefreshCw size={16} />}
           새로 고침
         </Button>
       </Heading>
@@ -92,7 +92,7 @@ export function Chain({
         API가 Groth16 증명을 만들고 역할 키로 거래를 보냅니다. 거래마다 먼저
         시뮬레이션해서, 원장이 거절하면 거래를 보내지 않고 오류 이름을 남깁니다.
       </Notice>
-      <div className={s.chips} aria-label="처리 기록 종류 필터">
+      <div className={s.chips} role="group" aria-label="처리 기록 종류 필터">
         {(["", ...GROUPS] as const).map((value) => (
           <button
             key={value || "all"}
@@ -118,7 +118,7 @@ export function Chain({
                   key={trace.id}
                   onClick={() => setSelected(trace.id)}
                   className={log?.id === trace.id ? s.logSelected : ""}
-                  aria-current={log?.id === trace.id}
+                  aria-current={log?.id === trace.id ? "true" : undefined}
                 >
                   <time>
                     {new Date(trace.at).toLocaleTimeString("ko-KR", {
@@ -170,20 +170,16 @@ export function Chain({
                           "판매 건",
                           <>
                             {productName(saleProduct(products, sale)?.document)}{" "}
-                            <code title={log.saleId}>{short(log.saleId)}</code>
+                            <code>{log.saleId}</code>
                           </>,
                         ],
                       ] as [string, ReactNode][])
                     : []),
                   ...(log.customerRef
-                    ? ([
-                        [
-                          "고객 가명 ID",
-                          <code title={log.customerRef}>
-                            {short(log.customerRef)}
-                          </code>,
-                        ],
-                      ] as [string, ReactNode][])
+                    ? ([["고객 가명 ID", <code>{log.customerRef}</code>]] as [
+                        string,
+                        ReactNode,
+                      ][])
                     : []),
                   [
                     "거래 해시",
@@ -227,7 +223,8 @@ export function Chain({
                   rel="noreferrer"
                 >
                   Etherscan에서 보기
-                  <ExternalLink size={14} />
+                  <span className={s.srOnly}> (새 탭에서 열기)</span>
+                  <ExternalLink size={14} aria-hidden="true" />
                 </a>
               )}
               <details>

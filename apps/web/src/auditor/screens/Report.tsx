@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { Download, FileText, LoaderCircle } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 import {
   SIGNAL_KINDS,
   SIGNAL_LABELS,
@@ -17,6 +17,7 @@ import {
   Facts,
   Heading,
   Notice,
+  type Tone,
 } from "../../../../../packages/ui/src/components.tsx";
 import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
@@ -39,7 +40,7 @@ import {
 import type { Ledger } from "../useLedger.ts";
 
 const s = { ...ui, ...local };
-const OUTCOME_TONES: Record<VerifyOutcome, string> = {
+const OUTCOME_TONES: Record<VerifyOutcome, Tone> = {
   match: "success",
   mismatch: "warning",
   missing: "neutral",
@@ -175,19 +176,19 @@ export function Report({
           )}
           <Button
             type="submit"
-            disabled={!deployment || loading || (kind === "sale" && !saleId)}
+            busy={loading}
+            blocked={!deployment || (kind === "sale" && !saleId)}
           >
             {loading ? (
-              <>
-                <LoaderCircle className={s.spin} size={16} />
-                {progress
-                  ? `${progress[0]}/${progress[1]}건 대조 중`
-                  : "원장을 읽는 중"}
-              </>
+              progress ? (
+                `${progress[0]}/${progress[1]}건 대조 중`
+              ) : (
+                "원장을 읽는 중"
+              )
             ) : (
               <>
                 보고서 만들기
-                <FileText size={17} />
+                <FileText size={16} data-icon="end" />
               </>
             )}
           </Button>

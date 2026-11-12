@@ -10,6 +10,7 @@ import {
   Facts,
   Heading,
   Stat,
+  type Tone,
 } from "../../../../../packages/ui/src/components.tsx";
 import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
@@ -34,7 +35,7 @@ type LedgerEvent = EventRef & {
   name: string;
   subject: string;
   to?: string;
-  tone: string;
+  tone: Tone;
 };
 
 /** 원장 이벤트를 최신 순서로 펼친다. 같은 블록은 기록 순서의 역순이다. */
@@ -46,7 +47,7 @@ function ledgerEvents(snapshot: LedgerSnapshot): LedgerEvent[] {
       name: "진단 기준 등록",
       subject: `v${rule.version} · ${rule.parsed?.name ?? short(rule.hash)}`,
       to: "/rules",
-      tone: "blue",
+      tone: "info",
     });
   for (const product of snapshot.products)
     events.push({
@@ -54,7 +55,7 @@ function ledgerEvents(snapshot: LedgerSnapshot): LedgerEvent[] {
       name: "상품 설명서 등록",
       subject: `${productName(snapshot, product.id, product.version)} v${product.version}`,
       to: "/products",
-      tone: "blue",
+      tone: "info",
     });
   for (const diagnosis of snapshot.diagnoses)
     events.push({
@@ -391,10 +392,8 @@ function Summary({
                   <td className={s.numeric}>{event.block.toString()}</td>
                 )}
                 {technical && (
-                  <td>
-                    <code title={event.txHash}>
-                      {short(event.txHash, 10, 8)}
-                    </code>
+                  <td className={s.wrap}>
+                    <code>{event.txHash}</code>
                   </td>
                 )}
               </tr>

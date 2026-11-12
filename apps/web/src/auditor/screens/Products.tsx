@@ -259,10 +259,8 @@ function ProductDetail({
                   <td className={s.numeric}>{entry.block.toString()}</td>
                 )}
                 {technical && (
-                  <td>
-                    <code title={entry.txHash}>
-                      {short(entry.txHash, 10, 8)}
-                    </code>
+                  <td className={s.wrap}>
+                    <code>{entry.txHash}</code>
                   </td>
                 )}
               </tr>

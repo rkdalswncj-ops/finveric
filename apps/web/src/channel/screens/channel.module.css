@@ -24,7 +24,6 @@
 .search input {
   padding-left: 40px !important;
   width: 100%;
-  border-color: var(--border) !important;
 }
 .catalog {
   display: grid;
@@ -35,7 +34,7 @@
   flex-direction: column;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--rounded-surface);
   padding: 20px;
 }
 .cardTop {
@@ -48,7 +47,7 @@
 .symbol {
   width: 44px;
   height: 44px;
-  border-radius: 14px;
+  border-radius: var(--rounded-surface);
   background: var(--primary-surface);
   display: grid;
   place-items: center;
@@ -69,7 +68,7 @@
 .strategy {
   font-size: var(--type-ui);
   color: var(--muted-foreground);
-  line-height: 1.7;
+  line-height: var(--type-line-body);
 }
 .parties {
   display: grid;
@@ -112,7 +111,7 @@
   gap: 16px;
   align-items: center;
   background: var(--muted);
-  border-radius: 16px;
+  border-radius: var(--rounded-surface);
   padding: 20px;
   margin-top: 24px;
 }
@@ -140,7 +139,7 @@
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  border-radius: 12px;
+  border-radius: var(--rounded-surface);
   padding: 18px;
   margin: 16px 0;
 }
@@ -167,7 +166,7 @@
 .explainCard > p {
   margin: 0;
   font-size: var(--type-body-lg);
-  line-height: 1.7;
+  line-height: var(--type-line-body);
 }
 /* 가입 단계: 머리글(flow.module.css) 아래 제목, 내용, 보조 동작 */
 .stepHead {
@@ -198,7 +197,7 @@
   gap: 12px;
   margin: 0 0 16px;
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--rounded-surface);
   background: var(--primary-surface);
   color: var(--primary);
 }
@@ -240,7 +239,7 @@
   min-height: 58px;
   border: 1px solid var(--border);
   padding: 15px;
-  border-radius: 12px;
+  border-radius: var(--rounded-surface);
   font-size: var(--type-body);
   cursor: pointer;
   margin: 6px 0;
@@ -251,7 +250,7 @@
 }
 .certificate {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--rounded-surface);
   padding: 4px 18px;
   margin: 8px 0 12px;
 }
@@ -268,7 +267,7 @@
   gap: 2px;
   justify-items: center;
   background: var(--primary-surface);
-  border-radius: 12px;
+  border-radius: var(--rounded-surface);
   padding: 18px;
   margin: 4px 0 8px;
   color: var(--primary);
@@ -318,12 +317,14 @@
   padding: 14px 16px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--rounded-surface);
   color: var(--foreground);
   text-decoration: none;
 }
-.recordList a:hover {
-  border-color: var(--primary);
+@media (hover: hover) {
+  .recordList a:hover {
+    border-color: var(--primary);
+  }
 }
 .recordList a > span {
   display: grid;
@@ -335,7 +336,7 @@
 }
 .recordList strong {
   font-size: var(--type-detail);
-  line-height: 1.4;
+  line-height: var(--type-line-heading);
 }
 .recordMeta {
   display: flex;

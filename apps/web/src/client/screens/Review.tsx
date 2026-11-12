@@ -14,6 +14,7 @@ import {
   Facts,
   Heading,
   Notice,
+  type Tone,
 } from "../../../../../packages/ui/src/components.tsx";
 import { dateTime, short, won } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
@@ -100,7 +101,7 @@ export function Review({
           key: `d${diagnosis.attempt}`,
           at: diagnosis.at * 1000,
           label: `진단 ${diagnosis.attempt}회차 기록 · ${profileName(diagnosis.profile)}`,
-          status: ["완료", "success"] as [string, string],
+          status: ["완료", "success"] as [string, Tone],
         })),
         ...sale.traces
           .filter((trace) => trace.action !== "recordDiagnosis")
@@ -118,7 +119,7 @@ export function Review({
         title="판매 건과 진단 회차를 검토하세요"
         description="고객 가명 ID별 진단 회차와 판매 건의 필수 확인을 봅니다. 3회차 이상 진단한 고객의 청약은 회차 이력을 보고 관리자가 승인합니다."
       />
-      <div className={s.chips} aria-label="판매 건 상태 필터">
+      <div className={s.chips} role="group" aria-label="판매 건 상태 필터">
         {(["", ...STATUS_KEYS] as const).map((key) => (
           <button
             key={key || "all"}
@@ -188,7 +189,7 @@ export function Review({
                     </td>
                     <td>
                       {awaitingApproval(record) ? (
-                        <Badge tone="warning">승인 필요</Badge>
+                        <Badge tone="info">승인 필요</Badge>
                       ) : record.chain?.approved ||
                         (record.status === "draft" &&
                           record.approvalRequired) ? (
@@ -203,6 +204,9 @@ export function Review({
                         variant="ghost"
                         onClick={() => select(record.id)}
                         aria-label={`${short(record.id)} 판매 건 보기`}
+                        aria-current={
+                          record.id === sale?.id ? "true" : undefined
+                        }
                       >
                         보기
                       </Button>
@@ -325,7 +329,7 @@ export function Review({
               <Facts rows={[["승인 상태", approvalText(sale)]]} />
               {awaitingApproval(sale) && (
                 <Button
-                  disabled={busy}
+                  busy={busy}
                   onClick={() =>
                     action(
                       sale.id,
@@ -352,7 +356,8 @@ export function Review({
             <Button variant="outline" asChild>
               <a href={CHANNEL_APP_HREF} target="_blank" rel="noreferrer">
                 증권사 앱 예시 열기
-                <ExternalLink size={15} aria-label="새 탭에서 열기" />
+                <span className={s.srOnly}> (새 탭에서 열기)</span>
+                <ExternalLink size={14} aria-hidden="true" data-icon="end" />
               </a>
             </Button>
           </Empty>

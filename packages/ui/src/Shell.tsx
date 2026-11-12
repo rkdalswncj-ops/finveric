@@ -8,7 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "./button.tsx";
-import { Badge, Notice } from "./components.tsx";
+import { Badge, Notice, type Tone } from "./components.tsx";
 import s from "./ui.module.css";
 
 const brand = (
@@ -52,7 +52,7 @@ export function Shell({
   links?: ExternalItem[];
   area: string;
   title: string;
-  badge: { tone: string; text: string };
+  badge: { tone: Tone; text: string };
   foot?: { title: string; text: string };
   error?: string;
   dismissError?: () => void;
@@ -97,7 +97,7 @@ export function Shell({
                     `${s.navItem} ${isActive ? s.active : ""}`
                   }
                 >
-                  <item.icon size={18} />
+                  <item.icon size={16} />
                   {item.label}
                 </NavLink>
               ))}
@@ -123,7 +123,8 @@ export function Shell({
             >
               <link.icon size={16} />
               {link.label}
-              <ExternalLink size={13} aria-label="새 탭에서 열기" />
+              <span className={s.srOnly}> (새 탭에서 열기)</span>
+              <ExternalLink size={14} aria-hidden="true" />
             </a>
           ))}
           {foot && (

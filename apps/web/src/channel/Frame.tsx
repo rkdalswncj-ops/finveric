@@ -8,7 +8,11 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import { Button } from "../../../../packages/ui/src/button.tsx";
-import { Badge, Notice } from "../../../../packages/ui/src/components.tsx";
+import {
+  Badge,
+  Notice,
+  type Tone,
+} from "../../../../packages/ui/src/components.tsx";
 import ui from "../../../../packages/ui/src/ui.module.css";
 import f from "./frame.module.css";
 import { channel } from "./links.ts";
@@ -40,7 +44,7 @@ export function Frame({
   firm: string;
   title?: string;
   back?: { to: string; label: string };
-  network: { tone: string; text: string };
+  network: { tone: Tone; text: string };
   error?: string;
   dismissError: () => void;
   children: ReactNode;
@@ -86,17 +90,21 @@ export function Frame({
           </div>
         )}
         <nav className={f.tabs} aria-label="앱 메뉴">
-          {TABS.map((tab) => (
-            <Link
-              key={tab.path}
-              to={tab.path}
-              className={current === tab.path ? f.tabActive : f.tab}
-              aria-current={current === tab.path ? "page" : undefined}
-            >
-              <tab.icon size={22} />
-              {tab.label}
-            </Link>
-          ))}
+          {TABS.map((tab) => {
+            const active = current === tab.path;
+            return (
+              <Link
+                key={tab.path}
+                to={tab.path}
+                className={active ? f.tabActive : f.tab}
+                aria-current={active ? "page" : undefined}
+              >
+                {/* 현재 탭은 색, 위 막대, 굵은 아이콘 선으로 함께 표시한다. */}
+                <tab.icon size={22} strokeWidth={active ? 2.5 : 2} />
+                {tab.label}
+              </Link>
+            );
+          })}
         </nav>
       </div>
     </div>

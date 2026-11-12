@@ -124,8 +124,8 @@ function RuleAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
                   <td className={s.numeric}>{rule.block.toString()}</td>
                 )}
                 {technical && (
-                  <td>
-                    <code title={rule.txHash}>{short(rule.txHash, 10, 8)}</code>
+                  <td className={s.wrap}>
+                    <code>{rule.txHash}</code>
                   </td>
                 )}
               </tr>
@@ -303,11 +303,9 @@ function RuleDocumentView({ document }: { document: RuleDocument }) {
                         </span>
                         <Badge>{choice.score}점</Badge>
                         {choice.cap && choice.cap > 1 && (
-                          <Badge tone="warning">
-                            추출 {choice.cap}등급까지
-                          </Badge>
+                          <Badge>추출 {choice.cap}등급까지</Badge>
                         )}
-                        {choice.elderly && <Badge tone="blue">고령 표시</Badge>}
+                        {choice.elderly && <Badge tone="info">고령 표시</Badge>}
                       </li>
                     ))}
                   </ol>

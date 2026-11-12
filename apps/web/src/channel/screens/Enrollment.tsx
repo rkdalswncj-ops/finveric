@@ -371,7 +371,7 @@ export function Enrollment({
             </Button>
             <Button
               variant="outline"
-              disabled={isBusy}
+              blocked={isBusy}
               onClick={() => download(sale.id, "receipt")}
             >
               <Download size={16} />
@@ -457,7 +457,7 @@ export function Enrollment({
         ? "가입 요청을 받았어요"
         : "마지막으로 가입 의사를 확인해요",
       badge: (
-        <Badge tone="blue">{cooling ? "숙려 중" : "최종 확인 대기"}</Badge>
+        <Badge tone="info">{cooling ? "숙려 중" : "최종 확인 대기"}</Badge>
       ),
       content: (
         <>
@@ -506,7 +506,7 @@ export function Enrollment({
           <div className={s.secondary}>
             <Button
               variant="outline"
-              disabled={isBusy || sale.submissionPending}
+              blocked={isBusy || sale.submissionPending}
               onClick={() => setConfirm("withdraw")}
             >
               청약 철회하기
@@ -519,7 +519,7 @@ export function Enrollment({
           label={
             cooling ? "숙려기간이 끝나면 확인할 수 있어요" : "확인하고 가입하기"
           }
-          disabled={cooling || sale.submissionPending}
+          blocked={cooling || sale.submissionPending}
           busy={isBusy}
           onClick={() =>
             action(sale.id, "confirm", "최종 확인을 기록하고 있어요")
@@ -545,7 +545,7 @@ export function Enrollment({
       stage: "진단",
       label: "투자성향 진단",
       title: "최근 투자성향 진단 결과가 있어요",
-      badge: <Badge tone="blue">최근 진단 {latest.attempt}회차</Badge>,
+      badge: <Badge tone="info">최근 진단 {latest.attempt}회차</Badge>,
       content: (
         <>
           <Facts
@@ -560,7 +560,7 @@ export function Enrollment({
             남아요.
           </p>
           <div className={s.secondary}>
-            <Button variant="outline" disabled={isBusy} onClick={restart}>
+            <Button variant="outline" blocked={isBusy} onClick={restart}>
               다시 진단하기
             </Button>
           </div>
@@ -625,13 +625,13 @@ export function Enrollment({
         <PrimaryAction
           label="진단 결과 보기"
           busy={isBusy}
-          disabled={answers.some((answer) => answer === null)}
+          blocked={answers.some((answer) => answer === null)}
           onClick={() => void diagnose(answers)}
         />
       ) : (
         <PrimaryAction
           label="다음"
-          disabled={answers[q] === null}
+          blocked={answers[q] === null}
           onClick={() => update({ question: q + 1, answers })}
         />
       ),
@@ -643,7 +643,7 @@ export function Enrollment({
       title: `투자성향은 ${profileName(latest.profile)}이에요`,
       badge: (
         <span className={s.badges}>
-          <Badge tone="blue">{latest.attempt}회차</Badge>
+          <Badge tone="info">{latest.attempt}회차</Badge>
           {latest.attempt > 1 && <Badge>재진단</Badge>}
         </span>
       ),
@@ -669,7 +669,7 @@ export function Enrollment({
             </Notice>
           )}
           <div className={s.secondary}>
-            <Button variant="outline" disabled={isBusy} onClick={restart}>
+            <Button variant="outline" blocked={isBusy} onClick={restart}>
               다시 진단하기
             </Button>
           </div>
@@ -739,7 +739,7 @@ export function Enrollment({
           action: (
             <PrimaryAction
               label="추가 위험을 확인하고 계속하기"
-              disabled={!flow.higherRisk}
+              blocked={!flow.higherRisk}
               onClick={() => update({ phase: "cards", card: 0 })}
             />
           ),
@@ -778,7 +778,7 @@ export function Enrollment({
       action: last ? (
         <PrimaryAction
           label="설명을 확인했어요"
-          disabled={!flow.cardsRead}
+          blocked={!flow.cardsRead}
           onClick={() =>
             leaveCards({ phase: protectedSale ? "recording" : "subscribe" })
           }
@@ -795,7 +795,7 @@ export function Enrollment({
       stage: "녹취",
       label: "녹취 동의",
       title: "가입 과정을 녹취해요",
-      badge: <Badge tone="blue">녹취 대상</Badge>,
+      badge: <Badge tone="info">녹취 대상</Badge>,
       back: () => update({ phase: "cards", card: lastCard }),
       content: (
         <>
@@ -819,7 +819,7 @@ export function Enrollment({
       action: (
         <PrimaryAction
           label="다음"
-          disabled={!flow.consent}
+          blocked={!flow.consent}
           onClick={() => update({ phase: "subscribe" })}
         />
       ),
@@ -884,8 +884,8 @@ export function Enrollment({
       action: (
         <PrimaryAction
           label={approved ? "청약하기" : "승인을 기다리고 있어요"}
-          busy={isBusy || !approved}
-          disabled={!approved || sale.submissionPending}
+          busy={isBusy}
+          blocked={!approved || sale.submissionPending}
           onClick={() => void subscribe()}
         />
       ),

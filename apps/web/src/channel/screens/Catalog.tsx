@@ -3,7 +3,6 @@ import { Link } from "react-router";
 import {
   ArrowRight,
   Landmark,
-  LoaderCircle,
   Search,
   ShieldCheck,
   TrendingUp,
@@ -73,7 +72,7 @@ export function Catalog({
         description="상품 유형, 위험등급, 비용, 최대 손실을 비교해 보세요."
       />
       <div className={s.tools}>
-        <div className={s.chips}>
+        <div className={s.chips} role="group" aria-label="상품 유형">
           {(["", ...PRODUCT_TYPES] as const).map((value) => (
             <button
               key={value || "all"}
@@ -105,7 +104,7 @@ export function Catalog({
                 <div className={`${s.symbol} ${tone}`}>
                   <Icon size={27} />
                 </div>
-                <Badge tone={document.riskGrade <= 2 ? "warning" : "blue"}>
+                <Badge tone={document.riskGrade <= 2 ? "warning" : "info"}>
                   {gradeName(document.riskGrade)}
                 </Badge>
               </div>
@@ -143,19 +142,16 @@ export function Catalog({
                   </Link>
                 </Button>
                 <Button
-                  disabled={!!busy}
-                  aria-busy={(!!busy && starting === product.id) || undefined}
+                  busy={!!busy && starting === product.id}
+                  blocked={!!busy && starting !== product.id}
                   aria-label={`${document.name} 가입하기`}
                   onClick={() => {
                     setStarting(product.id);
                     enroll.request(product.id);
                   }}
                 >
-                  {busy && starting === product.id ? (
-                    <LoaderCircle size={16} className={s.spin} />
-                  ) : null}
                   {enroll.same(product.id) ? "가입 이어 하기" : "가입하기"}
-                  <ArrowRight size={16} />
+                  <ArrowRight size={16} data-icon="end" />
                 </Button>
               </div>
             </article>
@@ -204,7 +200,7 @@ export function Catalog({
         </div>
         <Button variant="outline" asChild>
           <Link to={channel.records}>
-            내 가입 기록 보기 <ArrowRight size={16} />
+            내 가입 기록 보기 <ArrowRight size={16} data-icon="end" />
           </Link>
         </Button>
       </div>

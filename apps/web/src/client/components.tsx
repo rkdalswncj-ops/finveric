@@ -8,7 +8,7 @@ import {
 import type { DiagnosisDto } from "../../../../packages/core/src/api.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
 import { Facts, Notice } from "../../../../packages/ui/src/components.tsx";
-import { dateTime, short } from "../../../../packages/ui/src/format.ts";
+import { dateTime } from "../../../../packages/ui/src/format.ts";
 import {
   gradeName,
   issuerLabel,
@@ -37,7 +37,7 @@ export function RegisterNotice({
         아직 원장에 등록한 진단 기준과 상품이 없습니다. 기본 진단 기준과 예시
         상품 3종을 한 번에 등록할 수 있습니다.
       </Notice>
-      <Button disabled={busy} onClick={register}>
+      <Button busy={busy} onClick={register}>
         상품·진단 기준 등록
       </Button>
     </div>
@@ -160,8 +160,8 @@ export function DiagnosisTable({
               <td>{limitRange(diagnosis.limit)}</td>
               <td>{diagnosis.elderly ? "고령" : "—"}</td>
               <td>{dateTime(diagnosis.at)}</td>
-              <td>
-                <code title={diagnosis.txHash}>{short(diagnosis.txHash)}</code>
+              <td className={s.wrapCell}>
+                <code>{diagnosis.txHash}</code>
               </td>
             </tr>
           ))}

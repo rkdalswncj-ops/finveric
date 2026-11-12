@@ -17,7 +17,7 @@
   padding: 20px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--rounded-surface);
 }
 .card + .card {
   margin-top: 16px;
@@ -30,16 +30,8 @@
   font-size: var(--type-detail);
 }
 .field input[type="text"] {
-  min-height: 48px;
-  padding: 10px 14px;
-  border: 1px solid var(--input);
-  border-radius: 10px;
   font-size: var(--type-body);
   overflow-wrap: anywhere;
-}
-.field input[type="text"]:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 1px;
 }
 .field input[type="file"] {
   font-weight: 400;
@@ -47,11 +39,8 @@
 }
 .field small {
   color: var(--muted-foreground);
+  font-size: var(--type-caption);
   font-weight: 400;
-}
-.submit {
-  min-height: 52px;
-  border-radius: 12px;
 }
 .result {
   display: flex;
@@ -84,9 +73,11 @@
   background: var(--warning-surface);
   color: var(--warning);
 }
+/* 불일치 항목. Tailwind 기본 스타일이 목록 기호를 지우므로 다시 넣는다. */
 .items {
   margin: 8px 0 0;
-  padding-left: 18px;
+  padding-inline-start: 1.25em;
+  list-style: disc;
 }
 .tech {
   font-size: var(--type-ui);
@@ -109,7 +100,8 @@
 .checks li > span:first-child {
   min-width: 0;
 }
-.checks li > span:last-child {
+/* 오른쪽의 결과(일치·불일치)는 줄지 않는다. 블록·거래 줄은 span 하나라 전체 폭을 쓴다. */
+.checks li > span + span {
   flex: none;
 }
 .checks small {

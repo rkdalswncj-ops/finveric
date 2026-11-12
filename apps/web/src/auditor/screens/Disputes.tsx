@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   Check,
   FileText,
-  LoaderCircle,
   SearchX,
   ShieldCheck,
 } from "lucide-react";
@@ -38,6 +37,7 @@ import {
   Facts,
   Heading,
   Notice,
+  type Tone,
 } from "../../../../../packages/ui/src/components.tsx";
 import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
@@ -62,7 +62,7 @@ import type { Ledger } from "../useLedger.ts";
 
 const s = { ...ui, ...local };
 
-const OUTCOME_TONES: Record<VerifyOutcome, string> = {
+const OUTCOME_TONES: Record<VerifyOutcome, Tone> = {
   match: "success",
   mismatch: "warning",
   missing: "neutral",
@@ -95,20 +95,22 @@ export function Disputes({
         description="판매 ID로 단계별 원장 기록과 제출 자료를 대조하거나, 고객 가명 ID로 모든 진단 회차와 판매 건을 확인합니다."
       />
       <LedgerLine ledger={ledger} />
-      <nav aria-label="조회 방법" className={s.actions}>
-        <Button variant={byCustomer ? "outline" : "default"} asChild>
-          <Link to="/disputes" aria-current={!byCustomer ? "page" : undefined}>
-            판매 ID로 조회
-          </Link>
-        </Button>
-        <Button variant={byCustomer ? "default" : "outline"} asChild>
-          <Link
-            to="/disputes?customer="
-            aria-current={byCustomer ? "page" : undefined}
-          >
-            고객 가명 ID로 조회
-          </Link>
-        </Button>
+      {/* 조회 방법 전환. 주요 버튼이 아니라 칩 링크로 둔다. */}
+      <nav aria-label="조회 방법" className={`${s.chips} ${s.modes}`}>
+        <Link
+          to="/disputes"
+          className={!byCustomer ? s.chipActive : undefined}
+          aria-current={!byCustomer ? "page" : undefined}
+        >
+          판매 ID로 조회
+        </Link>
+        <Link
+          to="/disputes?customer="
+          className={byCustomer ? s.chipActive : undefined}
+          aria-current={byCustomer ? "page" : undefined}
+        >
+          고객 가명 ID로 조회
+        </Link>
       </nav>
       {byCustomer ? (
         <CustomerLookup key={customer} ledger={ledger} customerRef={customer} />
@@ -325,7 +327,7 @@ function SaleLookup({
             inputMode="numeric"
             autoComplete="off"
             spellCheck={false}
-            disabled={loading}
+            readOnly={loading}
             onChange={(e) => {
               setId(e.target.value);
               setResult(undefined);
@@ -404,16 +406,13 @@ function SaleLookup({
         {source === "seller" && tokenRequired && (
           <AccessCodeForm connect={() => void verify()} busy={loading} />
         )}
-        <Button type="submit" disabled={!deployment || !saleId || loading}>
+        <Button type="submit" busy={loading} blocked={!deployment || !saleId}>
           {loading ? (
-            <>
-              <LoaderCircle className={s.spin} size={16} />
-              원장과 대조하는 중
-            </>
+            "원장과 대조하는 중"
           ) : (
             <>
               원장과 대조하기
-              <ShieldCheck size={17} />
+              <ShieldCheck size={16} data-icon="end" />
             </>
           )}
         </Button>
@@ -421,7 +420,7 @@ function SaleLookup({
           <Button
             variant="ghost"
             type="button"
-            disabled={loading}
+            blocked={loading}
             onClick={() => {
               setReceipt(undefined);
               setOriginal(undefined);
@@ -761,7 +760,7 @@ function DiagnosisTable({
                 <td>
                   {diagnosis.attempt}회차{" "}
                   {diagnosis.attempt === saleAttempt && (
-                    <Badge tone="blue">청약 회차</Badge>
+                    <Badge tone="info">청약 회차</Badge>
                   )}
                 </td>
                 <td>{profileLabel(diagnosis.profile)}</td>
@@ -773,10 +772,8 @@ function DiagnosisTable({
                   <td className={s.numeric}>{diagnosis.block.toString()}</td>
                 )}
                 {technical && (
-                  <td>
-                    <code title={diagnosis.txHash}>
-                      {short(diagnosis.txHash, 10, 8)}
-                    </code>
+                  <td className={s.wrap}>
+                    <code>{diagnosis.txHash}</code>
                   </td>
                 )}
               </tr>
@@ -870,9 +867,9 @@ function CustomerLookup({
             {error}
           </p>
         )}
-        <Button type="submit" disabled={!value.trim()}>
+        <Button type="submit" blocked={!value.trim()}>
           원장에서 조회하기
-          <ShieldCheck size={17} />
+          <ShieldCheck size={16} data-icon="end" />
         </Button>
         <p className={s.small}>
           원장에는 고객 번호와 개인정보가 없습니다. 실제 고객과의 연결 정보는
@@ -927,7 +924,7 @@ function CustomerRecord({
           <SearchX className={s.neutralIcon} />
         )}
         <div>
-          <Badge tone={found ? "blue" : "neutral"}>
+          <Badge tone={found ? "info" : "neutral"}>
             {found ? "원장 기록 있음" : OUTCOME_LABELS.missing}
           </Badge>
           <h2>
