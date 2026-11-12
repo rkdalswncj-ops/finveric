@@ -16,7 +16,7 @@
 
 | 자료                | 담당           | 위치                                                                                          | 상태      |
 | ------------------- | -------------- | --------------------------------------------------------------------------------------------- | --------- |
-| 제품 정의(PRD)      | 개발           | [docs/prd.md](prd.md)                                                                         | 완료      |
+| 제품 정의(PRD)      | 개발           | [docs/prd.md](prd.md)                                                                         | v5 초안   |
 | 시장 조사           | 자료조사       | [docs/market-research.md](market-research.md)                                                 | 초안      |
 | 아키텍처·흐름 그림  | 개발           | [architecture.png](assets/architecture.png), [flow.png](assets/flow.png), [cover.png](assets/cover.png) | 완료      |
 | 화면 캡처 6장       | 개발           | [docs/assets/screens/](assets/screens/)                                                       | 완료      |
