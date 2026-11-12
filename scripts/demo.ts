@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createPublicClient, http } from "viem";
-import { randomField } from "../apps/api/src/zk.ts";
+import { randomField } from "../apps/api/src/modules/proofs.ts";
 import { environment } from "./environment.ts";
 import { verifyEvidence } from "../packages/core/src/verify.ts";
 import {

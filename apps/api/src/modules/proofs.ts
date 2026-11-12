@@ -7,8 +7,8 @@ import {
   diagnosisCommitment,
   type Answers,
   type Deployment,
-} from "../../../packages/core/src/index.ts";
-import { fromRoot } from "../../../scripts/root.ts";
+} from "../../../../packages/core/src/index.ts";
+import { fromRoot } from "../../../../scripts/root.ts";
 
 export function commitment(
   answers: Answers,
