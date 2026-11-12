@@ -18,7 +18,7 @@ import { proofKeyHash } from "../scripts/artifacts.ts";
 // @ts-expect-error Portable JavaScript binary resolver.
 import { foundryBinary } from "../scripts/foundry.mjs";
 import { FundService } from "../apps/api/src/service.ts";
-import { RedisStore } from "../apps/api/src/store.ts";
+import { RedisStore } from "../apps/api/src/repositories/store.ts";
 import { fakeUpstash } from "./fake-upstash.ts";
 import { createApp } from "../apps/api/src/app.ts";
 import {

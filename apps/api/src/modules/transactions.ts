@@ -1,41 +1,28 @@
-// 원장: 거래 제출, 영수증 대조, 판매 건 조회.
+// 원장 거래 처리 기록: 거래를 제출하며 기록을 남기고, 대기 중인 거래의 영수증을 대조한다.
 import { randomUUID } from "node:crypto";
-import {
-  createWalletClient,
-  http,
-  parseEventLogs,
-  type TransactionReceipt,
-} from "viem";
-import {
-  ledgerAbi,
-  type Role,
-  type SaleRecord,
-  type Trace,
+import type { TransactionReceipt } from "viem";
+import type {
+  Role,
+  SaleRecord,
+  Trace,
 } from "../../../../packages/core/src/index.ts";
 import type { FundService } from "../service.ts";
-import type { StoredSale, StoredTrace } from "./types.ts";
-
-export function chainSale(svc: FundService, id: string) {
-  return svc.client.readContract({
-    address: svc.dep.ledger,
-    abi: ledgerAbi,
-    functionName: "getSale",
-    args: [BigInt(id)],
-  });
-}
+import type { StoredSale, StoredTrace } from "../repositories/sales.ts";
+import {
+  getReceipt,
+  ledgerEvents,
+  submit,
+  waitForReceipt,
+} from "../gateways/ledger.ts";
 
 /**
  * 대기 중인 거래의 영수증을 대조한다.
  * `recoverInterrupted`이면 거래 해시 없이 남은 기록을 실패로 바꾼다. 잠금 안에서만 이 옵션을 쓴다.
  */
 export async function reconcile(svc: FundService, recoverInterrupted = false) {
-  const tracedSales = svc.sales.flatMap((sale) =>
-    sale.traces.map((trace) => ({ trace, sale })),
-  );
-  for (const { trace, sale } of [
-    ...svc.systemTraces.map((trace) => ({ trace, sale: undefined })),
-    ...tracedSales,
-  ].filter(({ trace }) => trace.status === "pending")) {
+  for (const { trace, sale } of svc.repository
+    .traces()
+    .filter(({ trace }) => trace.status === "pending")) {
     if (!trace.txHash) {
       if (recoverInterrupted) {
         trace.status = "failed";
@@ -44,9 +31,7 @@ export async function reconcile(svc: FundService, recoverInterrupted = false) {
       continue;
     }
     try {
-      const receipt = await svc.client.getTransactionReceipt({
-        hash: trace.txHash,
-      });
+      const receipt = await getReceipt(svc, trace.txHash);
       if (sale && trace.action === "completeEnrollment")
         recordEnrollmentReceipt(svc, sale, trace, receipt);
       else {
@@ -58,7 +43,7 @@ export async function reconcile(svc: FundService, recoverInterrupted = false) {
       /* Keep an unmined transaction pending; do not resubmit it. */
     }
   }
-  svc.save();
+  svc.repository.save();
 }
 
 /** 역할 키로 원장 함수를 호출하고, 성공 영수증에서 같은 판매 ID의 이벤트를 확인한다. */
@@ -70,18 +55,9 @@ export async function send(
   event: string,
   record?: SaleRecord,
 ) {
-  const traces = record?.traces ?? svc.systemTraces;
-  if (
-    [...svc.systemTraces, ...svc.sales.flatMap((s) => s.traces)].some(
-      (t) => t.status === "pending" && t.txHash,
-    )
-  ) {
+  if (svc.repository.hasPendingTransaction()) {
     await reconcile(svc);
-    if (
-      [...svc.systemTraces, ...svc.sales.flatMap((s) => s.traces)].some(
-        (t) => t.status === "pending" && t.txHash,
-      )
-    )
+    if (svc.repository.hasPendingTransaction())
       throw new Error(
         "미확정 거래가 있습니다. 영수증을 확인한 뒤 다시 요청하세요.",
       );
@@ -93,43 +69,23 @@ export async function send(
     action: functionName,
     status: "pending",
   };
-  traces.push(trace);
-  svc.save();
+  svc.repository.addTrace(trace, record);
   try {
-    const wallet = createWalletClient({
-      account: svc.env.accounts[role],
-      chain: svc.env.chain,
-      transport: http(svc.env.rpcUrl),
-    });
-    // Fixed gas also lets the missing-record demonstration reach the EVM and produce a reverted receipt.
-    const hash = await wallet.writeContract({
-      address: svc.dep.ledger,
-      abi: ledgerAbi,
-      functionName: functionName as any,
-      args: args as any,
-      gas: 1_500_000n,
-    });
+    const hash = await submit(svc, role, functionName, args);
     trace.txHash = hash;
-    svc.save();
-    const receipt = await svc.client.waitForTransactionReceipt({
-      hash,
-      timeout: 180_000,
-    });
+    svc.repository.save();
+    const receipt = await waitForReceipt(svc, hash);
     trace.blockNumber = receipt.blockNumber.toString();
     trace.detail = receipt;
     if (receipt.status !== "success") {
       trace.status = "failed";
-      svc.save();
+      svc.repository.save();
       throw new Error(
         "컨트랙트가 요청을 거절했습니다. 필수 기록과 현재 단계를 확인하세요.",
       );
     }
-    const events = parseEventLogs({
-      abi: ledgerAbi,
-      logs: receipt.logs,
-    }).filter((l) => l.address.toLowerCase() === svc.dep.ledger.toLowerCase());
     if (
-      !events.some(
+      !ledgerEvents(svc, receipt).some(
         (l) =>
           l.eventName === event &&
           (!record ||
@@ -137,12 +93,12 @@ export async function send(
       )
     ) {
       trace.status = "failed";
-      svc.save();
+      svc.repository.save();
       throw new Error("성공 영수증의 판매 ID와 이벤트를 대조할 수 없습니다.");
     }
     trace.event = event;
     trace.status = "confirmed";
-    svc.save();
+    svc.repository.save();
     return hash;
   } catch (error) {
     if (!trace.txHash) {
@@ -150,7 +106,7 @@ export async function send(
       trace.detail =
         "거래를 제출하지 못했습니다. RPC 연결과 테스트 ETH 잔액을 확인하세요.";
     }
-    svc.save();
+    svc.repository.save();
     if (trace.status === "pending")
       throw new Error(
         "거래 영수증이 아직 없습니다. 온체인 처리 화면에서 해시를 확인하세요.",
@@ -168,11 +124,8 @@ export function recordEnrollmentReceipt(
   trace: StoredTrace,
   receipt: TransactionReceipt,
 ) {
-  const logs = parseEventLogs({ abi: ledgerAbi, logs: receipt.logs }).filter(
-    (log) =>
-      log.address.toLowerCase() === svc.dep.ledger.toLowerCase() &&
-      "saleId" in log.args &&
-      log.args.saleId === BigInt(record.id),
+  const logs = ledgerEvents(svc, receipt).filter(
+    (log) => "saleId" in log.args && log.args.saleId === BigInt(record.id),
   );
   const success =
     receipt.status === "success" &&

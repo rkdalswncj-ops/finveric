@@ -2,23 +2,12 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { timingSafeEqual } from "node:crypto";
-import { DOCUMENT, PRODUCTS, json } from "../../../packages/core/src/index.ts";
-import {
-  confirmBodySchema,
-  diagnoseBodySchema,
-  exportParamsSchema,
-  saleActionParamsSchema,
-  saleIdParamsSchema,
-  type ConfigResponse,
-  type ConfirmRequest,
-  type DiagnoseRequest,
-  type ExportParams,
-  type HealthResponse,
-  type OpenSaleRequest,
-  type SaleActionParams,
-  type SaleIdParams,
-} from "../../../packages/core/src/api.ts";
+import { json } from "../../../packages/core/src/index.ts";
 import { FundService } from "./service.ts";
+import { productRoutes } from "./routes/products.ts";
+import { recordRoutes } from "./routes/records.ts";
+import { saleRoutes } from "./routes/sales.ts";
+import { systemRoutes } from "./routes/system.ts";
 
 /** 로컬 Vite 개발 서버. client·auditor 앱이 각자 다른 포트를 쓴다. */
 const DEV_ORIGINS = [5173, 5174].flatMap((port) => [
@@ -109,83 +98,10 @@ export async function createApp(service = new FundService()) {
         : "서버 연결과 온체인 처리 기록을 확인하세요.";
     reply.code(409).send({ error: safe });
   });
-  // 요청·응답 형식은 packages/core/src/api.ts의 DTO와 스키마를 따른다.
-  app.get("/api/health", async (): Promise<HealthResponse> => ({
-    ok: true,
-    chainId: service.dep.chainId,
-  }));
-  app.get("/api/config", async (): Promise<ConfigResponse> => ({
-    deployment: service.dep,
-    product: DOCUMENT,
-    products: PRODUCTS,
-    requiresToken: !!token,
-  }));
-  app.get("/api/sales", async () =>
-    service.view(() =>
-      Promise.all(service.sales.map((s) => service.publicSale(s))),
-    ),
-  );
-  app.get<{ Params: SaleIdParams }>(
-    "/api/sales/:id",
-    { schema: { params: saleIdParamsSchema } },
-    async (req) =>
-      service.view(() => service.publicSale(service.find(req.params.id))),
-  );
-  app.get("/api/traces", async () =>
-    service.view(() => service.publicTraces()),
-  );
-  app.post("/api/register", async () =>
-    service.exclusive(() => service.register()),
-  );
-  // 본문 없이 보내도 된다. 그래서 스키마 대신 직접 검사한다.
-  app.post<{ Body: OpenSaleRequest | undefined }>("/api/sales", async (req) => {
-    const body = req.body;
-    if (
-      body !== undefined &&
-      (!body || typeof body !== "object" || Array.isArray(body))
-    )
-      throw new Error("가입할 펀드를 확인해 주세요.");
-    const productId = body?.productId;
-    if (
-      productId !== undefined &&
-      (typeof productId !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(productId))
-    )
-      throw new Error("가입할 펀드를 확인해 주세요.");
-    return service.exclusive(() => service.open(productId));
-  });
-  app.post<{ Params: SaleIdParams; Body: DiagnoseRequest }>(
-    "/api/sales/:id/diagnose",
-    { schema: { params: saleIdParamsSchema, body: diagnoseBodySchema } },
-    async (req) =>
-      service.exclusive(() => service.diagnose(req.params.id, req.body)),
-  );
-  app.post<{ Params: SaleIdParams; Body: ConfirmRequest }>(
-    "/api/sales/:id/confirm",
-    { schema: { params: saleIdParamsSchema, body: confirmBodySchema } },
-    async (req) =>
-      service.exclusive(() => service.confirm(req.params.id, req.body)),
-  );
-  app.post<{ Params: SaleActionParams }>(
-    "/api/sales/:id/action/:action",
-    { schema: { params: saleActionParamsSchema } },
-    async (req) =>
-      service.exclusive(() => service.action(req.params.id, req.params.action)),
-  );
-  app.get<{ Params: ExportParams }>(
-    "/api/sales/:id/export/:kind",
-    { schema: { params: exportParamsSchema } },
-    async (req, reply) => {
-      reply.header(
-        "Content-Disposition",
-        `attachment; filename="finveric-${req.params.kind}-${req.params.id.slice(0, 10)}.json"`,
-      );
-      reply.header("Cache-Control", "no-store");
-      return service.view<unknown>(() =>
-        req.params.kind === "original"
-          ? service.original(req.params.id)
-          : service.receipt(req.params.id),
-      );
-    },
-  );
+  // 경로는 업무별 파일에 있다. 위의 접근 코드·출처 검사가 모든 경로에 적용된다.
+  systemRoutes(app, service, { requiresToken: !!token });
+  productRoutes(app, service);
+  saleRoutes(app, service);
+  recordRoutes(app, service);
   return app;
 }

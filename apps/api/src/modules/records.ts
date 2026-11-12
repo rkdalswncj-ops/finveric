@@ -8,9 +8,10 @@ import {
 } from "../../../../packages/core/src/index.ts";
 import type { SaleView } from "../../../../packages/core/src/api.ts";
 import type { FundService } from "../service.ts";
-import type { StoredSale, StoredTrace } from "./types.ts";
-import { chainSale, reconcile } from "./ledger.ts";
+import type { StoredSale, StoredTrace } from "../repositories/sales.ts";
+import { readSale } from "../gateways/ledger.ts";
 import { requireProduct } from "./products.ts";
+import { reconcile } from "./transactions.ts";
 
 function publicTrace({
   rawTransaction: _rawTransaction,
@@ -27,6 +28,9 @@ export function enrollmentTrace(record: StoredSale) {
   );
 }
 
+/** 원장에 기록된 판매 건 상태. */
+export const chainSale = (svc: FundService, id: string) => readSale(svc, id);
+
 /** 공개 조회용 판매 건. 답변·임의값·서명 거래 원문은 넣지 않는다. */
 export async function publicSale(
   svc: FundService,
@@ -34,7 +38,7 @@ export async function publicSale(
 ): Promise<SaleView> {
   const product = requireProduct(record.productId);
   const onchain = enrollmentTrace(record)
-    ? await chainSale(svc, record.id)
+    ? await readSale(svc, record.id)
     : undefined;
   const state: ChainSale = onchain?.finalized
     ? onchain
@@ -76,14 +80,14 @@ export async function publicSale(
 /** 모든 처리 기록을 시간순으로 돌려준다. 대기 중인 거래는 먼저 영수증을 대조한다. */
 export async function publicTraces(svc: FundService): Promise<Trace[]> {
   await reconcile(svc);
-  return [
-    ...svc.systemTraces,
-    ...svc.sales.flatMap((sale) => sale.traces.map(publicTrace)),
-  ].sort((a, b) => a.at.localeCompare(b.at));
+  return svc.repository
+    .traces()
+    .map(({ trace }) => publicTrace(trace))
+    .sort((a, b) => a.at.localeCompare(b.at));
 }
 
 async function completedRecord(svc: FundService, id: string) {
-  const record = svc.find(id);
+  const record = svc.repository.find(id);
   if (enrollmentTrace(record)?.status === "pending") await reconcile(svc);
   if (enrollmentTrace(record)?.status !== "confirmed")
     throw new Error("가입이 완료되면 서류를 받을 수 있어요.");

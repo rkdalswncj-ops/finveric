@@ -1,14 +1,14 @@
 // 운용사·판매사: 상품·설명서 버전과 진단 규칙 등록.
 import type { Hex } from "viem";
 import {
-  ledgerAbi,
   PRODUCTS,
   RULE_HASH,
   type Product,
 } from "../../../../packages/core/src/index.ts";
 import type { RegisterResponse } from "../../../../packages/core/src/api.ts";
 import type { FundService } from "../service.ts";
-import { send } from "./ledger.ts";
+import { readProduct, readRule } from "../gateways/ledger.ts";
+import { send } from "./transactions.ts";
 
 export function requireProduct(id: Hex): Product {
   const product = PRODUCTS.find((entry) => entry.id === id.toLowerCase());
@@ -16,18 +16,17 @@ export function requireProduct(id: Hex): Product {
   return product;
 }
 
-/** 원장에 등록된 상품의 설명서 지문과 기준 투자성향. 등록 전이면 기준 투자성향이 0이다. */
-export async function productRegistration(svc: FundService, productId: Hex) {
-  const call = {
-    address: svc.dep.ledger,
-    abi: ledgerAbi,
-    args: [productId],
-  } as const;
-  const [documentHash, minimumProfile] = await Promise.all([
-    svc.client.readContract({ ...call, functionName: "documents" }),
-    svc.client.readContract({ ...call, functionName: "minimumProfiles" }),
+/** 상품의 설명서와 진단 규칙 v3이 원장에 등록되어 있는지 확인한다. */
+export async function isRegistered(svc: FundService, product: Product) {
+  const [{ documentHash, minimumProfile }, rule] = await Promise.all([
+    readProduct(svc, product.id),
+    readRule(svc),
   ]);
-  return { documentHash, minimumProfile };
+  return (
+    documentHash === product.documentHash &&
+    minimumProfile === product.minimumProfile &&
+    rule
+  );
 }
 
 /**
@@ -36,7 +35,7 @@ export async function productRegistration(svc: FundService, productId: Hex) {
  */
 export async function register(svc: FundService): Promise<RegisterResponse> {
   const registrations = await Promise.all(
-    PRODUCTS.map((product) => productRegistration(svc, product.id)),
+    PRODUCTS.map((product) => readProduct(svc, product.id)),
   );
   for (const [index, product] of PRODUCTS.entries()) {
     const { documentHash, minimumProfile } = registrations[index];
@@ -55,13 +54,7 @@ export async function register(svc: FundService): Promise<RegisterResponse> {
       throw new Error("이미 등록한 상품의 설명서나 위험 기준이 달라요.");
     }
   }
-  const rule = await svc.client.readContract({
-    address: svc.dep.ledger,
-    abi: ledgerAbi,
-    functionName: "rules",
-    args: [RULE_HASH],
-  });
-  if (!rule)
+  if (!(await readRule(svc)))
     await send(svc, "seller", "registerRule", [RULE_HASH], "RuleRegistered");
   return { documentHash: PRODUCTS[0].documentHash, ruleHash: RULE_HASH };
 }

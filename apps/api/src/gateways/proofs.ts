@@ -1,3 +1,4 @@
+// 외부 연동: Groth16 증명 생성(snarkjs)과 원장 호출 형식 변환.
 import { groth16 } from "snarkjs";
 import { randomBytes } from "node:crypto";
 import {

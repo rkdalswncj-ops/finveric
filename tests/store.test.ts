@@ -2,7 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createStore, FileStore, RedisStore } from "../apps/api/src/store.ts";
+import {
+  createStore,
+  FileStore,
+  RedisStore,
+} from "../apps/api/src/repositories/store.ts";
 import {
   allowedOrigins,
   corsOrigins,

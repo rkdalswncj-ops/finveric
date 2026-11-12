@@ -1,13 +1,6 @@
 // 판매 채널: 가입 신청, 투자성향 진단, 최종 확인과 가입 거래, 가입 중단.
 import { randomUUID } from "node:crypto";
-import {
-  createWalletClient,
-  encodeFunctionData,
-  http,
-  keccak256,
-  type Hex,
-  type TransactionSerializedEIP1559,
-} from "viem";
+import { encodeFunctionData, type Hex } from "viem";
 import {
   ledgerAbi,
   PRODUCT_ID,
@@ -28,16 +21,22 @@ import type {
   SaleView,
 } from "../../../../packages/core/src/api.ts";
 import type { FundService } from "../service.ts";
-import type { StoredSale, StoredTrace } from "./types.ts";
-import { reconcile, recordEnrollmentReceipt } from "./ledger.ts";
-import { productRegistration, requireProduct } from "./products.ts";
-import { enrollmentTrace, publicSale } from "./records.ts";
+import type { StoredSale, StoredTrace } from "../repositories/sales.ts";
+import {
+  broadcast,
+  getReceipt,
+  signTransaction,
+  waitForReceipt,
+} from "../gateways/ledger.ts";
 import {
   prove,
   randomField,
   solidityProof,
   validateAnswers,
-} from "./proofs.ts";
+} from "../gateways/proofs.ts";
+import { isRegistered, requireProduct } from "./products.ts";
+import { enrollmentTrace, publicSale } from "./records.ts";
+import { reconcile, recordEnrollmentReceipt } from "./transactions.ts";
 
 /** 가입 거래를 보내기 전의 임시 신청인지 확인한다. */
 export function ensureDraft(record: StoredSale) {
@@ -70,28 +69,20 @@ async function settleEnrollment(
   const { txHash, rawTransaction } = trace;
   if (!txHash || !rawTransaction)
     throw new Error("제출한 가입 거래를 찾을 수 없어요.");
-  let receipt = await svc.client
-    .getTransactionReceipt({ hash: txHash })
-    .catch(() => undefined);
+  let receipt = await getReceipt(svc, txHash).catch(() => undefined);
   if (!receipt) {
     // A retry broadcasts the exact same signed transaction with the same hash and nonce.
-    await svc.client
-      .sendRawTransaction({ serializedTransaction: rawTransaction })
-      .catch(() => undefined);
-    receipt = await svc.client
-      .waitForTransactionReceipt({
-        hash: txHash,
-        timeout: 180_000,
-        checkReplacement: false,
-      })
-      .catch(() => undefined);
+    await broadcast(svc, rawTransaction).catch(() => undefined);
+    receipt = await waitForReceipt(svc, txHash, {
+      checkReplacement: false,
+    }).catch(() => undefined);
   }
   if (!receipt)
     throw new Error(
       "가입 거래를 확인하고 있어요. 같은 신청에서 다시 확인해 주세요.",
     );
   recordEnrollmentReceipt(svc, record, trace, receipt);
-  svc.save();
+  svc.repository.save();
   if (trace.status !== "confirmed")
     throw new Error(
       "가입 거래가 실패했어요. 온체인 처리 기록을 확인해 주세요.",
@@ -105,20 +96,7 @@ export async function open(
   productId: Hex = PRODUCT_ID,
 ): Promise<OpenSaleResponse> {
   const product = requireProduct(productId);
-  const [{ documentHash, minimumProfile }, rule] = await Promise.all([
-    productRegistration(svc, product.id),
-    svc.client.readContract({
-      address: svc.dep.ledger,
-      abi: ledgerAbi,
-      functionName: "rules",
-      args: [RULE_HASH],
-    }),
-  ]);
-  if (
-    documentHash !== product.documentHash ||
-    minimumProfile !== product.minimumProfile ||
-    !rule
-  )
+  if (!(await isRegistered(svc, product)))
     throw new Error(
       "관리자 화면에서 이 상품과 진단 규칙 v3를 먼저 등록하세요.",
     );
@@ -130,8 +108,7 @@ export async function open(
     attempts: [],
     traces: [],
   };
-  svc.sales.unshift(record);
-  svc.save();
+  svc.repository.add(record);
   return { id: record.id };
 }
 
@@ -145,7 +122,7 @@ export async function diagnose(
   validateAnswers(answers);
   if (!/^[1-9][0-9]{0,76}$/.test(salt) || BigInt(salt) >= FIELD)
     throw new Error("진단에 사용할 임의값을 확인해 주세요.");
-  const record = svc.find(id);
+  const record = svc.repository.find(id);
   const product = requireProduct(record.productId);
   ensureDraft(record);
   const previous = record.attempts.find((attempt) => attempt.salt === salt);
@@ -178,8 +155,7 @@ export async function diagnose(
     action: "증명 생성",
     status: "pending",
   };
-  record.traces.push(trace);
-  svc.save();
+  svc.repository.addTrace(trace, record);
   try {
     const result = await prove(
       answers,
@@ -212,11 +188,11 @@ export async function diagnose(
       protocol: "groth16",
       curve: "bn128",
     };
-    svc.save();
+    svc.repository.save();
     return { ...(await publicSale(svc, record)), preparedProof: prepared };
   } catch {
     trace.status = "failed";
-    svc.save();
+    svc.repository.save();
     throw new Error("진단 증명을 만들지 못했어요. 다시 시도해 주세요.");
   }
 }
@@ -230,7 +206,7 @@ export async function confirm(
   id: string,
   confirmation: ConfirmRequest,
 ): Promise<SaleView> {
-  const record = svc.find(id);
+  const record = svc.repository.find(id);
   const product = requireProduct(record.productId);
   const last = record.attempts.at(-1);
   if (!last?.confirmed || last.profile === undefined)
@@ -257,7 +233,11 @@ export async function confirm(
   if (existing?.status === "confirmed") return publicSale(svc, record);
   if (existing?.status === "pending")
     return settleEnrollment(svc, record, existing);
-  if (svc.sales.some((sale) => enrollmentTrace(sale)?.status === "pending"))
+  if (
+    svc.repository
+      .all()
+      .some((sale) => enrollmentTrace(sale)?.status === "pending")
+  )
     throw new Error(
       "다른 가입 거래를 확인하고 있어요. 잠시 후 다시 시도해 주세요.",
     );
@@ -278,29 +258,12 @@ export async function confirm(
       record.reviewSignature ?? "0x",
     ],
   });
-  const wallet = createWalletClient({
-    account: svc.env.accounts.customer,
-    chain: svc.env.chain,
-    transport: http(svc.env.rpcUrl),
-  });
-  const gas = 5_000_000n;
-  const { nonce, maxFeePerGas, maxPriorityFeePerGas } =
-    await wallet.prepareTransactionRequest({
-      type: "eip1559",
-      to: svc.dep.ledger,
-      data,
-      gas,
-    });
-  const rawTransaction = (await svc.env.accounts.customer.signTransaction({
-    type: "eip1559",
-    chainId: svc.dep.chainId,
-    to: svc.dep.ledger,
+  const { rawTransaction, txHash } = await signTransaction(
+    svc,
+    "customer",
     data,
-    gas,
-    nonce,
-    maxFeePerGas,
-    maxPriorityFeePerGas,
-  })) as TransactionSerializedEIP1559;
+    5_000_000n,
+  );
   const trace: StoredTrace = {
     id: randomUUID(),
     at: new Date().toISOString(),
@@ -308,10 +271,9 @@ export async function confirm(
     action: "completeEnrollment",
     status: "pending",
     rawTransaction,
-    txHash: keccak256(rawTransaction),
+    txHash,
   };
-  record.traces.push(trace);
-  svc.save();
+  svc.repository.addTrace(trace, record);
   return settleEnrollment(svc, record, trace);
 }
 
@@ -322,7 +284,6 @@ export async function abandon(
 ): Promise<AbandonResponse> {
   await reconcile(svc);
   ensureDraft(record);
-  svc.sales = svc.sales.filter((sale) => sale !== record);
-  svc.save();
+  svc.repository.remove(record);
   return { id: record.id, abandoned: true };
 }

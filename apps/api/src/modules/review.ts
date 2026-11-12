@@ -2,7 +2,7 @@
 // 서명은 원장 거래 없이 보관하고, 고객의 가입 확정 거래에 함께 담는다.
 import { reviewDigest } from "../../../../packages/core/src/index.ts";
 import type { FundService } from "../service.ts";
-import type { StoredSale } from "./types.ts";
+import type { StoredSale } from "../repositories/sales.ts";
 import { ensureDraft, preparedProof } from "./enrollment.ts";
 import { requireProduct } from "./products.ts";
 
@@ -24,5 +24,5 @@ export async function review(svc: FundService, record: StoredSale) {
       ),
     },
   });
-  svc.save();
+  svc.repository.save();
 }

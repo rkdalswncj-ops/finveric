@@ -7,7 +7,7 @@ import {
   type Hex,
 } from "viem";
 import { environment, deployment } from "./environment.ts";
-import { randomField } from "../apps/api/src/modules/proofs.ts";
+import { randomField } from "../apps/api/src/gateways/proofs.ts";
 import {
   ledgerAbi,
   verifierAbi,
