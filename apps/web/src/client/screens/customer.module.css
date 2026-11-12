@@ -1,0 +1,122 @@
+/* 판매 채널 시연의 고객 검증 테스트 화면. 고객 가입 화면처럼 한 열로 둔다. */
+.page {
+  display: flex;
+  justify-content: center;
+}
+.main {
+  width: 100%;
+  max-width: 600px;
+}
+.main form {
+  margin-top: 16px;
+}
+.main h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  line-height: 1.35;
+}
+.lead {
+  margin: 0 0 24px;
+  color: var(--muted-foreground);
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.card + .card {
+  margin-top: 16px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.field input[type="text"] {
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--input);
+  border-radius: 10px;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.field input[type="text"]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+.field input[type="file"] {
+  font-weight: 400;
+  font-size: 13px;
+}
+.field small {
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+.submit {
+  min-height: 52px;
+  border-radius: 12px;
+}
+.result {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.result h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+.result p {
+  margin: 0;
+  color: var(--muted-foreground);
+}
+.icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.match .icon {
+  background: var(--success-surface);
+  color: var(--success);
+}
+.mismatch .icon {
+  background: var(--warning-surface);
+  color: var(--warning);
+}
+.items {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.tech {
+  font-size: 13px;
+}
+.tech code {
+  overflow-wrap: anywhere;
+}
+.checks {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.checks li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+@media (max-width: 640px) {
+  .main h1 {
+    font-size: 22px;
+  }
+}

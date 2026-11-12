@@ -212,7 +212,7 @@ test(
     let accepted: ReturnType<typeof decision>;
 
     await t.test(
-      "세 회차의 로컬 진단과 준법 검토가 거래를 만들지 않는다",
+      "세 회차의 로컬 진단과 관리자 승인이 거래를 만들지 않는다",
       async () => {
         const answers = { loss: 0, experience: 1 };
         const first = await diagnose(id, answers);

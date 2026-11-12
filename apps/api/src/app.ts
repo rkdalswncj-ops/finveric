@@ -9,8 +9,8 @@ import { recordRoutes } from "./routes/records.ts";
 import { saleRoutes } from "./routes/sales.ts";
 import { systemRoutes } from "./routes/system.ts";
 
-/** 로컬 Vite 개발 서버. client·auditor 앱이 각자 다른 포트를 쓴다. */
-const DEV_ORIGINS = [5173, 5174].flatMap((port) => [
+/** 로컬 Vite 개발 서버. 웹 한 서버가 5173 포트를 쓴다. */
+const DEV_ORIGINS = [5173].flatMap((port) => [
   `http://localhost:${port}`,
   `http://127.0.0.1:${port}`,
 ]);

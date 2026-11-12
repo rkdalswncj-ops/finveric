@@ -99,16 +99,10 @@ try {
   run("tsx", ["apps/api/src/index.ts"], {
     env: { ...process.env, HOST: host },
   });
-  // client는 기관 업무와 판매 채널 시연, auditor는 독립 검증이다.
-  run("npm", ["run", "dev", "-w", "@finveric/client"], {
-    env: {
-      ...process.env,
-      VITE_AUDITOR_URL: "http://127.0.0.1:5174/auditor/",
-    },
-  });
-  run("npm", ["run", "dev", "-w", "@finveric/auditor"]);
+  // 웹 한 서버가 진입 화면(/), 판매사 콘솔(/client/), 감독기관·고객 검증(/auditor/)을 제공한다.
+  run("npm", ["run", "dev", "-w", "@finveric/web"]);
   console.log(
-    "FINVERIC 기관 업무: http://127.0.0.1:5173/client/ · 독립 검증: http://127.0.0.1:5174/auditor/ · Ctrl+C로 종료",
+    "FINVERIC: http://127.0.0.1:5173/ (판매사 콘솔 /client/ · 감독기관 /auditor/) · Ctrl+C로 종료",
   );
 } catch (error) {
   stop();

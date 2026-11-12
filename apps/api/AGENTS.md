@@ -23,7 +23,7 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
 | `src/service.ts`              | `FundService`: 실행 맥락, 시작 검사. 업무 메서드는 모듈로 넘긴다                     |
 | `src/modules/products.ts`     | 운용사·판매사: 상품·설명서 버전과 진단 규칙 등록                                     |
 | `src/modules/enrollment.ts`   | 판매 채널: 가입 신청, 진단, 최종 확인과 가입 거래, 중단                              |
-| `src/modules/review.ts`       | 준법 담당자: 세 번째 진단부터 검토 서명                                              |
+| `src/modules/review.ts`       | 관리자 승인: 세 번째 진단부터 판매사 관리자의 검토 서명                              |
 | `src/modules/purchase.ts`     | 기존 펀드 업무 인프라: 모의 매입                                                     |
 | `src/modules/records.ts`      | 공개 조회, 처리 기록, 고객 증빙(영수증·원본)                                         |
 | `src/modules/health.ts`       | 운영: RPC·원장·저장소 점검(`/api/health`, 실패 시 503)                               |

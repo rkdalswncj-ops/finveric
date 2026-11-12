@@ -198,7 +198,7 @@ export async function diagnose(
 }
 
 /**
- * 고객의 최종 확인. 모든 회차의 증명, 설명 확인, 필요한 추가 위험 확인과 준법 서명을
+ * 고객의 최종 확인. 모든 회차의 증명, 설명 확인, 필요한 추가 위험 확인과 관리자 승인 서명을
  * 테스트 고객 키로 서명한 거래 한 건에 담아 보낸다.
  */
 export async function confirm(
@@ -227,7 +227,7 @@ export async function confirm(
       "투자성향보다 위험이 높은 상품의 추가 안내를 확인해 주세요.",
     );
   if (last.round >= 3 && !record.reviewSignature)
-    throw new Error("세 번째 진단부터는 준법 담당자의 검토가 필요해요.");
+    throw new Error("세 번째 진단부터는 판매사 관리자의 승인이 필요해요.");
   await reconcile(svc);
   const existing = enrollmentTrace(record);
   if (existing?.status === "confirmed") return publicSale(svc, record);

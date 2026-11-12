@@ -53,18 +53,21 @@ if (deployment.chainId !== chainIds[network])
 if (deployment.ledgerVersion !== 4 || deployment.ruleVersion !== 3)
   fail("가입 원장 v4와 진단 규칙 v3 배포 설정이 필요합니다.");
 
-// client(기관 업무·판매 채널 시연)는 /client/, auditor(독립 검증)는 /auditor/에 둔다.
-// 루트(/)는 /client/로 보낸다. 검증 설정은 두 앱이 함께 쓰도록 사이트 루트에 둔다.
-const client = "apps/client/dist";
-const auditor = "apps/auditor/dist";
-for (const web of [client, auditor])
-  if (!existsSync(`${web}/index.html`))
-    fail(`${web} 웹 빌드가 없습니다. npm run build를 먼저 실행하세요.`);
+// 웹 빌드(apps/web/dist)를 그대로 사이트 루트에 둔다.
+// 진입 화면은 /, 판매사 콘솔은 /client/, 감독기관·고객 검증은 /auditor/다.
+// 검증 설정은 모든 페이지가 함께 쓰도록 사이트 루트에 둔다.
+const web = "apps/web/dist";
+for (const page of [
+  `${web}/index.html`,
+  `${web}/client/index.html`,
+  `${web}/auditor/index.html`,
+])
+  if (!existsSync(page))
+    fail(`${page}가 없습니다. npm run build를 먼저 실행하세요.`);
 
 const out = ".vercel/output";
 rmSync(out, { recursive: true, force: true });
-cpSync(client, `${out}/static/client`, { recursive: true });
-cpSync(auditor, `${out}/static/auditor`, { recursive: true });
+cpSync(web, `${out}/static`, { recursive: true });
 writeFileSync(
   `${out}/static/deployment.json`,
   JSON.stringify(deployment, null, 2) + "\n",
@@ -122,7 +125,7 @@ writeFileSync(
     {
       version: 3,
       routes: [
-        { src: "^/$", status: 308, headers: { Location: "/client/" } },
+        { src: "^/$", dest: "/index.html" },
         { src: "^/api(?:/(.*))?$", dest: "/api?__path=$1" },
         { handle: "filesystem" },
         { src: "^/client(?:/.*)?$", dest: "/client/index.html" },

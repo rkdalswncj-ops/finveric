@@ -28,34 +28,35 @@
 
 ## 🚀 서비스 소개
 
-자산운용사·판매 증권사·감독기관이 같은 펀드 판매 기록을 함께 검증하는 B2B·B2G 서비스다. 투자자는 FINVERIC 화면을 직접 쓰지 않는다. 투자자는 증권사 앱에서 가입하고, 증권사 앱이 FINVERIC API에 연결한다.
+판매사(증권사·은행)와 감독기관이 같은 판매 기록을 함께 검증하는 B2B·B2G 서비스다. 판매사는 판매 절차 시스템을 직접 만들지 않고 FINVERIC을 쓴다. 투자자는 FINVERIC 화면을 직접 쓰지 않는다. 투자자는 증권사 앱에서 가입하고, 증권사 앱이 FINVERIC API에 연결한다.
 
 1. **판매 기록과 검증 경로가 분쟁 당사자인 판매사에 몰려 있다**
-   - 투자성향 진단, 설명 확인, 추가 위험 확인, 준법 검토를 가입 건 하나로 묶는다.
+   - 투자성향 진단, 설명 확인, 추가 위험 확인, 관리자 승인을 가입 건 하나로 묶는다.
    - 스마트컨트랙트가 증명과 필수 동의를 거래 한 건에서 검사하고 가입을 확정한다.
 2. **답변을 공개하지 않고 판정 결과를 증명한다**
    - ZKP(Groth16)로 등록된 규칙에 따라 투자성향을 계산했음을 증명한다.
    - 답변, 총점, 임의값은 원장에 올리지 않는다.
 3. **판매사 API 없이 기록을 검증한다**
-   - 감독기관·외부 검증자는 고객 파일과 공개 원장(RPC)만으로 기록을 대조한다.
+   - 감독기관은 고객 파일과 공개 원장(RPC)만으로 기록을 대조한다.
    - 원본을 바꾸면 불일치를 표시한다.
 
 ## 🖥 화면
 
-| 앱      | 경로        | 사용자                          | 화면                                                        |
-| ------- | ----------- | ------------------------------- | ----------------------------------------------------------- |
-| client  | `/client/`  | 운용사·증권사·준법 담당자 (B2B) | 상품·문서 관리, 판매·검토 현황, 온체인 처리, 판매 채널 시연 |
-| auditor | `/auditor/` | 감독기관·외부 검증자 (B2G)      | 독립 검증                                                   |
+| 페이지  | 경로        | 사용자                       | 화면                                                                              |
+| ------- | ----------- | ---------------------------- | --------------------------------------------------------------------------------- |
+| 진입    | `/`         | 모두                         | 역할 선택, 시연 순서, 연결된 원장 상태                                            |
+| client  | `/client/`  | 판매사 소비자보호 담당 (B2B) | 대시보드, 진단 기준, 상품 관리, 판매·검토, 위험 신호, 온체인 처리, 판매 채널 시연 |
+| auditor | `/auditor/` | 감독기관 (B2G)               | 분쟁 조회                                                                         |
 
-| 상품·문서 관리 (client)                                  | 판매·검토 현황 (client)                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- |
-| ![상품·문서 관리](docs/assets/screens/client-manage.png) | ![판매·검토 현황](docs/assets/screens/client-review.png) |
-| **온체인 처리 (client)**                                 | **펀드 찾기 (client · 판매 채널 시연)**                  |
-| ![온체인 처리](docs/assets/screens/client-chain.png)     | ![펀드 찾기](docs/assets/screens/client-catalog.png)     |
-| **상품 상세 (client · 판매 채널 시연)**                  | **독립 검증 (auditor)**                                  |
-| ![상품 상세](docs/assets/screens/client-fund.png)        | ![독립 검증](docs/assets/screens/auditor-verify.png)     |
+| 진입 화면                                                | 대시보드 (client)                                     |
+| -------------------------------------------------------- | ----------------------------------------------------- |
+| ![진입 화면](docs/assets/screens/entry.png)              | ![대시보드](docs/assets/screens/client-dashboard.png) |
+| **진단 기준 (client)**                                   | **판매·검토 (client)**                                |
+| ![진단 기준](docs/assets/screens/client-rules.png)       | ![판매·검토](docs/assets/screens/client-review.png)   |
+| **가입 기록 확인 (client · 판매 채널 시연)**             | **분쟁 조회 (auditor)**                               |
+| ![가입 기록 확인](docs/assets/screens/client-verify.png) | ![분쟁 조회](docs/assets/screens/auditor-dispute.png) |
 
-판매 채널 시연은 증권사 앱에서 고객이 보는 화면을 재현한다. 캡처는 로컬 Anvil 시연 원장에서 찍었다.
+판매 채널 시연은 증권사 앱에서 고객이 보는 화면을 재현한다. 고객은 FINVERIC 화면을 직접 쓰지 않는다. 가입 기록 확인은 고객이 증명서로 기록을 확인하는 모습을 보여 주는 테스트 화면이다. 캡처는 로컬 Anvil 시연 원장에서 찍었다.
 
 ## 🏭 아키텍처
 
@@ -122,7 +123,7 @@ Docker로 실행하는 것을 권장한다. Node, Foundry, Circom을 따로 설�
 
 ### Docker로 실행 (권장)
 
-준비물: Docker Desktop 또는 Docker Engine과 Compose v2. 포트 5173, 5174, 3001, 8545가 비어 있어야 한다.
+준비물: Docker Desktop 또는 Docker Engine과 Compose v2. 포트 5173, 3001, 8545가 비어 있어야 한다.
 
 ```bash
 git clone <저장소 주소> finveric
@@ -130,10 +131,10 @@ cd finveric
 docker compose up --build -d
 ```
 
-- 이미지 하나, 컨테이너 하나에서 Anvil, API, client, auditor를 실행한다.
+- 이미지 하나, 컨테이너 하나에서 Anvil, API, 웹을 실행한다.
 - 첫 실행은 이미지 빌드(약 3~4분)와 증명 키 생성·컨트랙트 배포(약 2~4분)를 거친다. 다음 실행은 볼륨에 남은 키와 원장을 써서 10초 안팎이면 준비된다.
 - `docker compose ps`의 상태가 `healthy`가 되면 연다. 이 상태는 health API가 RPC·원장·저장소를 점검한 결과다.
-  - [client](http://localhost:5173/client/) · [auditor](http://localhost:5174/auditor/) · [health](http://localhost:3001/api/health)
+  - [진입 화면](http://localhost:5173/) · [client](http://localhost:5173/client/) · [auditor](http://localhost:5173/auditor/) · [health](http://localhost:3001/api/health)
 - 진행 로그는 `docker compose logs -f`로 본다.
 - 멈출 때는 `docker compose down`을 실행한다. 원장 상태와 판매 기록은 볼륨에 남는다. 기록까지 지우려면 `docker compose down -v`를 실행한다.
 
@@ -146,14 +147,15 @@ npm ci
 npm run dev
 ```
 
-- [client](http://127.0.0.1:5173/client/) · [auditor](http://127.0.0.1:5174/auditor/) · [health](http://127.0.0.1:3001/api/health)
+- [진입 화면](http://127.0.0.1:5173/) · [client](http://127.0.0.1:5173/client/) · [auditor](http://127.0.0.1:5173/auditor/) · [health](http://127.0.0.1:3001/api/health)
 - 로컬 원장 상태와 판매 기록은 `.local/`에 저장한다. 이 폴더를 지우면 이력과 고객 원본을 잃는다.
 
 ### 처음 써 보기
 
-1. client의 **상품·문서 관리**에서 **상품·규칙 v3 등록**을 누른다.
+1. client의 **상품 관리**에서 **상품·진단 기준 등록**을 누른다.
 2. **판매 채널 시연 › 펀드 찾기**에서 펀드를 고르고 진단부터 가입까지 진행한다.
-3. auditor의 **독립 검증**에서 같은 판매 건을 원장과 대조한다.
+3. **내 가입 기록**에서 **가입 기록 확인하기**를 눌러 고객이 보는 확인 결과를 본다.
+4. auditor의 **분쟁 조회**에서 같은 판매 건을 원장과 대조한다.
 
 발표 순서와 시연 수치는 [실행과 시연](docs/runbook.md)을 따른다.
 
@@ -182,12 +184,11 @@ npm run dev
 
 ```
 apps/
-  client/      기관 업무와 판매 채널 시연
-  auditor/     독립 검증
+  web/         웹. 진입 화면(/), client(/client/), auditor(/auditor/)
   api/         Fastify API (routes · modules · repositories · gateways)
 packages/
   core/        판정·해시·검증 로직, 원장 ABI, API 계약(DTO)
-  ui/          두 웹 앱의 공통 화면 요소와 API 클라이언트
+  ui/          웹 페이지들의 공통 화면 요소와 API 클라이언트
 circuits/      ZKP 회로
 contracts/     원장 컨트랙트
 deploy/        Vercel 빌드에 쓰는 원장 배포본

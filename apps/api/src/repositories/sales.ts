@@ -13,7 +13,7 @@ export type StoredTrace = Trace & {
   rawTransaction?: TransactionSerializedEIP1559;
 };
 
-/** 서버가 보관하는 판매 건. 답변·임의값·준법 서명을 포함한다. */
+/** 서버가 보관하는 판매 건. 답변·임의값·관리자 승인 서명을 포함한다. */
 export type StoredSale = Omit<SaleRecord, "traces"> & {
   productId: Hex;
   traces: StoredTrace[];

@@ -148,7 +148,7 @@ test("같은 도메인과 지정한 출처의 POST만 받는다", () => {
     "https://a.example",
     "https://b.example",
   ]);
-  assert.ok(allowedOrigins(env).includes("http://localhost:5174"));
+  assert.ok(allowedOrigins(env).includes("http://localhost:5173"));
   assert.ok(!allowedOrigins(env).includes("https://evil.example"));
   assert.ok(corsOrigins({}).includes("http://127.0.0.1:5173"));
 });

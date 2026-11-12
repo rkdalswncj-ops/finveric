@@ -676,7 +676,7 @@ export async function verifyEvidence(
   check(
     "필수 확인 기록",
     requiredRecordsOk,
-    `설명 ${explanationOk ? "확인" : "누락"} · ${atomicLedger ? "거래 서명" : "모의 서명"} ${signed ? "확인" : "누락"} · 추가 검토 ${state.attempts < 3 ? "대상 아님" : reviewOk ? "승인" : "대기"}`,
+    `설명 ${explanationOk ? "확인" : "누락"} · ${atomicLedger ? "거래 서명" : "모의 서명"} ${signed ? "확인" : "누락"} · 관리자 승인 ${state.attempts < 3 ? "대상 아님" : reviewOk ? "완료" : "대기"}`,
   );
   let completed = false;
   if (state.finalized && completion) {

@@ -1,4 +1,4 @@
-// 판매사 API 계약(DTO). API(apps/api)와 웹(apps/client, apps/auditor)이 이 파일만 기준으로 쓴다.
+// 판매사 API 계약(DTO). API(apps/api)와 웹(apps/web)이 이 파일만 기준으로 쓴다.
 // 요청 DTO는 같은 자리에 JSON Schema를 둔다. 스키마의 속성 이름이 DTO 필드와 다르면 타입 검사가 실패한다.
 import type { Hex } from "viem";
 import type {
@@ -83,7 +83,7 @@ export const confirmBodySchema = {
   },
 } as const satisfies ObjectSchema<ConfirmRequest>;
 
-/** POST `/api/sales/:id/action/:action`. 중단은 고객, 검토는 준법 담당자, 매입은 기존 인프라가 한다. */
+/** POST `/api/sales/:id/action/:action`. 중단은 고객, 검토(관리자 승인)는 판매사 관리자, 매입은 기존 인프라가 한다. */
 export const SALE_ACTIONS = ["review", "abandon", "purchase"] as const;
 export type SaleAction = (typeof SALE_ACTIONS)[number];
 export type SaleActionParams = SaleIdParams & { action: SaleAction };

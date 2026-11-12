@@ -51,7 +51,7 @@ export const status = (sale?: Sale) =>
       : sale.submissionPending
         ? "원장 확인 중"
         : sale.state.attempts >= 3 && !sale.state.reviewed
-          ? "추가 검토 필요"
+          ? "관리자 승인 필요"
           : "초안";
 export const purchaseNames = [
   "미요청",
