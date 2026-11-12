@@ -1,31 +1,76 @@
-// 리포지토리: 판매 건과 처리 기록의 조회·추가·삭제·저장, 변경 작업의 잠금.
+// 리포지토리: 판매 건·진단 원본·등록 기록·처리 기록의 조회·추가·저장, 변경 작업의 잠금.
 // 저장 방식(로컬 파일, Upstash Redis)은 store.ts가 맡는다. 업무 모듈은 저장 방식을 모른다.
-import type { Hex, TransactionSerializedEIP1559 } from "viem";
+import type { Hex } from "viem";
 import {
   json,
-  type SaleRecord,
+  type MockRecording,
+  type Product,
+  type RuleDocument,
   type Trace,
 } from "../../../../packages/core/src/index.ts";
 import { FileStore, type SaleStore } from "./store.ts";
 
-/** 서버만 보관하는 처리 기록. 서명한 가입 거래 원문은 공개하지 않는다. */
-export type StoredTrace = Trace & {
-  rawTransaction?: TransactionSerializedEIP1559;
-};
+/** 서버만 보관하는 처리 기록. */
+export type StoredTrace = Trace;
 
-/** 서버가 보관하는 판매 건. 답변·임의값·관리자 승인 서명을 포함한다. */
-export type StoredSale = Omit<SaleRecord, "traces"> & {
+/** 원장에 등록한 진단 기준 원문. */
+export type StoredRule = {
+  document: RuleDocument;
+  hash: Hex;
+  version: number;
+  txHash?: Hex;
+};
+/** 원장에 등록한 상품 설명서 버전. */
+export type StoredProduct = { product: Product; txHash?: Hex };
+/**
+ * 진단 회차의 원본. 답변과 임의값은 공개하지 않는다. 고객 원본 묶음에만 넣는다.
+ * 거래를 보내기 전에 저장한다. 그래야 영수증을 받기 전에 서버가 멈춰도 원본이 남는다.
+ */
+export type StoredDiagnosis = {
+  customerRef: Hex;
+  attempt: number;
+  ruleHash: Hex;
+  answers: number[];
+  salt: string;
+  commitment: string;
+  txHash?: Hex;
+  blockNumber?: string;
+};
+/** 판매 건. 원장 상태(청약·확정·철회·결제)는 원장에서 읽는다. 여기에는 원장 밖의 값만 둔다. */
+export type StoredSale = {
+  id: string;
+  customerRef: Hex;
   productId: Hex;
+  productVersion: number;
+  amount: number;
+  createdAt: string;
+  abandonedAt?: string;
+  approval?: { attempt: number; signature: Hex };
+  explanationSeconds?: number;
+  recording?: MockRecording;
   traces: StoredTrace[];
-  reviewSignature?: Hex;
 };
 
-/** 처리 기록 하나와 그 기록이 속한 판매 건. 상품·규칙 등록 기록은 판매 건이 없다. */
+/** 처리 기록 하나와 그 기록이 속한 판매 건. 등록·진단 기록은 판매 건이 없다. */
 export type TraceEntry = { trace: StoredTrace; sale?: StoredSale };
 
+type Snapshot = {
+  sales: StoredSale[];
+  systemTraces: Trace[];
+  rules: StoredRule[];
+  products: StoredProduct[];
+  diagnoses: StoredDiagnosis[];
+};
+const empty = (): Snapshot => ({
+  sales: [],
+  systemTraces: [],
+  rules: [],
+  products: [],
+  diagnoses: [],
+});
+
 export class SaleRepository {
-  private sales: StoredSale[] = [];
-  private systemTraces: Trace[] = [];
+  private data: Snapshot = empty();
   private queue: Promise<unknown> = Promise.resolve();
   /** 이 인스턴스에서 대기 중이거나 실행 중인 변경 작업 수. */
   private active = 0;
@@ -40,35 +85,74 @@ export class SaleRepository {
     return this.store instanceof FileStore ? this.store.file : undefined;
   }
 
-  // ── 조회와 변경 ─────────────────────────────────────────────
+  // ── 판매 건 ─────────────────────────────────────────────────
 
   /** 판매 건 목록. 최근 신청이 앞에 온다. */
   all(): readonly StoredSale[] {
-    return this.sales;
+    return this.data.sales;
   }
   find(id: string) {
-    const record = this.sales.find((s) => s.id === id);
+    const record = this.data.sales.find((s) => s.id === id);
     if (!record) throw new Error("판매 건을 찾을 수 없습니다.");
     return record;
   }
   add(record: StoredSale) {
-    this.sales.unshift(record);
+    this.data.sales.unshift(record);
     this.save();
   }
-  remove(record: StoredSale) {
-    this.sales = this.sales.filter((sale) => sale !== record);
+
+  // ── 등록 기록과 진단 원본 ───────────────────────────────────
+
+  rules(): readonly StoredRule[] {
+    return this.data.rules;
+  }
+  addRule(rule: StoredRule) {
+    this.data.rules.push(rule);
     this.save();
   }
-  /** 처리 기록을 판매 건에, 판매 건이 없으면 상품·규칙 등록 기록에 붙인다. */
+  removeRule(rule: StoredRule) {
+    this.data.rules = this.data.rules.filter((r) => r !== rule);
+    this.save();
+  }
+  products(): readonly StoredProduct[] {
+    return this.data.products;
+  }
+  addProduct(entry: StoredProduct) {
+    this.data.products.push(entry);
+    this.save();
+  }
+  removeProduct(entry: StoredProduct) {
+    this.data.products = this.data.products.filter((p) => p !== entry);
+    this.save();
+  }
+  diagnoses(customerRef?: Hex): readonly StoredDiagnosis[] {
+    return customerRef
+      ? this.data.diagnoses.filter(
+          (d) => d.customerRef.toLowerCase() === customerRef.toLowerCase(),
+        )
+      : this.data.diagnoses;
+  }
+  addDiagnosis(diagnosis: StoredDiagnosis) {
+    this.data.diagnoses.push(diagnosis);
+    this.save();
+  }
+  removeDiagnosis(diagnosis: StoredDiagnosis) {
+    this.data.diagnoses = this.data.diagnoses.filter((d) => d !== diagnosis);
+    this.save();
+  }
+
+  // ── 처리 기록 ───────────────────────────────────────────────
+
+  /** 처리 기록을 판매 건에, 판매 건이 없으면 등록·진단 기록에 붙인다. */
   addTrace(trace: Trace, sale?: Pick<StoredSale, "traces">) {
-    (sale?.traces ?? this.systemTraces).push(trace);
+    (sale?.traces ?? this.data.systemTraces).push(trace);
     this.save();
   }
-  /** 모든 처리 기록. 상품·규칙 등록 기록이 먼저 온다. */
+  /** 모든 처리 기록. 등록·진단 기록이 먼저 온다. */
   traces(): TraceEntry[] {
     return [
-      ...this.systemTraces.map((trace) => ({ trace })),
-      ...this.sales.flatMap((sale) =>
+      ...this.data.systemTraces.map((trace) => ({ trace })),
+      ...this.data.sales.flatMap((sale) =>
         sale.traces.map((trace) => ({ trace, sale })),
       ),
     ];
@@ -88,16 +172,14 @@ export class SaleRepository {
 
   private load(raw: string | undefined) {
     if (!raw) return;
-    const saved = JSON.parse(raw);
-    this.sales = saved.sales;
-    this.systemTraces = saved.systemTraces;
+    this.data = { ...empty(), ...JSON.parse(raw) };
   }
   /**
-   * 현재 상태를 저장한다. 판매 건의 필드를 바꾼 뒤에도 부른다.
+   * 현재 상태를 저장한다. 기록의 필드를 바꾼 뒤에도 부른다.
    * 공유 저장소는 잠금 안에서만 쓴다. 조회 중 영수증 대조 결과는 메모리에만 반영한다.
    */
   save() {
-    const data = json({ sales: this.sales, systemTraces: this.systemTraces });
+    const data = json(this.data);
     if (this.store instanceof FileStore) return this.store.writeSync(data);
     if (!this.locked) return;
     this.persisting = this.persisting

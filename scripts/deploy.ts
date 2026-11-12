@@ -1,9 +1,11 @@
+// 원장 v5 배포. 증명 키(FINVERIC_ZK_DIR, 기본 circuits/build)에 맞는 Verifier와 원장을 배포한다.
+// 결과: .local/deployment-<network>.json, packages/ui/public/deployment.json.
+// 이전 버전 원장의 배포 설정은 .local/deployment-<network>-v<버전>.json으로 보존한다. 화면은 v5만 검증한다.
 import {
   copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
-  rmSync,
   writeFileSync,
 } from "node:fs";
 import {
@@ -14,7 +16,7 @@ import {
   parseEther,
   type Address,
 } from "viem";
-import { environment, roles } from "./environment.ts";
+import { COOLING_PERIOD, environment, roles } from "./environment.ts";
 import { json, type Deployment } from "../packages/core/src/index.ts";
 import { proofKeyHash } from "./artifacts.ts";
 
@@ -61,9 +63,10 @@ async function deploy(
   return { address: receipt.contractAddress, block: receipt.blockNumber };
 }
 const deploymentPath = `.local/deployment-${env.network}.json`;
-const previous: Deployment | undefined = existsSync(deploymentPath)
-  ? JSON.parse(readFileSync(deploymentPath, "utf8"))
-  : undefined;
+const previous: (Deployment & { ruleVersion?: number }) | undefined =
+  existsSync(deploymentPath)
+    ? JSON.parse(readFileSync(deploymentPath, "utf8"))
+    : undefined;
 const keyHash = proofKeyHash();
 const priorVerifierCode =
   previous &&
@@ -79,13 +82,18 @@ const verifierAddress =
     : (await deploy("Groth16Verifier")).address;
 const ledger = await deploy("FundLedger", [
   verifierAddress,
-  ...roles.slice(1).map((r) => env.accounts[r].address),
+  env.accounts.seller.address,
+  env.accounts.approver.address,
+  env.accounts.customer.address,
+  env.accounts.infrastructure.address,
+  BigInt(COOLING_PERIOD),
 ]);
 if (env.network === "sepolia") {
+  // 판매사(등록·진단)가 거래를 가장 많이 보낸다.
   for (const role of roles.slice(1)) {
     const hash = await wallet.sendTransaction({
       to: env.accounts[role].address,
-      value: parseEther("0.003"),
+      value: parseEther(role === "seller" ? "0.006" : "0.003"),
     });
     const receipt = await client.waitForTransactionReceipt({
       hash,
@@ -104,14 +112,14 @@ const rpc = new URL(publicRpc);
 if (rpc.username || rpc.password || rpc.search)
   throw new Error("PUBLIC_RPC_URL에는 비공개 인증 정보를 넣을 수 없습니다.");
 const result: Deployment = {
-  ledgerVersion: 4,
-  ruleVersion: 3,
+  ledgerVersion: 5,
   proofKeyHash: keyHash,
   chainId: env.chain.id as Deployment["chainId"],
   ledger: ledger.address,
   verifier: verifierAddress,
   blockNumber: ledger.block.toString(),
   rpcUrl: publicRpc,
+  coolingPeriod: COOLING_PERIOD,
   roles: Object.fromEntries(
     roles.map((r) => [r, env.accounts[r].address]),
   ) as Deployment["roles"],
@@ -124,31 +132,13 @@ const result: Deployment = {
 };
 mkdirSync(".local", { recursive: true, mode: 0o700 });
 mkdirSync("packages/ui/public", { recursive: true });
-for (const version of [1, 2, 3]) {
-  const legacyPath = `.local/deployment-${env.network}-v${version}.json`;
-  const legacyPublicPath = `packages/ui/public/deployment-v${version}.json`;
-  if (
-    previous &&
-    (previous.ledgerVersion ?? previous.ruleVersion ?? 1) === version &&
-    !existsSync(legacyPath)
-  )
-    copyFileSync(deploymentPath, legacyPath);
-  if (existsSync(legacyPath)) {
-    const legacy: Deployment = JSON.parse(readFileSync(legacyPath, "utf8"));
-    const code = await client.getCode({ address: legacy.ledger });
-    if (
-      legacy.chainId === result.chainId &&
-      code &&
-      keccak256(code) === legacy.ledgerCodeHash
-    ) {
-      copyFileSync(legacyPath, legacyPublicPath);
-      continue;
-    }
-  }
-  rmSync(legacyPublicPath, { force: true });
-}
+// 이전 버전 원장의 기록은 그 주소에 남는다. 설정 파일만 보존한다.
+const previousVersion = previous?.ledgerVersion ?? previous?.ruleVersion ?? 1;
+const legacyPath = `.local/deployment-${env.network}-v${previousVersion}.json`;
+if (previous && previousVersion !== 5 && !existsSync(legacyPath))
+  copyFileSync(deploymentPath, legacyPath);
 writeFileSync(deploymentPath, json(result));
 writeFileSync("packages/ui/public/deployment.json", json(result));
 console.log(
-  `배포 완료: ${ledger.address}. 공개 검증 설정을 packages/ui/public/deployment.json에 기록했습니다.`,
+  `배포 완료: 원장 v5 ${ledger.address} · 숙려 ${COOLING_PERIOD}초. 공개 검증 설정을 packages/ui/public/deployment.json에 기록했습니다.`,
 );

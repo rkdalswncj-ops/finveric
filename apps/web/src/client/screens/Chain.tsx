@@ -1,69 +1,80 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import { ExternalLink, RefreshCw } from "lucide-react";
+import type { Deployment } from "../../../../../packages/core/src/index.ts";
 import type {
-  Deployment,
-  Trace,
-} from "../../../../../packages/core/src/index.ts";
+  ProductEntryDto,
+  TraceDto,
+} from "../../../../../packages/core/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
   Badge,
   Facts,
   Heading,
   Notice,
-  TransactionFacts,
 } from "../../../../../packages/ui/src/components.tsx";
-import {
-  profileName,
-  saleProductName,
-  type Sale,
-} from "../../../../../packages/ui/src/sale.ts";
-import type { SaleAction } from "../../../../../packages/core/src/api.ts";
+import { dateTime, short } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import local from "./operations.module.css";
-import { receiptEvents, registrationActions, traceLabel } from "../traces.ts";
+import { productName, saleProduct, type Sale } from "../sales.ts";
+import {
+  ledgerRejection,
+  receiptEvents,
+  sourceLabel,
+  TRACE_GROUPS,
+  traceGroup,
+  traceLabel,
+  traceStatus,
+  type TraceGroup,
+} from "../traces.ts";
 
 const s = { ...ui, ...local };
+const GROUPS = Object.keys(TRACE_GROUPS) as TraceGroup[];
 
+/** 증명 생성 기록의 공개 신호와 생성 시간. */
+function proofDetail(trace: TraceDto) {
+  const detail = trace.detail as { ms?: number; publicSignals?: string[] };
+  return trace.action === "증명 생성" &&
+    detail &&
+    typeof detail === "object" &&
+    Array.isArray(detail.publicSignals)
+    ? detail
+    : undefined;
+}
+
+/** 증명 생성, 관리자 서명, 거래 제출, 영수증, 원장 거절을 출처별로 보여 준다. */
 export function Chain({
   traces,
-  sale,
-  action,
+  sales,
+  products,
+  deployment,
   busy,
   refresh,
-  deployment,
 }: {
-  traces: Trace[];
-  sale?: Sale;
-  action: (a: SaleAction) => unknown;
+  traces: TraceDto[];
+  sales: Sale[];
+  products: ProductEntryDto[];
+  deployment?: Deployment;
   busy: boolean;
   refresh: () => unknown;
-  deployment?: Deployment;
 }) {
   const location = useLocation();
-  const [selected, setSelected] = useState<{ search: string; id: string }>();
-  const selectedId =
-    selected?.search === location.search
-      ? selected.id
-      : new URLSearchParams(location.search).get("trace");
-  const visibleTraces = traces.filter(
-    (trace) =>
-      !sale ||
-      sale.traces.some((item) => item.id === trace.id) ||
-      registrationActions.has(trace.action),
+  const [group, setGroup] = useState<TraceGroup | "">("");
+  const [selected, setSelected] = useState(
+    new URLSearchParams(location.search).get("trace") ?? "",
   );
-  const log =
-    visibleTraces.find((t) => t.id === selectedId) ?? visibleTraces.at(-1);
+  const shown = traces.filter((trace) => !group || traceGroup(trace) === group);
+  const log = shown.find((trace) => trace.id === selected) ?? shown.at(-1);
   const events = receiptEvents(log, deployment?.ledger);
-  const profile = events
-    .filter((event) => event.eventName === "DiagnosisRecorded")
-    .at(-1)?.args.profile;
   const eventNames = [...new Set(events.map((event) => event.eventName))];
+  const sale = sales.find((entry) => entry.id === log?.saleId);
+  const rejection = log && ledgerRejection(log);
+  const proof = log && proofDetail(log);
   return (
     <>
       <Heading
-        title="가입 처리 기록"
-        description="기록을 선택해 서버 처리 결과와 블록체인 거래 근거를 확인하세요."
+        title="온체인 처리 기록"
+        description="증명 생성, 관리자 승인 서명, 거래 제출, 영수증, 원장 거절을 시간순으로 봅니다. 기록을 골라 처리 근거를 확인하세요."
       >
         <Button variant="outline" disabled={busy} onClick={refresh}>
           <RefreshCw size={16} />
@@ -71,72 +82,108 @@ export function Chain({
         </Button>
       </Heading>
       <Notice>
-        서버가 진단 증명을 만들고 관리자 승인 결과를 보관합니다. 시연 서비스가
-        고객 역할의 테스트 키로 서명한 거래에 증명과 확인 내용을 기록합니다.
+        API가 Groth16 증명을 만들고 역할 키로 거래를 보냅니다. 거래마다 먼저
+        시뮬레이션해서, 원장이 거절하면 거래를 보내지 않고 오류 이름을 남깁니다.
       </Notice>
-      {sale && (
-        <p className={s.small}>
-          {saleProductName(sale)} · 판매 ID <code>{sale.id}</code>
-        </p>
-      )}
+      <div className={s.chips} aria-label="처리 기록 종류 필터">
+        {(["", ...GROUPS] as const).map((value) => (
+          <button
+            key={value || "all"}
+            aria-pressed={group === value}
+            className={group === value ? s.chipActive : ""}
+            onClick={() => setGroup(value)}
+          >
+            {value ? TRACE_GROUPS[value] : "전체"}{" "}
+            {
+              traces.filter((trace) => !value || traceGroup(trace) === value)
+                .length
+            }
+          </button>
+        ))}
+      </div>
       <div className={`${s.panel} ${s.logGrid}`}>
         <div className={s.logList}>
-          {visibleTraces.length ? (
-            visibleTraces.map((t) => (
-              <button
-                key={t.id}
-                onClick={() =>
-                  setSelected({ search: location.search, id: t.id })
-                }
-                className={log?.id === t.id ? s.logSelected : ""}
-              >
-                <time>
-                  {new Date(t.at).toLocaleTimeString("ko-KR", {
-                    timeZone: "Asia/Seoul",
-                    hour12: false,
-                  })}
-                </time>
-                <div>
-                  <strong>{traceLabel(t, deployment?.ledger)}</strong>
-                  <small>{t.txHash ? "블록체인 거래" : t.source}</small>
-                </div>
-                <Badge
-                  tone={
-                    t.status === "confirmed"
-                      ? "success"
-                      : t.status === "failed"
-                        ? "danger"
-                        : "neutral"
-                  }
+          {shown.length ? (
+            shown.map((trace) => {
+              const [label, tone] = traceStatus(trace);
+              return (
+                <button
+                  key={trace.id}
+                  onClick={() => setSelected(trace.id)}
+                  className={log?.id === trace.id ? s.logSelected : ""}
+                  aria-current={log?.id === trace.id}
                 >
-                  {t.status === "confirmed"
-                    ? "완료"
-                    : t.status === "failed"
-                      ? "실패"
-                      : "대기"}
-                </Badge>
-              </button>
-            ))
+                  <time>
+                    {new Date(trace.at).toLocaleTimeString("ko-KR", {
+                      timeZone: "Asia/Seoul",
+                      hourCycle: "h23",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    })}
+                  </time>
+                  <div>
+                    <strong>{traceLabel(trace)}</strong>
+                    <small>
+                      {sourceLabel(trace.source)}
+                      {trace.txHash ? ` · ${short(trace.txHash)}` : ""}
+                    </small>
+                  </div>
+                  <Badge tone={tone}>{label}</Badge>
+                </button>
+              );
+            })
           ) : (
-            <div className={s.empty}>아직 처리 기록이 없어요.</div>
+            <div className={s.empty}>아직 처리 기록이 없습니다.</div>
           )}
         </div>
         <section className={s.logDetail}>
           {log ? (
             <>
-              <h2>{traceLabel(log, deployment?.ledger)}</h2>
-              {log.txHash && (
-                <TransactionFacts hash={log.txHash} block={log.blockNumber} />
-              )}
-              {profile !== undefined && (
-                <Facts rows={[["투자성향", profileName(profile)]]} />
-              )}
+              <div className={s.row}>
+                <h2>{traceLabel(log)}</h2>
+                <Badge tone={traceStatus(log)[1]}>{traceStatus(log)[0]}</Badge>
+              </div>
               <Facts
                 rows={[
-                  ["처리 출처", log.source],
+                  ["처리 시각", dateTime(log.at)],
+                  ["출처", sourceLabel(log.source)],
+                  ["원장 함수·작업", <code>{log.action}</code>],
+                  ...(log.saleId
+                    ? ([
+                        [
+                          "판매 건",
+                          <>
+                            {productName(saleProduct(products, sale)?.document)}{" "}
+                            <code title={log.saleId}>{short(log.saleId)}</code>
+                          </>,
+                        ],
+                      ] as [string, ReactNode][])
+                    : []),
+                  ...(log.customerRef
+                    ? ([
+                        [
+                          "고객 가명 ID",
+                          <code title={log.customerRef}>
+                            {short(log.customerRef)}
+                          </code>,
+                        ],
+                      ] as [string, ReactNode][])
+                    : []),
+                  [
+                    "거래 해시",
+                    log.txHash ? <code>{log.txHash}</code> : "거래 없음",
+                  ],
+                  [
+                    "블록 번호",
+                    log.blockNumber ??
+                      (log.txHash && log.status === "pending"
+                        ? "영수증 대기"
+                        : "—"),
+                  ],
                   [
                     "이벤트",
-                    eventNames.length > 0 ? (
+                    eventNames.length ? (
                       <code>{eventNames.join(" · ")}</code>
                     ) : log.event ? (
                       <code>{log.event}</code>
@@ -144,8 +191,20 @@ export function Chain({
                       "—"
                     ),
                   ],
+                  ...(proof
+                    ? ([
+                        ["증명 생성 시간", `${proof.ms ?? "—"}ms`],
+                        ["공개 신호", `${proof.publicSignals!.length}개`],
+                      ] as [string, ReactNode][])
+                    : []),
                 ]}
               />
+              {rejection && (
+                <Notice tone="warning">
+                  {rejection.error && <code>{rejection.error}</code>}{" "}
+                  {rejection.reason}
+                </Notice>
+              )}
               {deployment?.chainId === 11155111 && log.txHash && (
                 <a
                   href={`https://sepolia.etherscan.io/tx/${log.txHash}`}
@@ -158,7 +217,9 @@ export function Chain({
               )}
               <details>
                 <summary>
-                  {log.txHash ? "거래 영수증 JSON" : "처리 응답 JSON"}
+                  {log.txHash && log.status === "confirmed"
+                    ? "거래 영수증 JSON"
+                    : "처리 응답 JSON"}
                 </summary>
                 <pre>
                   {JSON.stringify(
@@ -174,21 +235,6 @@ export function Chain({
           )}
         </section>
       </div>
-      <h2 className={s.sectionTitle}>모의 매입 처리</h2>
-      <div className={s.actions}>
-        <Button
-          variant="outline"
-          disabled={
-            busy || !sale?.state.finalized || sale.state.purchaseState === 3
-          }
-          onClick={() => action("purchase")}
-        >
-          모의 매입 결과 반영
-        </Button>
-      </div>
-      <p className={s.small}>
-        모의 매입 결과는 가입 완료 후 별도 거래로 기록합니다.
-      </p>
     </>
   );
 }

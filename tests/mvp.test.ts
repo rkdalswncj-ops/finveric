@@ -2,64 +2,108 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { createServer } from "node:net";
 import {
+  BaseError,
+  ContractFunctionRevertedError,
   createPublicClient,
+  createTestClient,
   createWalletClient,
   decodeFunctionData,
   http,
   keccak256,
-  parseEventLogs,
+  stringToHex,
   type Hex,
 } from "viem";
 import { groth16 } from "snarkjs";
-import { poseidon10 } from "poseidon-lite";
-import { environment } from "../scripts/environment.ts";
+import { environment, COOLING_PERIOD } from "../scripts/environment.ts";
 import { proofKeyHash } from "../scripts/artifacts.ts";
+import { ZK_FILES, zkPath } from "../scripts/root.ts";
 // @ts-expect-error Portable JavaScript binary resolver.
 import { foundryBinary } from "../scripts/foundry.mjs";
 import { FundService } from "../apps/api/src/service.ts";
 import { RedisStore } from "../apps/api/src/repositories/store.ts";
 import { fakeUpstash } from "./fake-upstash.ts";
 import { createApp } from "../apps/api/src/app.ts";
+import { prove } from "../apps/api/src/gateways/proofs.ts";
+import { verifySale } from "../packages/core/src/verify.ts";
+import { readLedger } from "../packages/core/src/ledger.ts";
 import {
-  verifyEvidence,
-  verifyPreparedDiagnosis,
-} from "../packages/core/src/verify.ts";
-import {
-  ledgerAbi,
-  verifierAbi,
-  RULE_HASH,
-  PRODUCTS,
+  DEMO_CUSTOMER_NO,
+  DEMO_PRODUCTS,
+  DEMO_RULE,
+  computeSignals,
+  customerRefFor,
   diagnosisCommitment,
-  field,
+  ledgerAbi,
+  proofInput,
+  ruleHash,
+  verifierAbi,
+  verifierArgs,
   type Deployment,
-  type Answers,
-  type PreparedProof,
+  type EvidenceReceipt,
+  type OriginalBundle,
 } from "../packages/core/src/index.ts";
+import type {
+  CustomerDto,
+  DiagnosisDto,
+  SaleDto,
+} from "../packages/core/src/api.ts";
 
-const [balanced, bond, innovation] = PRODUCTS;
-const readPreparedProof = (value: unknown): PreparedProof =>
-  JSON.parse(JSON.stringify(value), (_key, item: unknown) =>
-    typeof item === "string" ? BigInt(item) : item,
-  );
+const [els, fund, elb] = DEMO_PRODUCTS;
+const CUSTOMER = DEMO_CUSTOMER_NO;
+// 위험중립형(3) → 적극투자형(4) → 공격투자형(5, 위험 태도 "원금 20%까지"로 2등급까지만 권유).
+const ANSWERS = [
+  [2, 1, 1, 0, 1, 1],
+  [2, 1, 1, 1, 1, 1],
+  [2, 2, 2, 2, 2, 1],
+];
+
+/** 시연 Anvil(8545)과 겹치지 않는 빈 포트. */
+const freePort = () =>
+  new Promise<number>((resolve, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address() as { port: number };
+      server.close(() => resolve(port));
+    });
+  });
+const revertName = (error: unknown) =>
+  error instanceof BaseError
+    ? (
+        error.walk(
+          (e) => e instanceof ContractFunctionRevertedError,
+        ) as ContractFunctionRevertedError | null
+      )?.data?.errorName
+    : undefined;
 
 test(
-  "실제 회로·EVM·API·독립 검증으로 MVP 전체 경로를 검증한다",
-  { timeout: 180_000 },
+  "실제 회로·EVM·API·독립 검증으로 v5 판매 절차 전체를 검증한다",
+  { timeout: 300_000 },
   async (t) => {
     // 새로 받은 저장소에는 .local이 없다.
     mkdirSync(".local", { recursive: true, mode: 0o700 });
     const directory = mkdtempSync(".local/test-");
+    const port = await freePort();
     const node = spawn(
       foundryBinary("anvil"),
-      ["--port", "18545", "--silent"],
+      ["--port", String(port), "--silent"],
       { stdio: "ignore" },
     );
-    const env = { ...environment("local"), rpcUrl: "http://127.0.0.1:18545" };
+    const env = {
+      ...environment("local"),
+      rpcUrl: `http://127.0.0.1:${port}`,
+    };
     const client = createPublicClient({
       chain: env.chain,
-      transport: http(env.rpcUrl, { timeout: 1000, retryCount: 0 }),
+      transport: http(env.rpcUrl, { timeout: 5000, retryCount: 0 }),
       pollingInterval: 50,
+    });
+    const anvil = createTestClient({
+      mode: "anvil",
+      chain: env.chain,
+      transport: http(env.rpcUrl),
     });
     const wallet = createWalletClient({
       account: env.accounts.deployer,
@@ -93,27 +137,27 @@ test(
       return mined.contractAddress!;
     };
     const verifier = await deploy("Groth16Verifier");
-    const roleAddresses = Object.fromEntries(
+    const roles = Object.fromEntries(
       Object.entries(env.accounts).map(([r, a]) => [r, a.address]),
     ) as Deployment["roles"];
     const ledger = await deploy("FundLedger", [
       verifier,
-      roleAddresses.manager,
-      roleAddresses.seller,
-      roleAddresses.compliance,
-      roleAddresses.customer,
-      roleAddresses.infrastructure,
+      roles.seller,
+      roles.approver,
+      roles.customer,
+      roles.infrastructure,
+      BigInt(COOLING_PERIOD),
     ]);
     const dep: Deployment = {
-      ruleVersion: 3,
-      ledgerVersion: 4,
+      ledgerVersion: 5,
       proofKeyHash: proofKeyHash(),
       chainId: 31337,
       ledger,
       verifier,
-      roles: roleAddresses,
+      roles,
       blockNumber: "0",
       rpcUrl: env.rpcUrl,
+      coolingPeriod: COOLING_PERIOD,
       ledgerCodeHash: keccak256((await client.getCode({ address: ledger }))!),
       verifierCodeHash: keccak256(
         (await client.getCode({ address: verifier }))!,
@@ -127,583 +171,688 @@ test(
     await service.initialize();
     const app = await createApp(service);
     t.after(() => app.close());
-    const request = async (path: string, body?: object) => {
-      const response = await app.inject({
+    const call = (path: string, body?: object) =>
+      app.inject({
         method: body === undefined ? "GET" : "POST",
         url: "/api" + path,
         ...(body === undefined ? {} : { payload: body }),
       });
+    const request = async <T = any>(path: string, body?: object) => {
+      const response = await call(path, body);
       assert.equal(response.statusCode, 200, response.body);
-      return response.json();
+      return response.json() as T;
+    };
+    const reject = async (path: string, status: number, body?: object) => {
+      const response = await call(path, body);
+      assert.equal(response.statusCode, status, response.body);
+      return response.json().error as string;
     };
     const blockNumber = () => client.getBlockNumber({ cacheTime: 0 });
-    const reject = async (path: string, status: number, body?: object) => {
-      const response = await app.inject({
-        method: body === undefined ? "GET" : "POST",
-        url: "/api" + path,
-        ...(body === undefined ? {} : { payload: body }),
-      });
-      assert.equal(response.statusCode, status, response.body);
-    };
-    let salt = 0;
-    const diagnose = (saleId: string, answers: Answers) =>
-      request(`/sales/${saleId}/diagnose`, {
-        ...answers,
-        salt: String(++salt),
-      });
-    const decision = (
-      attempt: { round: number; commitment: string; profile: number },
-      higherRiskAccepted: boolean,
-    ) => ({
-      round: attempt.round,
-      commitment: attempt.commitment,
-      profile: attempt.profile,
-      explanationAccepted: true as const,
-      higherRiskAccepted,
+    const diagnose = (answers: number[]) =>
+      request<DiagnosisDto>(`/customers/${CUSTOMER}/diagnose`, { answers });
+    const action = (id: string, name: string, body: object = {}) =>
+      request<SaleDto>(`/sales/${id}/action/${name}`, body);
+    const ref = customerRefFor(env.customerRefSecret, CUSTOMER);
+    const gas: Record<string, bigint> = {};
+    const gasOf = async (hash?: Hex) =>
+      (await client.getTransactionReceipt({ hash: hash! })).gasUsed;
+    const seller = createWalletClient({
+      account: env.accounts.seller,
+      chain: env.chain,
+      transport: http(env.rpcUrl),
     });
+    const simulateSeller = (args: readonly unknown[]) =>
+      client
+        .simulateContract({
+          address: ledger,
+          abi: ledgerAbi,
+          account: env.accounts.seller,
+          functionName: "recordDiagnosis",
+          args: args as never,
+        })
+        .then(
+          () => undefined,
+          (error: unknown) => revertName(error),
+        );
+
     await t.test(
-      "상품 등록 전 가입과 허용 범위 밖 API 입력을 거절한다",
+      "기준 등록 전 진단·신청과 형식이 틀린 입력을 거절한다",
       async () => {
-        await reject("/sales", 409, {});
-        await reject("/sales/1/diagnose", 400, {
-          loss: 3,
-          experience: 1,
-          salt: "1",
+        assert.match(
+          await reject(`/customers/${CUSTOMER}/diagnose`, 409, {
+            answers: ANSWERS[0],
+          }),
+          /진단 기준을 먼저 등록/,
+        );
+        await reject("/sales", 409, {
+          productId: els.id,
+          customerNo: CUSTOMER,
         });
-        await reject("/sales/1/diagnose", 400, { loss: 0, experience: 1 });
+        await reject(`/customers/${CUSTOMER}/diagnose`, 400, { answers: [5] });
+        await reject(`/customers/C_0001/diagnose`, 400, { answers: [0] });
+        await reject("/sales", 400, {
+          productId: "0x01",
+          customerNo: CUSTOMER,
+        });
+        const rules = await request("/rules");
+        assert.equal(rules.length, 1);
+        assert.equal(rules[0].registered, false);
+        assert.equal(rules[0].hash, ruleHash(DEMO_RULE));
+        const config = await request("/config");
+        assert.deepEqual(config.demoCustomer, { number: CUSTOMER, ref });
+        assert.equal(config.deployment.coolingPeriod, COOLING_PERIOD);
       },
     );
+
     const beforeRegister = await blockNumber();
-    await t.test(
-      "세 상품과 진단 규칙을 한 번 등록하고 등록값을 재사용한다",
-      async () => {
-        await request("/register", {});
-        assert.equal(await blockNumber(), beforeRegister + 4n);
-        for (const product of PRODUCTS) {
-          assert.equal(
-            await client.readContract({
-              address: ledger,
-              abi: ledgerAbi,
-              functionName: "documents",
-              args: [product.id],
-            }),
-            product.documentHash,
-          );
-          assert.equal(
-            await client.readContract({
-              address: ledger,
-              abi: ledgerAbi,
-              functionName: "minimumProfiles",
-              args: [product.id],
-            }),
-            product.minimumProfile,
-          );
-        }
-        await request("/register", {});
-        assert.equal(await blockNumber(), beforeRegister + 4n);
-        await reject("/sales", 409, { productId: `0x${"0".repeat(64)}` });
-      },
-    );
-    const registeredAt = await blockNumber();
-    const { id } = await request("/sales", {});
-    const salePath = `/sales/${id}`;
-    let completionHash: Hex;
-    let completionBlock: string;
-    let accepted: ReturnType<typeof decision>;
-
-    await t.test(
-      "세 회차의 로컬 진단과 관리자 승인이 거래를 만들지 않는다",
-      async () => {
-        const answers = { loss: 0, experience: 1 };
-        const first = await diagnose(id, answers);
-        assert.equal(first.productId, balanced.id);
-        const expectedCommitment = diagnosisCommitment(answers, String(salt), {
-          chainId: dep.chainId,
-          ledger,
-          id,
-          round: 1,
-          documentHash: balanced.documentHash,
-        }).toString();
-        const proof = readPreparedProof(first.preparedProof);
-        assert.equal(
-          await verifyPreparedDiagnosis(
-            dep,
-            id,
-            1,
-            expectedCommitment,
-            proof,
-            balanced,
-          ),
-          1,
-        );
-        await assert.rejects(() =>
-          verifyPreparedDiagnosis(
-            dep,
-            id,
-            2,
-            expectedCommitment,
-            proof,
-            balanced,
-          ),
-        );
-        await assert.rejects(() =>
-          verifyPreparedDiagnosis(dep, id, 1, "1", proof, balanced),
-        );
-        await assert.rejects(() =>
-          verifyPreparedDiagnosis(dep, id, 1, expectedCommitment, proof, bond),
-        );
-        for (const answers of [
-          { loss: 1, experience: 2 },
-          { loss: 1, experience: 1 },
-        ])
-          await diagnose(id, answers);
-        const sale = await request(salePath);
-        assert.deepEqual(
-          sale.attempts.map((attempt: { profile: number }) => attempt.profile),
-          [1, 3, 2],
-        );
-        assert.equal(sale.state.finalized, false);
-        assert.equal(sale.state.signed, false);
-        const rawSale = await service.chainSale(id);
-        assert.equal(rawSale.attempts, 0);
-        assert.equal(rawSale.finalized, false);
-        assert.equal(await blockNumber(), registeredAt);
-        await reject(`${salePath}/export/receipt`, 409);
-        await reject(`${salePath}/export/original`, 409);
-
-        accepted = decision(sale.attempts.at(-1), true);
-        await reject(
-          `${salePath}/confirm`,
-          409,
-          decision(first.attempts[0], true),
-        );
-        await reject(`${salePath}/confirm`, 409, {
-          ...accepted,
-          commitment: "1",
-        });
-        await reject(`${salePath}/confirm`, 409, { ...accepted, profile: 3 });
-        await reject(`${salePath}/confirm`, 409, accepted);
-        const reviewed = await request(`${salePath}/action/review`, {});
-        assert.equal(reviewed.state.reviewed, true);
-        assert.equal((await service.chainSale(id)).reviewed, false);
-        assert.equal(await blockNumber(), registeredAt);
-      },
-    );
-
-    await t.test(
-      "세 회차 증명과 고객 확인을 한 거래로 확정하고 재요청은 같은 기록을 반환한다",
-      async () => {
-        const [completed, repeated] = await Promise.all([
-          request(`${salePath}/confirm`, accepted),
-          request(`${salePath}/confirm`, accepted),
-        ]);
-        assert.equal(completed.state.finalized, true);
-        assert.equal(completed.productId, balanced.id);
-        assert.equal(repeated.state.finalized, true);
-        assert.equal(completed.state.signed, true);
-        assert.equal(completed.state.higherRiskConfirmed, true);
-        assert.equal(completed.state.reviewed, true);
-        assert.equal(completed.state.purchaseState, 0);
-        assert.equal(await blockNumber(), registeredAt + 1n);
-
-        const receipt = await service.receipt(id);
-        assert.equal(receipt.transactions.length, 1);
-        [completionHash] = receipt.transactions;
-        const mined = await client.getTransactionReceipt({
-          hash: completionHash,
-        });
-        completionBlock = mined.blockNumber.toString();
-        assert.equal(mined.status, "success");
-        const events = parseEventLogs({ abi: ledgerAbi, logs: mined.logs });
-        assert.deepEqual(
-          events
-            .filter((event) => event.eventName === "DiagnosisRecorded")
-            .map((event) => event.args.profile),
-          [1, 3, 2],
-        );
-        for (const eventName of [
-          "ExplanationConfirmed",
-          "HigherRiskConfirmed",
-          "ReviewApproved",
-          "EnrollmentAuthorized",
-          "ConditionsVerified",
-        ])
-          assert.equal(
-            events.filter((event) => event.eventName === eventName).length,
-            1,
-          );
-        const tx = await client.getTransaction({ hash: completionHash });
-        assert.equal(
-          tx.from.toLowerCase(),
-          roleAddresses.customer.toLowerCase(),
-        );
-        const decoded = decodeFunctionData({ abi: ledgerAbi, data: tx.input });
-        if (decoded.functionName !== "completeEnrollment")
-          assert.fail("가입 확정 거래가 아닙니다.");
-        assert.equal(decoded.args[1], balanced.id);
-        assert.equal(decoded.args[2], balanced.documentHash);
-        assert.equal(decoded.args[3], RULE_HASH);
-        assert.equal(decoded.args[4].length, 3);
-        assert.equal(decoded.args[5], true);
-        assert.equal(decoded.args[6], true);
-        assert.notEqual(decoded.args[7], "0x");
-        await reject(`${salePath}/action/abandon`, 409, {});
-        assert.equal(await blockNumber(), registeredAt + 1n);
-      },
-    );
-
-    const original = await service.original(id);
-    const receipt = await service.receipt(id);
-    await t.test(
-      "RPC 독립 검증에서 진단과 고객 확인의 근거가 같은 거래로 표시된다",
-      async () => {
-        const result = await verifyEvidence(dep, id, receipt, original);
-        assert.ok(
-          result.checks.every((c) => c.ok),
-          JSON.stringify(result.checks),
-        );
-        assert.deepEqual(
-          result.references.map((ref) => ref.profile),
-          [1, 3, 2],
-        );
-        for (const ref of result.references)
-          assert.equal(ref.txHash, completionHash);
-        assert.deepEqual(
-          result.procedureReferences,
-          (["higher-risk", "signature", "completion"] as const).map((kind) => ({
-            kind,
-            txHash: completionHash,
-            block: completionBlock,
-          })),
-        );
-        const altered = await verifyEvidence(
-          dep,
-          id,
-          { ...receipt, transactions: [] },
-          original,
-        );
-        assert.equal(
-          altered.checks.find((c) => c.name === "검증 영수증 거래 참조")?.ok,
-          false,
-        );
-      },
-    );
-
-    await t.test(
-      "중단한 진단은 거래를 남기지 않고 새 가입 요청과 구분된다",
-      async () => {
-        const before = await blockNumber();
-        const { id: abandoned } = await request("/sales", {});
-        const draft = await diagnose(abandoned, { loss: 0, experience: 0 });
-        await request(`/sales/${abandoned}/action/abandon`, {});
-        await reject(`/sales/${abandoned}`, 409);
-        await reject(
-          `/sales/${abandoned}/confirm`,
-          409,
-          decision(draft.attempts[0], true),
-        );
-        assert.equal((await service.chainSale(abandoned)).attempts, 0);
-        assert.equal(await blockNumber(), before);
-        const { id: fresh } = await request("/sales", {});
-        assert.notEqual(fresh, abandoned);
-        await request(`/sales/${fresh}/action/abandon`, {});
-        assert.equal(await blockNumber(), before);
-      },
-    );
-
-    for (const [product, profile, answers, higherRisk] of [
-      [balanced, 1, { loss: 0, experience: 0 }, true],
-      [bond, 1, { loss: 0, experience: 0 }, false],
-      [innovation, 1, { loss: 0, experience: 0 }, true],
-      [innovation, 3, { loss: 2, experience: 2 }, false],
-    ] as const) {
-      await t.test(
-        `${product.document.name} 성향 ${profile} 고객의 필요한 확인과 가입 거래 한 건을 검증한다`,
-        async () => {
-          const before = await blockNumber();
-          const { id: selfDirected } = await request("/sales", {
-            productId: product.id,
-          });
-          const path = `/sales/${selfDirected}`;
-          const draft = await diagnose(selfDirected, answers);
-          const [attempt] = draft.attempts;
-          const data = decision(attempt, higherRisk);
-          assert.equal(attempt.profile, profile);
-          assert.equal(draft.productId, product.id);
-          assert.equal(draft.state.documentHash, product.documentHash);
-          await reject(`${path}/confirm`, 400, {});
-          await reject(`${path}/confirm`, 400, {
-            ...data,
-            explanationAccepted: false,
-          });
-          if (higherRisk)
-            await reject(`${path}/confirm`, 409, {
-              ...data,
-              higherRiskAccepted: false,
-            });
-          assert.equal((await service.chainSale(selfDirected)).signed, false);
-          assert.equal(await blockNumber(), before);
-
-          const completed = await request(`${path}/confirm`, data);
-          assert.equal(completed.state.finalized, true);
-          assert.equal(completed.productId, product.id);
-          assert.equal(completed.state.productId, product.id);
-          assert.equal(completed.state.documentHash, product.documentHash);
-          assert.equal(completed.state.higherRiskConfirmed, higherRisk);
-          assert.equal(await blockNumber(), before + 1n);
-          const original = await service.original(selfDirected);
-          const receipt = await service.receipt(selfDirected);
-          assert.deepEqual(original.document, product.document);
-          assert.equal(receipt.productId, product.id);
-          assert.equal(receipt.documentHash, product.documentHash);
-          assert.equal(receipt.transactions.length, 1);
-          const verified = await verifyEvidence(
-            dep,
-            selfDirected,
-            receipt,
-            original,
-          );
-          assert.ok(
-            verified.checks.every((c) => c.ok),
-            JSON.stringify(verified.checks),
-          );
-          assert.deepEqual(
-            verified.procedureReferences.map((ref) => ref.kind),
-            higherRisk
-              ? ["higher-risk", "signature", "completion"]
-              : ["signature", "completion"],
-          );
-          assert.ok(
-            verified.procedureReferences.every(
-              (ref) => ref.txHash === receipt.transactions[0],
-            ),
-          );
-        },
+    await t.test("시연 기준 v1과 상품 3종을 한 번만 등록한다", async () => {
+      const registered = await request("/register", {});
+      assert.equal(await blockNumber(), beforeRegister + 4n);
+      assert.deepEqual(
+        registered.rules.map((r: { registered: boolean }) => r.registered),
+        [true],
       );
-    }
+      assert.equal(registered.products.length, 3);
+      for (const product of DEMO_PRODUCTS) {
+        const version = await client.readContract({
+          address: ledger,
+          abi: ledgerAbi,
+          functionName: "latestProductVersion",
+          args: [product.id],
+        });
+        assert.equal(version, 1);
+        const stored = await client.readContract({
+          address: ledger,
+          abi: ledgerAbi,
+          functionName: "getProduct",
+          args: [product.id, 1],
+        });
+        assert.equal(stored.documentHash, product.documentHash);
+        assert.equal(stored.riskGrade, product.document.riskGrade);
+      }
+      const [registeredAt, version] = await client.readContract({
+        address: ledger,
+        abi: ledgerAbi,
+        functionName: "rules",
+        args: [BigInt(ruleHash(DEMO_RULE))],
+      });
+      assert.equal(registeredAt, true);
+      assert.equal(version, 1);
+      await request("/register", {});
+      assert.equal(await blockNumber(), beforeRegister + 4n);
+      // 감독기관은 등록 원문으로 해시를 다시 계산한다.
+      const snapshot = await readLedger(dep, client);
+      assert.equal(snapshot.rules.length, 1);
+      assert.ok(snapshot.rules[0].hashMatches);
+      assert.ok(snapshot.products.every((p) => p.matches));
+    });
 
     await t.test(
-      "모의 매입은 가입 뒤 별도 요청에서 반영하고 재요청에서 거래를 추가하지 않는다",
+      "새 설명서 버전은 다음 버전 번호로 쌓이고 이전 버전을 남긴다",
       async () => {
-        const sale = await request(`${salePath}/action/purchase`, {});
-        assert.equal(sale.state.units, "1000000");
-        assert.equal(sale.state.purchaseState, 3);
-        const before = await blockNumber();
-        const repeated = await request(`${salePath}/action/purchase`, {});
-        assert.equal(repeated.state.purchaseState, 3);
-        assert.equal(await blockNumber(), before);
-      },
-    );
-    await t.test(
-      "답변 변경, 다른 상품의 문서·영수증 대체, 다른 원장을 탐지한다",
-      async () => {
-        const changed = structuredClone(original);
-        changed.attempts[0].answers.loss = 2;
-        const checked = await verifyEvidence(dep, id, receipt, changed);
-        assert.equal(
-          checked.checks.find((c) => c.name === "고객 원본 무결성")?.ok,
-          false,
+        const entry = await request("/products", {
+          document: {
+            ...fund.document,
+            fee: "총보수 연 0.80%(가상)",
+            version: 9,
+          },
+        });
+        assert.equal(entry.product.version, 2);
+        const products = await request("/products");
+        const fundVersions = products.filter(
+          (p: { product: { id: string } }) => p.product.id === fund.id,
         );
-        const changedDoc = { ...original, document: bond.document };
-        assert.equal(
-          (await verifyEvidence(dep, id, receipt, changedDoc)).checks.find(
-            (c) => c.name === "고객 원본 무결성",
-          )?.ok,
-          false,
-        );
-        const changedReceipt = {
-          ...receipt,
-          productId: bond.id,
-          documentHash: bond.documentHash,
-        };
-        assert.equal(
-          (await verifyEvidence(dep, id, changedReceipt, original)).checks.find(
-            (c) => c.name === "상품·문서·규칙 버전",
-          )?.ok,
-          false,
-        );
-        await assert.rejects(() =>
-          verifyEvidence(
-            dep,
-            id,
-            { ...receipt, ledger: roleAddresses.seller },
-            original,
+        assert.deepEqual(
+          fundVersions.map(
+            (p: { product: { version: number }; latest: boolean }) => [
+              p.product.version,
+              p.latest,
+            ],
           ),
-        );
-      },
-    );
-    await t.test(
-      "성향과 공개 입력을 바꾸거나 다른 판매에 실제 증명을 재사용할 수 없다",
-      async () => {
-        const tx = await client.getTransaction({ hash: completionHash });
-        const decoded = decodeFunctionData({ abi: ledgerAbi, data: tx.input });
-        if (decoded.functionName !== "completeEnrollment")
-          assert.fail("가입 확정 거래가 아닙니다.");
-        const { a, b, c, signals } = decoded.args[4][0];
-        for (const index of [0, 1, 2, 3, 4, 5, 6, 7]) {
-          const modified = [...signals];
-          modified[index] = index === 0 ? 3n : modified[index] + 1n;
-          assert.equal(
-            await client.readContract({
-              address: verifier,
-              abi: verifierAbi,
-              functionName: "verifyProof",
-              args: [a, b, c, modified as unknown as typeof signals],
-            }),
-            false,
-          );
-        }
-        const customer = createWalletClient({
-          account: env.accounts.customer,
-          chain: env.chain,
-          transport: http(env.rpcUrl),
-        });
-        const { id: another } = await request("/sales", {});
-        const hash = await customer.writeContract({
-          address: ledger,
-          abi: ledgerAbi,
-          functionName: "completeEnrollment",
-          args: [
-            BigInt(another),
-            balanced.id,
-            balanced.documentHash,
-            RULE_HASH,
-            [{ a, b, c, signals }],
-            true,
-            true,
-            "0x",
+          [
+            [1, false],
+            [2, true],
           ],
-          gas: 1_500_000n,
-        });
-        assert.equal(
-          (await client.waitForTransactionReceipt({ hash })).status,
-          "reverted",
         );
-        const untouched = await service.chainSale(another);
-        assert.equal(untouched.attempts, 0);
-        assert.equal(untouched.finalized, false);
+        await reject("/products", 400, {
+          document: {
+            ...fund.document,
+            cards: fund.document.cards.slice(0, 4),
+          },
+        });
+        await reject("/products", 400, {
+          document: { ...fund.document, riskGrade: 7 },
+        });
       },
     );
+
     await t.test(
-      "같은 신청 번호의 증명을 다른 상품에 재사용하면 원장이 거절한다",
+      "규칙 밖 선택지와 등록 기준과 다른 값으로는 증명을 만들 수 없다",
       async () => {
-        const { id: another } = await request("/sales", { productId: bond.id });
-        const draft = await diagnose(another, { loss: 0, experience: 0 });
-        const proof = readPreparedProof(draft.preparedProof);
-        const customer = createWalletClient({
-          account: env.accounts.customer,
-          chain: env.chain,
-          transport: http(env.rpcUrl),
-        });
-        const hash = await customer.writeContract({
-          address: ledger,
-          abi: ledgerAbi,
-          functionName: "completeEnrollment",
-          args: [
-            BigInt(another),
-            innovation.id,
-            innovation.documentHash,
-            RULE_HASH,
-            [proof],
-            true,
-            true,
-            "0x",
-          ],
-          gas: 1_500_000n,
-        });
-        const mined = await client.getTransactionReceipt({ hash });
-        assert.equal(mined.status, "reverted");
-        assert.equal(mined.logs.length, 0);
-        assert.equal((await service.chainSale(another)).attempts, 0);
-        assert.equal((await request(`/sales/${another}`)).productId, bond.id);
-      },
-    );
-    await t.test(
-      "회로 자체가 범위 밖 선택지와 바꿔치기한 커밋먼트를 거절한다",
-      async () => {
-        for (const answers of [
-          { loss: 3, experience: 1 },
-          { loss: 1, experience: 3 },
-        ]) {
-          const committed = diagnosisCommitment(answers, "123", {
-            chainId: 31337,
-            ledger,
-            id,
-            round: 1,
-            documentHash: balanced.documentHash,
-          }).toString();
+        const ctx = {
+          chainId: 31337,
+          ledger,
+          customerRef: ref,
+          attempt: 1,
+          ruleHash: ruleHash(DEMO_RULE),
+        };
+        const base = proofInput(DEMO_RULE, ANSWERS[0], "123", ctx);
+        const attempts = [
+          // 3지선다 문항에 4번째 선택지.
+          { ...base, answers: ["3", ...base.answers.slice(1)] },
+          // 선택지 범위 밖(5).
+          { ...base, answers: ["5", ...base.answers.slice(1)] },
+          // 쓰지 않는 문항에 답.
+          { ...base, answers: [...base.answers.slice(0, 9), "1"] },
+          // 기준 값을 바꾸고 원래 기준 해시를 쓴다.
+          { ...base, threshold: ["0", "0", "0", "0"] },
+          // 커밋먼트 바꿔치기.
+          { ...base, commitment: "1" },
+        ];
+        for (const input of attempts)
           await assert.rejects(() =>
             groth16.fullProve(
-              {
-                ...answers,
-                salt: "123",
-                commitment: committed,
-                chainId: 31337,
-                ledger: BigInt(ledger).toString(),
-                saleId: id,
-                attempt: 1,
-                rule: field(RULE_HASH),
-                document: field(balanced.documentHash),
-              },
-              "circuits/build/suitability_js/suitability.wasm",
-              "circuits/build/suitability.zkey",
+              input,
+              zkPath(ZK_FILES.wasm),
+              zkPath(ZK_FILES.zkey),
               undefined,
               undefined,
               { singleThread: true },
             ),
           );
-        }
-        const raw = original.attempts[0];
+        await reject(`/customers/${CUSTOMER}/diagnose`, 409, {
+          answers: [3, 0, 0, 0, 0, 0],
+        });
+        await reject(`/customers/${CUSTOMER}/diagnose`, 409, {
+          answers: [0, 0, 0],
+        });
         assert.equal(
-          poseidon10([
-            BigInt(raw.answers.loss),
-            BigInt(raw.answers.experience),
-            0n,
-            BigInt(raw.salt),
-            31337n,
-            BigInt(ledger),
-            BigInt(id),
-            1n,
-            BigInt(field(RULE_HASH)),
-            BigInt(field(balanced.documentHash)),
-          ]).toString(),
-          service.find(id).attempts[0].commitment,
-        );
-        await assert.rejects(() =>
-          groth16.fullProve(
-            {
-              ...raw.answers,
-              salt: raw.salt,
-              commitment: "1",
-              chainId: 31337,
-              ledger: BigInt(ledger).toString(),
-              saleId: id,
-              attempt: 1,
-              rule: field(RULE_HASH),
-              document: field(balanced.documentHash),
-            },
-            "circuits/build/suitability_js/suitability.wasm",
-            "circuits/build/suitability.zkey",
-            undefined,
-            undefined,
-            { singleThread: true },
-          ),
+          (await request<CustomerDto>(`/customers/${CUSTOMER}`)).diagnoses
+            .length,
+          0,
         );
       },
     );
+
+    await t.test("등록하지 않은 기준의 증명은 원장이 거절한다", async () => {
+      const draft = structuredClone(DEMO_RULE);
+      draft.name = "등록하지 않은 기준";
+      const hash = ruleHash(draft);
+      const proven = await prove(draft, ANSWERS[0], "99", {
+        chainId: 31337,
+        ledger,
+        customerRef: ref,
+        attempt: 1,
+        ruleHash: hash,
+      });
+      const { profile, limit, elderly, commitment } = proven.signals;
+      assert.equal(
+        await simulateSeller([
+          BigInt(ref),
+          1,
+          BigInt(hash),
+          commitment,
+          Number(profile),
+          Number(limit),
+          elderly === 1n,
+          proven.proof,
+        ]),
+        "InvalidVersion",
+      );
+    });
+
+    let abandonedId = "";
+    let saleId = "";
+    let firstTx: Hex | undefined;
     await t.test(
-      "공개 조회와 로그에 답변·임의값·총점·개인키가 없다",
+      "진단 회차가 가입 중단 뒤에도 같은 고객 가명 ID로 1, 2, 3 이어진다",
+      async () => {
+        const draft = await request<SaleDto>("/sales", {
+          productId: els.id,
+          customerNo: CUSTOMER,
+        });
+        abandonedId = draft.id;
+        assert.equal(draft.status, "draft");
+        assert.equal(draft.customerRef, ref);
+        assert.equal(draft.latestAttempt, 0);
+        const first = await diagnose(ANSWERS[0]);
+        assert.deepEqual(
+          [first.attempt, first.profile, first.limit, first.elderly],
+          [1, 3, 3, false],
+        );
+        firstTx = first.txHash;
+        gas.recordDiagnosis = await gasOf(first.txHash);
+        const abandoned = await action(draft.id, "abandon");
+        assert.equal(abandoned.status, "abandoned");
+        await reject(`/sales/${draft.id}/action/subscribe`, 409, {
+          explanationSeconds: 60,
+          higherRiskConfirmed: true,
+          recordingConsent: true,
+        });
+
+        const sale = await request<SaleDto>("/sales", {
+          productId: els.id,
+          customerNo: CUSTOMER,
+        });
+        saleId = sale.id;
+        assert.notEqual(sale.id, draft.id);
+        assert.equal(sale.latestAttempt, 1);
+        assert.equal(sale.suitable, false);
+        assert.equal(sale.protectedSale, true);
+        const second = await diagnose(ANSWERS[1]);
+        const third = await diagnose(ANSWERS[2]);
+        assert.deepEqual(
+          [second.attempt, second.profile, second.limit],
+          [2, 4, 2],
+        );
+        assert.deepEqual(
+          [third.attempt, third.profile, third.limit],
+          [3, 5, 2],
+        );
+        const customer = await request<CustomerDto>(`/customers/${CUSTOMER}`);
+        assert.equal(customer.ref, ref);
+        assert.deepEqual(
+          customer.diagnoses.map((d) => [d.attempt, d.profile]),
+          [
+            [1, 3],
+            [2, 4],
+            [3, 5],
+          ],
+        );
+        // 커밋먼트는 답변·임의값·원장·고객 가명 ID·회차·기준에 묶인다.
+        for (const stored of service.repository.diagnoses(ref)) {
+          const expected = diagnosisCommitment(stored.answers, stored.salt, {
+            chainId: 31337,
+            ledger,
+            customerRef: ref,
+            attempt: stored.attempt,
+            ruleHash: stored.ruleHash,
+          });
+          assert.equal(
+            customer.diagnoses[stored.attempt - 1].commitment,
+            expected.toString(),
+          );
+        }
+        assert.equal(
+          await client.readContract({
+            address: ledger,
+            abi: ledgerAbi,
+            functionName: "attemptCount",
+            args: [BigInt(ref)],
+          }),
+          3,
+        );
+      },
+    );
+
+    await t.test(
+      "사후 변경 시도는 원장이 InvalidAttempt로 거절하고 거래를 보내지 않는다",
+      async () => {
+        const before = await blockNumber();
+        const result = await request("/demo/tamper", {
+          customerNo: CUSTOMER,
+          attempt: 2,
+        });
+        assert.equal(result.rejected, true);
+        assert.equal(result.error, "InvalidAttempt");
+        assert.match(result.reason, /회차/);
+        await reject("/demo/tamper", 409, { customerNo: CUSTOMER, attempt: 9 });
+        assert.equal(await blockNumber(), before);
+        const recorded = await request<CustomerDto>(`/customers/${CUSTOMER}`);
+        assert.equal(recorded.diagnoses[1].profile, 4);
+      },
+    );
+
+    await t.test(
+      "증명은 다른 고객 가명 ID·회차·원장에 재사용할 수 없다",
+      async () => {
+        const tx = await client.getTransaction({ hash: firstTx! });
+        const decoded = decodeFunctionData({ abi: ledgerAbi, data: tx.input });
+        if (decoded.functionName !== "recordDiagnosis")
+          assert.fail("진단 기록 거래가 아닙니다.");
+        const [, attempt, rule, commitment, profile, limit, elderly, proof] =
+          decoded.args;
+        const another = customerRefFor(env.customerRefSecret, "C-0002");
+        assert.equal(
+          await simulateSeller([
+            BigInt(another),
+            attempt,
+            rule,
+            commitment,
+            profile,
+            limit,
+            elderly,
+            proof,
+          ]),
+          "InvalidProof",
+        );
+        // 같은 고객의 다음 회차(4)로 1회차 증명을 다시 쓴다.
+        assert.equal(
+          await simulateSeller([
+            BigInt(ref),
+            4,
+            rule,
+            commitment,
+            profile,
+            limit,
+            elderly,
+            proof,
+          ]),
+          "InvalidProof",
+        );
+        const signals = [
+          BigInt(profile),
+          BigInt(limit),
+          elderly ? 1n : 0n,
+          commitment,
+          31337n,
+          BigInt(ledger),
+          BigInt(ref),
+          BigInt(attempt),
+          rule,
+        ] as const;
+        const verify = (values: readonly bigint[]) =>
+          client.readContract({
+            address: verifier,
+            abi: verifierAbi,
+            functionName: "verifyProof",
+            args: [...verifierArgs(proof), values as never],
+          });
+        assert.equal(await verify(signals), true);
+        for (let index = 0; index < signals.length; index++) {
+          const modified = [...signals];
+          modified[index] =
+            index < 3 ? (modified[index] + 1n) % 6n : modified[index] + 1n;
+          assert.equal(await verify(modified), false, `공개 신호 ${index}`);
+        }
+        // 판매사가 아닌 계정은 기록할 수 없다.
+        await assert.rejects(
+          seller.writeContract({
+            address: ledger,
+            abi: ledgerAbi,
+            functionName: "recordDiagnosis",
+            args: [
+              BigInt(another),
+              1,
+              rule,
+              commitment,
+              profile,
+              limit,
+              elderly,
+              proof,
+            ],
+            account: env.accounts.customer,
+          }),
+        );
+      },
+    );
+
+    await t.test(
+      "3회차 청약은 관리자 승인, 부적합은 추가 위험 확인, 녹취 대상은 녹취 동의가 필요하다",
+      async () => {
+        const before = await blockNumber();
+        const body = {
+          explanationSeconds: 180,
+          higherRiskConfirmed: true,
+          recordingConsent: true,
+        };
+        assert.match(
+          await reject(`/sales/${saleId}/action/subscribe`, 409, body),
+          /관리자 승인/,
+        );
+        const approved = await action(saleId, "approve");
+        assert.equal(approved.approvalRequired, true);
+        assert.equal(approved.approvedAttempt, 3);
+        assert.match(
+          await reject(`/sales/${saleId}/action/subscribe`, 409, {
+            ...body,
+            higherRiskConfirmed: false,
+          }),
+          /추가 위험 확인/,
+        );
+        assert.match(
+          await reject(`/sales/${saleId}/action/subscribe`, 409, {
+            ...body,
+            recordingConsent: false,
+          }),
+          /녹취/,
+        );
+        await reject(`/sales/${saleId}/action/subscribe`, 400, {
+          ...body,
+          explanationSeconds: 0,
+        });
+        assert.equal(await blockNumber(), before);
+        const subscribed = await action(saleId, "subscribe", body);
+        assert.equal(subscribed.status, "subscribed");
+        assert.equal(subscribed.suitable, false);
+        assert.equal(subscribed.protectedSale, true);
+        assert.equal(subscribed.chain?.attempt, 3);
+        assert.equal(subscribed.chain?.approved, true);
+        assert.equal(subscribed.chain?.higherRiskConfirmed, true);
+        assert.equal(
+          subscribed.coolingEndsAt,
+          Number(subscribed.chain!.subscribedAt) + COOLING_PERIOD,
+        );
+        const original = await request<OriginalBundle>(
+          `/sales/${saleId}/export/original`,
+        );
+        assert.equal(
+          subscribed.chain?.recordingHash,
+          keccak256(stringToHex(original.recording!.text)),
+        );
+        gas.subscribe = await gasOf(
+          subscribed.traces.find((trace) => trace.action === "subscribe")
+            ?.txHash,
+        );
+      },
+    );
+
+    await t.test(
+      "숙려기간 전 최종 확인은 원장이 TooEarly로 거절하고 지난 뒤 확정한다",
+      async () => {
+        const before = await blockNumber();
+        assert.match(
+          await reject(`/sales/${saleId}/action/confirm`, 409, {}),
+          /숙려기간/,
+        );
+        assert.equal(await blockNumber(), before);
+        const traces = await request("/traces");
+        assert.equal(
+          traces.find(
+            (trace: { action: string; status: string }) =>
+              trace.action === "confirm" && trace.status === "failed",
+          )?.detail.error,
+          "TooEarly",
+        );
+        await anvil.increaseTime({ seconds: COOLING_PERIOD });
+        await anvil.mine({ blocks: 1 });
+        const confirmed = await action(saleId, "confirm");
+        assert.equal(confirmed.status, "confirmed");
+        gas.confirm = await gasOf(
+          confirmed.traces.find(
+            (trace) =>
+              trace.action === "confirm" && trace.status === "confirmed",
+          )?.txHash,
+        );
+        // 확정한 건은 철회할 수 없다. 같은 확인 요청은 거래를 다시 보내지 않는다.
+        await reject(`/sales/${saleId}/action/withdraw`, 409, {});
+        const repeated = await blockNumber();
+        await action(saleId, "confirm");
+        assert.equal(await blockNumber(), repeated);
+      },
+    );
+
+    let bondId = "";
+    await t.test(
+      "적합한 ELB는 녹취·숙려 없이 바로 확정하고 모의 결제를 한 번만 기록한다",
+      async () => {
+        const bond = await request<SaleDto>("/sales", {
+          productId: elb.id,
+          customerNo: CUSTOMER,
+        });
+        bondId = bond.id;
+        assert.equal(bond.suitable, true);
+        assert.equal(bond.protectedSale, false);
+        await reject(`/sales/${bond.id}/action/settle`, 409, {});
+        await action(bond.id, "approve");
+        const subscribed = await action(bond.id, "subscribe", {
+          explanationSeconds: 45,
+          higherRiskConfirmed: false,
+          recordingConsent: false,
+        });
+        assert.equal(subscribed.chain?.protectedSale, false);
+        assert.equal(subscribed.chain?.recordingHash, `0x${"0".repeat(64)}`);
+        assert.equal(subscribed.coolingEndsAt, undefined);
+        assert.equal((await action(bond.id, "confirm")).status, "confirmed");
+        const settled = await action(bond.id, "settle");
+        assert.equal(settled.settled, true);
+        const before = await blockNumber();
+        await action(bond.id, "settle");
+        assert.equal(await blockNumber(), before);
+
+        // 숙려 중 철회.
+        const withdrawn = await request<SaleDto>("/sales", {
+          productId: els.id,
+          customerNo: CUSTOMER,
+        });
+        await action(withdrawn.id, "approve");
+        await action(withdrawn.id, "subscribe", {
+          explanationSeconds: 120,
+          higherRiskConfirmed: true,
+          recordingConsent: true,
+        });
+        assert.equal(
+          (await action(withdrawn.id, "withdraw")).status,
+          "withdrawn",
+        );
+        await reject(`/sales/${withdrawn.id}/action/confirm`, 409, {});
+      },
+    );
+
+    await t.test(
+      "판매사 API 없이 원장과 대조한다: 원본은 일치, 바꾼 사본은 불일치, 없는 판매 ID는 기록 없음",
+      async () => {
+        const original = await request<OriginalBundle>(
+          `/sales/${saleId}/export/original`,
+        );
+        const receipt = await request<EvidenceReceipt>(
+          `/sales/${saleId}/export/receipt`,
+        );
+        assert.equal(receipt.format, "finveric-receipt-v5");
+        assert.equal(original.format, "finveric-original-v5");
+        assert.ok(receipt.confirmTx);
+        assert.deepEqual(
+          original.attempts.map((a) => a.attempt),
+          [1, 2, 3],
+        );
+        const verified = await verifySale(dep, saleId, receipt, original);
+        assert.equal(
+          verified.outcome,
+          "match",
+          JSON.stringify(verified.checks),
+        );
+        assert.deepEqual(
+          verified.checks.map((c) => c.name),
+          [
+            "판매 기록",
+            "상품 설명서 버전",
+            "진단 기준 원문",
+            "진단 회차",
+            "원본 답변 대조",
+            "적합성·필수 확인",
+            "숙려·최종 확인",
+            "증명서 대조",
+          ],
+        );
+        assert.deepEqual(
+          verified.diagnoses.map((d) => d.attempt),
+          [1, 2, 3],
+        );
+        assert.ok(
+          verified.references.some(
+            (r) => r.kind === "confirm" && r.txHash === receipt.confirmTx,
+          ),
+        );
+
+        const failing = async (
+          name: string,
+          changedReceipt: EvidenceReceipt,
+          changedOriginal: OriginalBundle,
+        ) => {
+          const result = await verifySale(
+            dep,
+            saleId,
+            changedReceipt,
+            changedOriginal,
+          );
+          assert.equal(result.outcome, "mismatch", name);
+          assert.deepEqual(
+            result.checks.filter((c) => !c.ok).map((c) => c.name),
+            [name],
+          );
+        };
+        const answer = structuredClone(original);
+        answer.attempts[1].answers[0] = 1;
+        await failing("원본 답변 대조", receipt, answer);
+        const document = structuredClone(original);
+        document.productDocument.cards[0].text =
+          document.productDocument.cards[0].text.replace("50%", "5%");
+        await failing("상품 설명서 버전", receipt, document);
+        const recording = structuredClone(original);
+        recording.recording!.text += " ";
+        await failing("적합성·필수 확인", receipt, recording);
+        await failing("증명서 대조", { ...receipt, amount: "1" }, original);
+        await failing("증명서 대조", { ...receipt, attempt: 2 }, original);
+
+        assert.equal((await verifySale(dep, "1")).outcome, "missing");
+        assert.equal((await verifySale(dep, abandonedId)).outcome, "missing");
+        const bond = await verifySale(dep, bondId);
+        assert.equal(bond.outcome, "match", JSON.stringify(bond.checks));
+        assert.equal(bond.sale?.settlement !== undefined, true);
+        await assert.rejects(() => verifySale(dep, "0x12"));
+        await assert.rejects(() =>
+          verifySale({ ...dep, ledger: roles.seller }, saleId),
+        );
+      },
+    );
+
+    await t.test("위험 신호를 원장 이벤트만으로 계산한다", async () => {
+      const snapshot = await readLedger(dep, client);
+      assert.equal(snapshot.diagnoses.length, 3);
+      assert.equal(snapshot.sales.length, 3);
+      const signals = computeSignals(snapshot);
+      const kinds = (kind: string) =>
+        signals
+          .filter((s) => s.kind === kind)
+          .map((s) => s.saleId ?? s.attempt);
+      assert.deepEqual(kinds("repeat"), [3]);
+      assert.deepEqual(kinds("shortInterval"), [2, 3]);
+      assert.equal(kinds("rise").length, 3);
+      assert.deepEqual(kinds("unsuitable"), [saleId]);
+      assert.deepEqual(kinds("shortExplanation"), [bondId]);
+      assert.ok(signals.every((s) => s.customerRef === ref));
+    });
+
+    await t.test(
+      "공개 조회와 로그에 답변·임의값·총점·고객 번호·개인키가 없다",
       async () => {
         for (const path of ["/sales", "/traces"]) {
           const data = JSON.stringify(await request(path));
-          assert.doesNotMatch(data, /"(answers|salt|score|privateKey)"/);
+          assert.doesNotMatch(
+            data,
+            /"(answers|salt|score|privateKey|signature)"/,
+          );
+          assert.doesNotMatch(data, new RegExp(CUSTOMER));
         }
-        assert.equal(receipt.format, "finveric-receipt-v4");
-        assert.equal(original.format, "finveric-original-v4");
+        const customer = JSON.stringify(
+          await request(`/customers/${CUSTOMER}`),
+        );
+        assert.doesNotMatch(customer, /"(answers|salt|score)"/);
       },
     );
+
     await t.test(
-      "여러 서버 인스턴스가 같은 저장소를 써도 판매 기록을 잃지 않는다",
+      "여러 서버 인스턴스가 같은 저장소를 써도 기록을 잃지 않는다",
       async () => {
         const upstash = fakeUpstash();
         const instance = () =>
@@ -719,28 +868,25 @@ test(
           });
         const [a, b, reader] = [instance(), instance(), instance()];
         await a.initialize();
+        // 등록 원문은 공유 저장소에 없다. 같은 원장에 등록한 원문을 옮긴다.
+        await a.exclusive(async () => {
+          for (const rule of service.repository.rules())
+            a.repository.addRule(rule);
+          for (const product of service.repository.products())
+            a.repository.addProduct(product);
+        });
         const [first, second] = await Promise.all([
-          a.exclusive(() => a.open(balanced.id)),
-          b.exclusive(() => b.open(bond.id)),
+          a.exclusive(() =>
+            a.open({ productId: els.id, customerNo: "C-0100" }),
+          ),
+          b.exclusive(() =>
+            b.open({ productId: elb.id, customerNo: "C-0101" }),
+          ),
         ]);
-        // 다른 인스턴스는 잠금 없이 조회해도 두 기록을 모두 본다.
         const seen = await reader.view(async () =>
           reader.sales.map((sale) => sale.id),
         );
         assert.deepEqual(new Set(seen), new Set([first.id, second.id]));
-        // 다른 인스턴스가 만든 신청을 이어서 진단할 수 있다.
-        await b.exclusive(() =>
-          b.diagnose(first.id, {
-            loss: 1,
-            experience: 1,
-            salt: String(9_000_000 + ++salt),
-          }),
-        );
-        const attempts = await reader.view(
-          async () => reader.find(first.id).attempts.length,
-        );
-        assert.equal(attempts, 1);
-        // 조회 중 영수증 대조 결과는 잠금 없이 저장하지 않는다.
         const before = upstash.values.get("finveric:shared-test:sales")?.value;
         await reader.view(() => reader.publicTraces());
         assert.equal(
@@ -749,6 +895,7 @@ test(
         );
       },
     );
+
     await t.test(
       "health는 RPC·원장·저장소를 점검하고 하나라도 실패하면 503이다",
       async () => {
@@ -756,11 +903,8 @@ test(
         assert.equal(healthy.statusCode, 200, healthy.body);
         const body = healthy.json();
         assert.equal(body.ok, true);
-        assert.equal(body.chainId, dep.chainId);
         for (const name of ["rpc", "ledger", "store"])
           assert.equal(body.checks[name].ok, true, name);
-
-        // 닫힌 포트의 RPC. 저장소 점검은 그대로 통과해야 한다.
         const broken = new FundService({
           env: { ...env, rpcUrl: "http://127.0.0.1:1" },
           dep,
@@ -770,23 +914,22 @@ test(
         try {
           const failed = await brokenApp.inject({ url: "/api/health" });
           assert.equal(failed.statusCode, 503, failed.body);
-          const result = failed.json();
-          assert.equal(result.ok, false);
-          assert.equal(result.checks.rpc.ok, false);
-          assert.equal(result.checks.store.ok, true);
-          // 오류에 RPC 주소를 노출하지 않는다.
+          assert.equal(failed.json().checks.rpc.ok, false);
+          assert.equal(failed.json().checks.store.ok, true);
           assert.doesNotMatch(failed.body, /127\.0\.0\.1:1|http/);
         } finally {
           await brokenApp.close();
         }
       },
     );
+
     await t.test(
-      "서버 재시작 뒤 확정 이력을 복구하고 거래를 중복 제출하지 않는다",
+      "서버 재시작 뒤 대기 기록을 영수증으로 복구하고 거래를 다시 보내지 않는다",
       async () => {
-        const trace = service
-          .find(id)
-          .traces.find((item) => item.txHash === completionHash);
+        const record = service.find(bondId);
+        const trace = record.traces.find(
+          (item) => item.action === "confirm" && item.status === "confirmed",
+        );
         assert.ok(trace);
         trace.status = "pending";
         service.save();
@@ -794,18 +937,19 @@ test(
         const recovered = new FundService({ env, dep, file: service.file });
         await recovered.initialize();
         assert.equal(
-          (await recovered.confirm(id, accepted)).state.finalized,
-          true,
+          recovered
+            .find(bondId)
+            .traces.find((item) => item.txHash === trace.txHash)?.status,
+          "confirmed",
         );
         assert.equal(
-          recovered
-            .find(id)
-            .traces.find((item) => item.txHash === completionHash)?.status,
+          (await recovered.action(bondId, "confirm")).status,
           "confirmed",
         );
         assert.equal(await blockNumber(), before);
       },
     );
+
     await t.test(
       "외부 시연의 접근 코드가 없으면 고객 원본을 내려받을 수 없다",
       async () => {
@@ -813,14 +957,17 @@ test(
         const gated = await createApp(service);
         try {
           assert.equal(
-            (await gated.inject({ url: `/api/sales/${id}/export/original` }))
-              .statusCode,
+            (
+              await gated.inject({
+                url: `/api/sales/${saleId}/export/original`,
+              })
+            ).statusCode,
             401,
           );
           assert.equal(
             (
               await gated.inject({
-                url: `/api/sales/${id}/export/original`,
+                url: `/api/sales/${saleId}/export/original`,
                 headers: { authorization: `Bearer ${process.env.DEMO_TOKEN}` },
               })
             ).statusCode,
@@ -831,6 +978,10 @@ test(
           await gated.close();
         }
       },
+    );
+
+    t.diagnostic(
+      `gas recordDiagnosis=${gas.recordDiagnosis} subscribe=${gas.subscribe} confirm=${gas.confirm}`,
     );
   },
 );

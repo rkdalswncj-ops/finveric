@@ -4,8 +4,9 @@ import rateLimit from "@fastify/rate-limit";
 import { timingSafeEqual } from "node:crypto";
 import { json } from "../../../packages/core/src/index.ts";
 import { FundService } from "./service.ts";
-import { productRoutes } from "./routes/products.ts";
+import { customerRoutes } from "./routes/customers.ts";
 import { recordRoutes } from "./routes/records.ts";
+import { registryRoutes } from "./routes/registry.ts";
 import { saleRoutes } from "./routes/sales.ts";
 import { systemRoutes } from "./routes/system.ts";
 
@@ -100,7 +101,8 @@ export async function createApp(service = new FundService()) {
   });
   // 경로는 업무별 파일에 있다. 위의 접근 코드·출처 검사가 모든 경로에 적용된다.
   systemRoutes(app, service, { requiresToken: !!token });
-  productRoutes(app, service);
+  registryRoutes(app, service);
+  customerRoutes(app, service);
   saleRoutes(app, service);
   recordRoutes(app, service);
   return app;

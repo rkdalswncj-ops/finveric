@@ -1,26 +1,47 @@
-import { existsSync, writeFileSync } from "node:fs";
+// Sepolia 시연 키를 .env.sepolia에 만든다. 파일이 있으면 빠진 역할 키만 더한다(예: v5의 APPROVER).
+import {
+  appendFileSync,
+  existsSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { generatePrivateKey } from "viem/accounts";
 import { createPublicClient, http, formatEther } from "viem";
 import { randomBytes } from "node:crypto";
 import { environment, roles } from "./environment.ts";
 
-if (!existsSync(".env.sepolia")) {
-  const lines = roles.map(
-    (role) => `${role.toUpperCase()}_PRIVATE_KEY=${generatePrivateKey()}`,
-  );
+const file = ".env.sepolia";
+const keyLine = (role: string) =>
+  `${role.toUpperCase()}_PRIVATE_KEY=${generatePrivateKey()}`;
+if (!existsSync(file)) {
   writeFileSync(
-    ".env.sepolia",
+    file,
     [
       "# Sepolia 시연 전용. 실제 자산을 넣지 마세요. Git에 커밋하지 마세요.",
       "NETWORK=sepolia",
       "RPC_URL=https://ethereum-sepolia-rpc.publicnode.com",
       "PUBLIC_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com",
       `DEMO_TOKEN=${randomBytes(32).toString("hex")}`,
-      ...lines,
+      ...roles.map(keyLine),
       "",
     ].join("\n"),
     { mode: 0o600 },
   );
+} else {
+  const text = readFileSync(file, "utf8");
+  const missing = roles.filter(
+    (role) =>
+      !new RegExp(`^${role.toUpperCase()}_PRIVATE_KEY=`, "m").test(text),
+  );
+  if (missing.length) {
+    appendFileSync(
+      file,
+      (text.endsWith("\n") ? "" : "\n") +
+        missing.map(keyLine).join("\n") +
+        "\n",
+    );
+    console.log(`빠진 역할 키를 더했습니다: ${missing.join(", ")}`);
+  }
 }
 const env = environment("sepolia");
 console.log("Sepolia 테스트 ETH 충전 주소:", env.accounts.deployer.address);

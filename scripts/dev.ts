@@ -81,9 +81,9 @@ try {
     if (!needsDeploy) {
       const { deployment } = await import("./environment.ts");
       const dep = deployment("local");
+      // 원장 버전이나 증명 키가 바뀌면 새 주소에 다시 배포한다. 이전 원장의 기록은 그 주소에 남는다.
       needsDeploy =
-        dep.ledgerVersion !== 4 ||
-        dep.ruleVersion !== 3 ||
+        dep.ledgerVersion !== 5 ||
         !(await rpc.getCode({ address: dep.ledger })) ||
         dep.proofKeyHash !== proofKeyHash();
     }

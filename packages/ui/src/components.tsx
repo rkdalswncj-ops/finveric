@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
-import { PRODUCTS } from "../../core/src/index.ts";
 import { Button } from "./button.tsx";
 import s from "./ui.module.css";
 
@@ -72,33 +71,6 @@ export function TransactionFacts({
         ["거래 해시", <code>{hash}</code>],
       ]}
     />
-  );
-}
-export function FundFilter({
-  value,
-  change,
-  disabled,
-}: {
-  value: string;
-  change: (id: string) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <label className={`${s.field} ${s.fundFilter}`}>
-      펀드 선택
-      <select
-        value={value}
-        disabled={disabled}
-        onChange={(e) => change(e.target.value)}
-      >
-        <option value="">전체 펀드</option>
-        {PRODUCTS.map((product) => (
-          <option key={product.id} value={product.id}>
-            {product.document.name}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }
 export function AccessCodeForm({

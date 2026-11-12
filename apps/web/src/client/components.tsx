@@ -1,109 +1,226 @@
+// client 페이지의 여러 화면이 함께 쓰는 표시 요소.
 import type { ReactNode } from "react";
-import { Link } from "react-router";
 import { FileText } from "lucide-react";
-import type { Product } from "../../../../packages/core/src/index.ts";
-import { Button } from "../../../../packages/ui/src/button.tsx";
-import { Badge, Facts } from "../../../../packages/ui/src/components.tsx";
 import {
-  profileName,
-  saleProductName,
-  short,
-  type Sale,
-} from "../../../../packages/ui/src/sale.ts";
+  isSuitable,
+  PROFILE_NAMES,
+  type ProductDocument,
+  type RuleDocument,
+} from "../../../../packages/core/src/index.ts";
+import type { DiagnosisDto } from "../../../../packages/core/src/api.ts";
+import { Button } from "../../../../packages/ui/src/button.tsx";
+import {
+  Badge,
+  Facts,
+  Notice,
+} from "../../../../packages/ui/src/components.tsx";
+import { dateTime, short } from "../../../../packages/ui/src/format.ts";
 import ui from "../../../../packages/ui/src/ui.module.css";
 import local from "./client.module.css";
-import { channel } from "./links.ts";
+import {
+  gradeName,
+  issuerLabel,
+  limitRange,
+  productName,
+  profileName,
+  STATUS_LABELS,
+  STATUS_TONES,
+  statusKey,
+  type ProductEntry,
+  type Sale,
+} from "./sales.ts";
 
 const s = { ...ui, ...local };
+const PROFILES = Object.keys(PROFILE_NAMES).map(Number);
 
-export function FundDisclosure({
-  document,
+export function Empty({
+  title,
+  text,
+  children,
 }: {
-  document: Product["document"];
+  title: string;
+  text: string;
+  children?: ReactNode;
 }) {
-  return (
-    <details>
-      <summary>상품 설명서 {document.version} 보기</summary>
-      <h3>{document.name}</h3>
-      <p>{document.strategy}</p>
-      <Facts
-        rows={[
-          ["상품 코드", document.product],
-          ["클래스", document.class],
-          ["운용사", document.manager],
-          ["판매사", document.seller],
-          ["위험등급", document.risk],
-          ["연 총보수", document.annualFee],
-        ]}
-      />
-      <p>{document.warning}</p>
-    </details>
-  );
-}
-export function Empty({ children }: { children?: ReactNode }) {
   return (
     <div className={s.empty}>
       <FileText size={30} />
-      <h2>아직 가입 기록이 없어요</h2>
-      <p>상품을 확인하고 첫 진단을 시작해 주세요.</p>
-      {children ?? (
-        <Button asChild>
-          <Link to={channel.catalog}>펀드 살펴보기</Link>
-        </Button>
-      )}
+      <h2>{title}</h2>
+      <p>{text}</p>
+      {children}
     </div>
   );
 }
-export function History({
-  sale,
-  showDraftProfiles = false,
+
+export function StatusBadge({ sale, now }: { sale: Sale; now: number }) {
+  const key = statusKey(sale, now);
+  return <Badge tone={STATUS_TONES[key]}>{STATUS_LABELS[key]}</Badge>;
+}
+
+/** 아무 기준·상품도 등록하지 않았을 때 보여 주는 시연 등록 안내. */
+export function RegisterNotice({
+  busy,
+  register,
 }: {
-  sale: Sale;
-  showDraftProfiles?: boolean;
+  busy: boolean;
+  register: () => unknown;
 }) {
   return (
-    <ol className={s.history}>
-      {sale.attempts.map((a) => (
-        <li key={a.round}>
-          <span className={s.historyDot}>{a.round}</span>
-          <div>
-            <strong>진단 {a.round}회차</strong>
-            <p>
-              <code>{short(a.commitment)}</code>
-              {a.round > 1 && " · 답변 정정"}
-            </p>
-          </div>
-          {a.confirmed && (sale.state.finalized || showDraftProfiles) ? (
-            <Badge tone="blue">{profileName(a.profile)}</Badge>
-          ) : (
-            <Badge>초안</Badge>
-          )}
+    <div className={s.registerNotice}>
+      <Notice tone="warning">
+        아직 원장에 등록한 진단 기준과 상품이 없습니다. 시연 진단 기준 v1과 시연
+        상품 3종을 한 번에 등록할 수 있습니다.
+      </Notice>
+      <Button disabled={busy} onClick={register}>
+        상품·진단 기준 등록
+      </Button>
+    </div>
+  );
+}
+
+/** 상품 설명서의 속성. 판매사 화면에서 쓴다. */
+export function ProductFacts({ document }: { document: ProductDocument }) {
+  return (
+    <Facts
+      rows={[
+        ["상품 코드", <code>{document.code}</code>],
+        ["상품 유형", document.type],
+        ["위험등급", gradeName(document.riskGrade)],
+        [
+          "속성",
+          [
+            document.complex ? "고난도" : "고난도 아님",
+            document.derivative ? "파생결합증권" : "파생결합증권 아님",
+          ].join(" · "),
+        ],
+        [issuerLabel(document), document.issuer],
+        ["판매사", document.seller],
+        ["판매대상 고객군", document.targetMarket],
+        ["최대 손실", document.maxLoss],
+        ["수수료", document.fee],
+      ]}
+    />
+  );
+}
+
+/** 핵심 설명 카드 5장. 첫 장은 부적합 고객 유형과 손실 사례다. */
+export function ExplanationCards({
+  cards,
+}: {
+  cards: ProductDocument["cards"];
+}) {
+  return (
+    <ol className={s.cardList}>
+      {cards.map((card, index) => (
+        <li key={index}>
+          <strong>
+            {index + 1}. {card.title}
+          </strong>
+          <p>{card.text}</p>
         </li>
       ))}
     </ol>
   );
 }
-export function SaleSelect({
-  sales,
-  sale,
-  select,
-  label = "판매 건 선택",
+
+/**
+ * 투자성향별 권유 가능 상품. 적합성 기준(투자성향별 권유 가능 최고 위험등급)으로 나눈다.
+ * 고객이 추출 조건 답변을 고르면 권유 범위가 더 좁아질 수 있다.
+ */
+export function ProfileProducts({
+  rule,
+  products,
 }: {
-  sales: Sale[];
-  sale?: Sale;
-  select: (id: string) => void;
-  label?: string;
+  rule?: RuleDocument;
+  products: ProductEntry[];
+}) {
+  if (!rule) return <p className={s.small}>진단 기준을 등록하면 표시합니다.</p>;
+  return (
+    <div className={s.tableWrap}>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">투자성향</th>
+            <th scope="col">권유 가능 위험등급</th>
+            <th scope="col">권유 가능 상품</th>
+            <th scope="col">추가 위험 확인이 필요한 상품</th>
+          </tr>
+        </thead>
+        <tbody>
+          {PROFILES.map((profile) => {
+            const limit = rule.matrix[profile - 1];
+            const names = (suitable: boolean) =>
+              products
+                .filter(
+                  ({ product }) =>
+                    isSuitable(product.document.riskGrade, limit) === suitable,
+                )
+                .map(({ product }) => productName(product.document))
+                .join(", ") || "—";
+            return (
+              <tr key={profile}>
+                <td>
+                  <strong>{profileName(profile)}</strong>
+                </td>
+                <td>{limitRange(limit)}</td>
+                <td className={s.wrapCell}>{names(true)}</td>
+                <td className={s.wrapCell}>{names(false)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** 고객 가명 ID의 진단 회차. 청약에 쓴 회차를 강조한다. */
+export function DiagnosisTable({
+  diagnoses,
+  used,
+  caption,
+}: {
+  diagnoses: DiagnosisDto[];
+  used?: number;
+  caption?: string;
 }) {
   return (
-    <label className={s.saleSelect}>
-      {label}
-      <select value={sale?.id ?? ""} onChange={(e) => select(e.target.value)}>
-        {sales.map((s) => (
-          <option key={s.id} value={s.id}>
-            {saleProductName(s)} · {s.id.slice(-6)}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className={s.tableWrap}>
+      <table>
+        {caption && <caption>{caption}</caption>}
+        <thead>
+          <tr>
+            <th scope="col">회차</th>
+            <th scope="col">투자성향</th>
+            <th scope="col">권유 가능 위험등급</th>
+            <th scope="col">고령</th>
+            <th scope="col">기록 시각</th>
+            <th scope="col">거래</th>
+          </tr>
+        </thead>
+        <tbody>
+          {diagnoses.map((diagnosis) => (
+            <tr
+              key={diagnosis.attempt}
+              className={diagnosis.attempt === used ? s.selectedRow : ""}
+            >
+              <td>
+                <strong>
+                  {diagnosis.attempt}회차
+                  {diagnosis.attempt === used && " · 청약"}
+                </strong>
+              </td>
+              <td>{profileName(diagnosis.profile)}</td>
+              <td>{limitRange(diagnosis.limit)}</td>
+              <td>{diagnosis.elderly ? "고령" : "—"}</td>
+              <td>{dateTime(diagnosis.at)}</td>
+              <td>
+                <code title={diagnosis.txHash}>{short(diagnosis.txHash)}</code>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

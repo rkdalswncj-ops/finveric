@@ -11,7 +11,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 
 const fail = (message) => {
   console.error(`Vercel 빌드 중단: ${message}`);
@@ -23,8 +23,9 @@ const chainIds = { local: 31337, sepolia: 11155111 };
 if (!(network in chainIds)) fail("NETWORK는 local 또는 sepolia여야 합니다.");
 
 // 배포할 때 쓴 증명 키와 설정. deploy/<network>는 Git에 커밋한 배포본이다.
-// 없으면 로컬 실행 파일을 쓴다. 로컬 확인용이다.
+// 없으면 로컬 실행 파일을 쓴다. 로컬 확인용이다. 증명 키는 FINVERIC_ZK_DIR(기본 circuits/build)에서 읽는다.
 const release = `deploy/${network}`;
+const zk = process.env.FINVERIC_ZK_DIR ?? "circuits/build";
 const source = existsSync(`${release}/deployment.json`)
   ? {
       deployment: `${release}/deployment.json`,
@@ -33,8 +34,8 @@ const source = existsSync(`${release}/deployment.json`)
     }
   : {
       deployment: `.local/deployment-${network}.json`,
-      zkey: "circuits/build/suitability.zkey",
-      wasm: "circuits/build/suitability_js/suitability.wasm",
+      zkey: join(zk, "suitability.zkey"),
+      wasm: join(zk, "suitability_js/suitability.wasm"),
     };
 for (const file of Object.values(source))
   if (!existsSync(file))
@@ -50,8 +51,8 @@ if (deployment.proofKeyHash !== keyHash)
   fail("증명 키가 배포한 Verifier와 다릅니다. 배포 때 쓴 키를 사용하세요.");
 if (deployment.chainId !== chainIds[network])
   fail(`배포 설정의 체인 ID가 ${network}와 다릅니다.`);
-if (deployment.ledgerVersion !== 4 || deployment.ruleVersion !== 3)
-  fail("가입 원장 v4와 진단 규칙 v3 배포 설정이 필요합니다.");
+if (deployment.ledgerVersion !== 5)
+  fail("판매 기록 원장 v5 배포 설정이 필요합니다.");
 
 // 웹 빌드(apps/web/dist)를 그대로 사이트 루트에 둔다.
 // 진입 화면은 /, 판매사 콘솔은 /client/, 감독기관·고객 검증은 /auditor/다.
@@ -72,12 +73,6 @@ writeFileSync(
   `${out}/static/deployment.json`,
   JSON.stringify(deployment, null, 2) + "\n",
 );
-// 이전 원장(v1~v3)의 검증 설정. 로컬에만 있고 Git에는 없다.
-for (const version of [1, 2, 3]) {
-  const legacy = `packages/ui/public/deployment-v${version}.json`;
-  if (existsSync(legacy))
-    cpSync(legacy, `${out}/static/deployment-v${version}.json`);
-}
 
 const func = `${out}/functions/api.func`;
 await build({

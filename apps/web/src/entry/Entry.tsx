@@ -21,7 +21,7 @@ const roles = [
     who: "감독기관",
     title: "감독기관 화면",
     text: "판매 건을 원장과 대조해요. 판매사가 낸 원본이 기록과 같은지 확인해요.",
-    go: "분쟁 조회 열기",
+    go: "감독기관 화면 열기",
   },
 ];
 
@@ -113,12 +113,7 @@ export function Entry() {
                     : "Anvil 테스트 원장"
                   : "설정 대기",
               ],
-              [
-                "원장 버전",
-                deployment
-                  ? `v${deployment.ledgerVersion ?? deployment.ruleVersion ?? 1}`
-                  : "—",
-              ],
+              ["원장 버전", deployment ? `v${deployment.ledgerVersion}` : "—"],
               ["컨트랙트", <code>{deployment?.ledger ?? "—"}</code>],
             ]}
           />

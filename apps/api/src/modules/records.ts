@@ -1,79 +1,80 @@
-// 가입 기록: 공개 조회, 처리 기록, 고객 증빙(영수증·원본).
+// 가입 기록: 판매 건 조회, 처리 기록, 고객 증빙(증명서·원본 묶음).
 import {
-  RULE_HASH,
-  type ChainSale,
+  fieldHex,
+  isProtectedSale,
+  isSuitable,
+  SALE_STATUSES,
   type EvidenceReceipt,
+  type OriginalAttempt,
   type OriginalBundle,
   type Trace,
 } from "../../../../packages/core/src/index.ts";
-import type { SaleView } from "../../../../packages/core/src/api.ts";
+import type {
+  SaleStatus,
+  SaleView,
+} from "../../../../packages/core/src/api.ts";
 import type { FundService } from "../service.ts";
-import type { StoredSale, StoredTrace } from "../repositories/sales.ts";
-import { readSale } from "../gateways/ledger.ts";
-import { requireProduct } from "./products.ts";
+import type { StoredSale } from "../repositories/sales.ts";
+import {
+  readAttemptCount,
+  readDiagnosis,
+  readSale,
+} from "../gateways/ledger.ts";
+import { storedProduct } from "./products.ts";
 import { reconcile } from "./transactions.ts";
 
-function publicTrace({
-  rawTransaction: _rawTransaction,
-  ...trace
-}: StoredTrace): Trace {
-  return trace;
-}
-
-/** 실패하지 않은 가입 확정 거래 기록. */
-export function enrollmentTrace(record: StoredSale) {
-  return record.traces.find(
-    (trace) =>
-      trace.action === "completeEnrollment" && trace.status !== "failed",
-  );
-}
-
-/** 원장에 기록된 판매 건 상태. */
-export const chainSale = (svc: FundService, id: string) => readSale(svc, id);
-
-/** 공개 조회용 판매 건. 답변·임의값·서명 거래 원문은 넣지 않는다. */
+/** 판매 건. 청약 뒤 상태는 원장에서 읽는다. 고객 번호·답변·임의값·서명 원문은 넣지 않는다. */
 export async function publicSale(
   svc: FundService,
   record: StoredSale,
 ): Promise<SaleView> {
-  const product = requireProduct(record.productId);
-  const onchain = enrollmentTrace(record)
-    ? await readSale(svc, record.id)
-    : undefined;
-  const state: ChainSale = onchain?.finalized
-    ? onchain
-    : {
-        productId: product.id,
-        documentHash: product.documentHash,
-        ruleHash: RULE_HASH,
-        attempts: record.attempts.length,
-        explained: false,
-        signed: false,
-        reviewed: !!record.reviewSignature,
-        finalized: false,
-        purchaseState: 0,
-        amount: 0n,
-        nav: 0n,
-        units: 0n,
-        pricedAt: 0n,
-        signatureHash: `0x${"0".repeat(64)}`,
-        higherRiskConfirmed: false,
-      };
+  const [chain, latestAttempt] = await Promise.all([
+    readSale(svc, record.id),
+    readAttemptCount(svc, record.customerRef),
+  ]);
+  const subscribed = chain.status !== 0;
+  let suitable: boolean | undefined;
+  let protectedSale: boolean | undefined;
+  if (subscribed) {
+    suitable = chain.suitable;
+    protectedSale = chain.protectedSale;
+  } else if (latestAttempt > 0) {
+    const product = storedProduct(svc, record.productId, record.productVersion);
+    const diagnosis = await readDiagnosis(
+      svc,
+      record.customerRef,
+      latestAttempt,
+    );
+    suitable = isSuitable(product.document.riskGrade, diagnosis.limit);
+    protectedSale = isProtectedSale(product.document, diagnosis, suitable);
+  }
+  const status: SaleStatus = subscribed
+    ? (SALE_STATUSES[chain.status] as SaleStatus)
+    : record.abandonedAt
+      ? "abandoned"
+      : "draft";
+  const attempt = subscribed ? chain.attempt : latestAttempt;
   return {
     id: record.id,
-    productId: product.id,
+    customerRef: record.customerRef,
+    productId: record.productId,
+    productVersion: record.productVersion,
     amount: record.amount,
     createdAt: record.createdAt,
-    traces: record.traces.map(publicTrace),
-    submissionPending:
-      enrollmentTrace(record)?.status === "pending" && !state.finalized,
-    attempts: record.attempts.map((a) => ({
-      round: a.round,
-      commitment: a.commitment,
-      confirmed: a.confirmed,
-      profile: a.profile,
-    })),
-    state,
+    status,
+    latestAttempt,
+    approvalRequired: attempt >= 3,
+    ...(record.approval ? { approvedAttempt: record.approval.attempt } : {}),
+    ...(suitable === undefined ? {} : { suitable, protectedSale }),
+    ...(subscribed && chain.protectedSale
+      ? { coolingEndsAt: Number(chain.subscribedAt) + svc.dep.coolingPeriod }
+      : {}),
+    settled: chain.settledAt > 0n,
+    ...(subscribed ? { chain } : {}),
+    submissionPending: record.traces.some(
+      (trace) => trace.status === "pending" && !!trace.txHash,
+    ),
+    traces: record.traces,
   };
 }
 
@@ -82,53 +83,89 @@ export async function publicTraces(svc: FundService): Promise<Trace[]> {
   await reconcile(svc);
   return svc.repository
     .traces()
-    .map(({ trace }) => publicTrace(trace))
+    .map(({ trace }) => trace)
     .sort((a, b) => a.at.localeCompare(b.at));
 }
 
-async function completedRecord(svc: FundService, id: string) {
+async function subscribedRecord(svc: FundService, id: string) {
   const record = svc.repository.find(id);
-  if (enrollmentTrace(record)?.status === "pending") await reconcile(svc);
-  if (enrollmentTrace(record)?.status !== "confirmed")
-    throw new Error("가입이 완료되면 서류를 받을 수 있어요.");
-  return record;
+  if (record.traces.some((t) => t.status === "pending" && t.txHash))
+    await reconcile(svc);
+  const chain = await readSale(svc, record.id);
+  if (chain.status === 0)
+    throw new Error("청약하면 증명서와 원본을 받을 수 있어요.");
+  return { record, chain };
 }
+const confirmedTx = (record: StoredSale, action: string) =>
+  record.traces.find(
+    (trace) => trace.action === action && trace.status === "confirmed",
+  )?.txHash;
 
-/** 고객이 보관하는 원본 묶음. 회차별 가상 답변과 임의값, 설명서를 담는다. */
-export async function original(
-  svc: FundService,
-  id: string,
-): Promise<OriginalBundle> {
-  const record = await completedRecord(svc, id);
-  return {
-    format: "finveric-original-v4",
-    saleId: id,
-    document: requireProduct(record.productId).document,
-    attempts: record.attempts.map((a) => ({
-      round: a.round,
-      answers: a.answers,
-      salt: a.salt,
-    })),
-  };
-}
-
-/** 검증 영수증. 네트워크·원장 주소와 확정된 거래 해시를 담는다. */
+/** 고객 증명서. 원장 주소, 판매 ID, 상품 버전, 회차, 기준, 금액, 거래를 담는다. */
 export async function receipt(
   svc: FundService,
   id: string,
 ): Promise<EvidenceReceipt> {
-  const record = await completedRecord(svc, id);
-  const product = requireProduct(record.productId);
+  const { record, chain } = await subscribedRecord(svc, id);
+  const product = storedProduct(svc, chain.productId, chain.productVersion);
+  const diagnosis = await readDiagnosis(svc, record.customerRef, chain.attempt);
+  const subscribeTx = confirmedTx(record, "subscribe");
+  if (!subscribeTx) throw new Error("청약 거래 기록을 찾을 수 없어요.");
+  const confirmTx =
+    chain.status === 2 ? confirmedTx(record, "confirm") : undefined;
   return {
-    format: "finveric-receipt-v4",
+    format: "finveric-receipt-v5",
     saleId: id,
     chainId: svc.dep.chainId,
     ledger: svc.dep.ledger,
-    productId: product.id,
+    customerRef: record.customerRef,
+    productId: chain.productId,
+    productVersion: chain.productVersion,
     documentHash: product.documentHash,
-    ruleHash: RULE_HASH,
-    transactions: record.traces
-      .filter((t) => t.txHash && t.status === "confirmed")
-      .map((t) => t.txHash!),
+    attempt: chain.attempt,
+    ruleHash: fieldHex(diagnosis.ruleHash),
+    amount: chain.amount.toString(),
+    subscribeTx,
+    ...(confirmTx ? { confirmTx } : {}),
+    issuedAt: new Date().toISOString(),
+  };
+}
+
+/** 고객과 판매사가 보관하는 원본 묶음. 청약 회차까지 모든 회차의 답변·임의값과 설명서, 녹취록. */
+export async function original(
+  svc: FundService,
+  id: string,
+): Promise<OriginalBundle> {
+  const { record, chain } = await subscribedRecord(svc, id);
+  const attempts: OriginalAttempt[] = [];
+  for (let attempt = 1; attempt <= chain.attempt; attempt++) {
+    const onchain = await readDiagnosis(svc, record.customerRef, attempt);
+    const stored = svc.repository
+      .diagnoses(record.customerRef)
+      .find(
+        (entry) =>
+          entry.attempt === attempt &&
+          entry.commitment === onchain.commitment.toString(),
+      );
+    if (!stored)
+      throw new Error(
+        `진단 원본을 판매 기록에서 찾을 수 없어요. ${attempt}회차가 없어요.`,
+      );
+    attempts.push({
+      attempt,
+      ruleHash: stored.ruleHash,
+      answers: stored.answers,
+      salt: stored.salt,
+    });
+  }
+  return {
+    format: "finveric-original-v5",
+    saleId: id,
+    customerRef: record.customerRef,
+    attempts,
+    productDocument: storedProduct(svc, chain.productId, chain.productVersion)
+      .document,
+    ...(record.recording ? { recording: record.recording } : {}),
+    explanationSeconds: chain.explanationSeconds,
   };
 }

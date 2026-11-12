@@ -3,6 +3,7 @@
 // 증명 키(zkey)는 증명 생성에 쓰는 공개 파일이다. 개인키나 고객 원본은 넣지 않는다.
 import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const network = process.argv[2];
 if (!["local", "sepolia"].includes(network)) {
@@ -10,14 +11,20 @@ if (!["local", "sepolia"].includes(network)) {
   process.exit(1);
 }
 const deployment = `.local/deployment-${network}.json`;
-const zkey = "circuits/build/suitability.zkey";
-const wasm = "circuits/build/suitability_js/suitability.wasm";
+// 증명 키 디렉터리. 배포 때 쓴 FINVERIC_ZK_DIR을 같이 지정한다.
+const zk = process.env.FINVERIC_ZK_DIR ?? "circuits/build";
+const zkey = join(zk, "suitability.zkey");
+const wasm = join(zk, "suitability_js/suitability.wasm");
 for (const file of [deployment, zkey, wasm])
   if (!existsSync(file)) {
     console.error(`${file}이 없습니다. 원장을 먼저 배포하세요.`);
     process.exit(1);
   }
 const config = JSON.parse(readFileSync(deployment, "utf8"));
+if (config.ledgerVersion !== 5) {
+  console.error("원장 v5 배포 설정이 필요합니다. 원장을 다시 배포하세요.");
+  process.exit(1);
+}
 const hash = createHash("sha256").update(readFileSync(zkey)).digest("hex");
 if (config.proofKeyHash !== hash) {
   console.error(

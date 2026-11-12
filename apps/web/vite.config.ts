@@ -15,8 +15,12 @@ const pages = {
   client: page("./client/index.html"),
   auditor: page("./auditor/index.html"),
 };
-/** 공개 검증 설정(deployment*.json). scripts/deploy.ts와 scripts/dev.ts가 이곳에 쓴다. */
-const sharedPublic = page("../../packages/ui/public");
+/**
+ * 공개 검증 설정(deployment*.json). scripts/deploy.ts와 scripts/dev.ts가 이곳에 쓴다.
+ * 격리한 검사 환경은 FINVERIC_DEPLOYMENT_DIR로 다른 디렉터리를 지정한다.
+ */
+const sharedPublic =
+  process.env.FINVERIC_DEPLOYMENT_DIR ?? page("../../packages/ui/public");
 
 /**
  * 개발 서버를 배포와 같은 경로로 맞춘다.

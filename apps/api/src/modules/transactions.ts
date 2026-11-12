@@ -1,18 +1,18 @@
-// 원장 거래 처리 기록: 거래를 제출하며 기록을 남기고, 대기 중인 거래의 영수증을 대조한다.
+// 원장 거래 처리 기록: 시뮬레이션·제출·영수증 대조를 기록하고, 대기 중인 거래의 영수증을 다시 확인한다.
 import { randomUUID } from "node:crypto";
-import type { TransactionReceipt } from "viem";
-import type {
-  Role,
-  SaleRecord,
-  Trace,
-} from "../../../../packages/core/src/index.ts";
+import type { Hex, TransactionReceipt } from "viem";
+import type { Role, Trace } from "../../../../packages/core/src/index.ts";
 import type { FundService } from "../service.ts";
-import type { StoredSale, StoredTrace } from "../repositories/sales.ts";
+import type { StoredSale } from "../repositories/sales.ts";
 import {
   getReceipt,
+  LedgerRejection,
   ledgerEvents,
+  simulate,
   submit,
   waitForReceipt,
+  type LedgerEvent,
+  type LedgerFunction,
 } from "../gateways/ledger.ts";
 
 /**
@@ -20,7 +20,7 @@ import {
  * `recoverInterrupted`이면 거래 해시 없이 남은 기록을 실패로 바꾼다. 잠금 안에서만 이 옵션을 쓴다.
  */
 export async function reconcile(svc: FundService, recoverInterrupted = false) {
-  for (const { trace, sale } of svc.repository
+  for (const { trace } of svc.repository
     .traces()
     .filter(({ trace }) => trace.status === "pending")) {
     if (!trace.txHash) {
@@ -32,13 +32,9 @@ export async function reconcile(svc: FundService, recoverInterrupted = false) {
     }
     try {
       const receipt = await getReceipt(svc, trace.txHash);
-      if (sale && trace.action === "completeEnrollment")
-        recordEnrollmentReceipt(svc, sale, trace, receipt);
-      else {
-        trace.status = receipt.status === "success" ? "confirmed" : "failed";
-        trace.blockNumber = receipt.blockNumber.toString();
-        trace.detail = receipt;
-      }
+      trace.status = receipt.status === "success" ? "confirmed" : "failed";
+      trace.blockNumber = receipt.blockNumber.toString();
+      trace.detail = receipt;
     } catch {
       /* Keep an unmined transaction pending; do not resubmit it. */
     }
@@ -46,33 +42,54 @@ export async function reconcile(svc: FundService, recoverInterrupted = false) {
   svc.repository.save();
 }
 
-/** 역할 키로 원장 함수를 호출하고, 성공 영수증에서 같은 판매 ID의 이벤트를 확인한다. */
+/** 미확정 거래가 있으면 영수증을 먼저 확인한다. 그래도 남아 있으면 새 거래를 거절한다. */
+export async function ensureNoPending(svc: FundService) {
+  if (!svc.repository.hasPendingTransaction()) return;
+  await reconcile(svc);
+  if (svc.repository.hasPendingTransaction())
+    throw new Error(
+      "미확정 거래가 있습니다. 영수증을 확인한 뒤 다시 요청하세요.",
+    );
+}
+
+export type SendOptions = {
+  /** 성공 영수증에 있어야 하는 이벤트. */
+  event: LedgerEvent["eventName"];
+  /** 그 이벤트가 이번 요청의 것인지 확인한다. */
+  match: (log: LedgerEvent) => boolean;
+  sale?: StoredSale;
+  customerRef?: Hex;
+  /** 거래 해시를 받은 직후 부른다. 영수증 전에 원본을 거래에 연결할 때 쓴다. */
+  onSubmitted?: (hash: Hex) => void;
+};
+
+/**
+ * 역할 키로 원장 함수를 호출한다. 먼저 시뮬레이션해서 원장이 거절하면 거래를 보내지 않는다.
+ * 성공 영수증에서 이번 요청의 이벤트를 확인한다.
+ */
 export async function send(
   svc: FundService,
   role: Role,
-  functionName: string,
-  args: unknown[],
-  event: string,
-  record?: SaleRecord,
-) {
-  if (svc.repository.hasPendingTransaction()) {
-    await reconcile(svc);
-    if (svc.repository.hasPendingTransaction())
-      throw new Error(
-        "미확정 거래가 있습니다. 영수증을 확인한 뒤 다시 요청하세요.",
-      );
-  }
+  functionName: LedgerFunction,
+  args: readonly unknown[],
+  options: SendOptions,
+): Promise<{ hash: Hex; receipt: TransactionReceipt; trace: Trace }> {
+  await ensureNoPending(svc);
   const trace: Trace = {
     id: randomUUID(),
     at: new Date().toISOString(),
     source: role,
     action: functionName,
     status: "pending",
+    ...(options.sale ? { saleId: options.sale.id } : {}),
+    customerRef: options.customerRef ?? options.sale?.customerRef,
   };
-  svc.repository.addTrace(trace, record);
+  svc.repository.addTrace(trace, options.sale);
   try {
-    const hash = await submit(svc, role, functionName, args);
+    const request = await simulate(svc, role, functionName, args);
+    const hash = await submit(svc, role, request);
     trace.txHash = hash;
+    options.onSubmitted?.(hash);
     svc.repository.save();
     const receipt = await waitForReceipt(svc, hash);
     trace.blockNumber = receipt.blockNumber.toString();
@@ -80,27 +97,28 @@ export async function send(
     if (receipt.status !== "success") {
       trace.status = "failed";
       svc.repository.save();
-      throw new Error(
-        "컨트랙트가 요청을 거절했습니다. 필수 기록과 현재 단계를 확인하세요.",
-      );
+      throw new LedgerRejection();
     }
     if (
       !ledgerEvents(svc, receipt).some(
-        (l) =>
-          l.eventName === event &&
-          (!record ||
-            ("saleId" in l.args && l.args.saleId === BigInt(record.id))),
+        (log) => log.eventName === options.event && options.match(log),
       )
     ) {
       trace.status = "failed";
       svc.repository.save();
-      throw new Error("성공 영수증의 판매 ID와 이벤트를 대조할 수 없습니다.");
+      throw new Error("성공 영수증에서 이번 요청의 이벤트를 찾을 수 없습니다.");
     }
-    trace.event = event;
+    trace.event = options.event;
     trace.status = "confirmed";
     svc.repository.save();
-    return hash;
+    return { hash, receipt, trace };
   } catch (error) {
+    if (error instanceof LedgerRejection) {
+      trace.status = "failed";
+      trace.detail ??= { error: error.error, reason: error.message };
+      svc.repository.save();
+      throw error;
+    }
     if (!trace.txHash) {
       trace.status = "failed";
       trace.detail =
@@ -111,41 +129,24 @@ export async function send(
       throw new Error(
         "거래 영수증이 아직 없습니다. 온체인 처리 화면에서 해시를 확인하세요.",
       );
-    throw error instanceof Error && error.message.startsWith("컨트랙트")
+    throw error instanceof Error && /^[가-힣]/.test(error.message)
       ? error
       : new Error("처리를 완료하지 못했습니다. 온체인 처리 기록을 확인하세요.");
   }
 }
 
-/** 가입 확정 거래의 영수증을 송신자, 회차, 이벤트로 대조해 기록한다. */
-export function recordEnrollmentReceipt(
+/** 원장 거래 없이 끝난 단계(관리자 서명, 가입 중단, 원장 거절)를 처리 기록에 남긴다. */
+export function note(
   svc: FundService,
-  record: StoredSale,
-  trace: StoredTrace,
-  receipt: TransactionReceipt,
+  trace: Omit<Trace, "id" | "at">,
+  sale?: StoredSale,
 ) {
-  const logs = ledgerEvents(svc, receipt).filter(
-    (log) => "saleId" in log.args && log.args.saleId === BigInt(record.id),
-  );
-  const success =
-    receipt.status === "success" &&
-    receipt.transactionHash === trace.txHash &&
-    receipt.from.toLowerCase() === svc.dep.roles.customer.toLowerCase() &&
-    logs.some(
-      (log) =>
-        log.eventName === "ConditionsVerified" &&
-        log.args.attempt === record.attempts.length,
-    ) &&
-    logs.some(
-      (log) =>
-        log.eventName === "EnrollmentAuthorized" &&
-        log.args.attempt === record.attempts.length &&
-        log.args.customer.toLowerCase() ===
-          svc.dep.roles.customer.toLowerCase(),
-    );
-  trace.status = success ? "confirmed" : "failed";
-  trace.event = success ? "ConditionsVerified" : undefined;
-  trace.blockNumber = receipt.blockNumber.toString();
-  trace.detail = receipt;
-  delete trace.rawTransaction;
+  const entry: Trace = {
+    id: randomUUID(),
+    at: new Date().toISOString(),
+    ...(sale ? { saleId: sale.id, customerRef: sale.customerRef } : {}),
+    ...trace,
+  };
+  svc.repository.addTrace(entry, sale);
+  return entry;
 }

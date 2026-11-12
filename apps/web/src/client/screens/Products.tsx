@@ -1,129 +1,552 @@
-import { Link } from "react-router";
+import { useState } from "react";
+import { Plus } from "lucide-react";
 import {
-  PRODUCTS,
-  type Deployment,
-  type Trace,
+  PRODUCT_CARD_COUNT,
+  PRODUCT_TYPES,
+  RISK_GRADE_NAMES,
+  productDocumentHash,
+  productId,
+  validateProduct,
+  type ProductDocument,
+  type ProductType,
+  type RiskGrade,
 } from "../../../../../packages/core/src/index.ts";
+import type {
+  ProductEntryDto,
+  RegisterProductRequest,
+  RuleEntryDto,
+} from "../../../../../packages/core/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
   Badge,
   Facts,
   Heading,
+  Notice,
 } from "../../../../../packages/ui/src/components.tsx";
-import { profileName, short } from "../../../../../packages/ui/src/sale.ts";
+import { api } from "../../../../../packages/ui/src/api.ts";
+import { short } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
+import client from "../client.module.css";
 import local from "./operations.module.css";
-import { registrationStatus } from "../traces.ts";
+import type { Run } from "../App.tsx";
+import {
+  ExplanationCards,
+  ProductFacts,
+  ProfileProducts,
+  RegisterNotice,
+} from "../components.tsx";
+import {
+  activeRule,
+  gradeName,
+  latestProducts,
+  productName,
+} from "../sales.ts";
 
-const s = { ...ui, ...local };
+const s = { ...ui, ...client, ...local };
+const GRADES = Object.keys(RISK_GRADE_NAMES).map(Number) as RiskGrade[];
 
-/** 판매사가 파는 상품과 설명서 지문을 원장에 등록한다. */
-export function Products({
-  deployment,
-  traces,
+const blankProduct = (seller: string): ProductDocument => ({
+  format: "finveric-product-v5",
+  code: "",
+  version: 1,
+  name: "",
+  type: "ELS",
+  issuer: "",
+  seller,
+  riskGrade: 3,
+  complex: false,
+  derivative: false,
+  targetMarket: "",
+  maxLoss: "",
+  fee: "",
+  summary: "",
+  cards: Array.from({ length: PRODUCT_CARD_COUNT }, (_, index) => ({
+    title: index === 0 ? "이런 분께는 맞지 않아요" : "",
+    text: "",
+  })),
+});
+
+/** 상품마다 등록 버전을 모은다. 최신 등록 버전을 먼저 고른다. */
+function groupProducts(entries: ProductEntryDto[]) {
+  const groups = new Map<string, ProductEntryDto[]>();
+  for (const entry of entries) {
+    const key = entry.product.id.toLowerCase();
+    groups.set(key, [...(groups.get(key) ?? []), entry]);
+  }
+  return [...groups.values()].map((versions) => {
+    versions.sort((a, b) => a.product.version - b.product.version);
+    return {
+      id: versions[0].product.id,
+      versions,
+      latest: versions.find((entry) => entry.latest) ?? versions.at(-1)!,
+    };
+  });
+}
+
+/** 상품 설명서 입력. 새 상품이나 기존 상품의 새 버전을 원장에 등록한다. */
+function ProductForm({
+  base,
+  existing,
   busy,
+  run,
+  cancel,
+  registered,
+}: {
+  base: ProductDocument;
+  existing: ProductEntryDto[];
+  busy: boolean;
+  run: Run;
+  cancel: () => void;
+  registered: (id: string) => void;
+}) {
+  const newVersion = base.code !== "";
+  const [doc, setDoc] = useState<ProductDocument>(() => structuredClone(base));
+  const edit = (change: (draft: ProductDocument) => void) =>
+    setDoc((current) => {
+      const next = structuredClone(current);
+      change(next);
+      return next;
+    });
+  const id = doc.code ? productId(doc.code) : undefined;
+  const sameCode = existing.filter(
+    (entry) => entry.registered && entry.product.id === id,
+  );
+  const version =
+    Math.max(0, ...sameCode.map((entry) => entry.product.version)) + 1;
+  const document = { ...doc, version };
+  const errors = validateProduct(document);
+  const text = (
+    key: "name" | "issuer" | "seller" | "targetMarket" | "maxLoss" | "fee",
+    label: string,
+  ) => (
+    <label className={s.field}>
+      {label}
+      <input
+        value={doc[key]}
+        maxLength={500}
+        onChange={(e) =>
+          edit((draft) => {
+            draft[key] = e.target.value;
+          })
+        }
+      />
+    </label>
+  );
+  const submit = async () => {
+    const entry = await run("상품 설명서를 원장에 등록하고 있습니다", () =>
+      api<ProductEntryDto>("/products", {
+        document,
+      } satisfies RegisterProductRequest),
+    );
+    if (entry) registered(entry.product.id);
+  };
+  return (
+    <div className={s.editorGrid}>
+      <section className={`${s.panel} ${s.pad}`}>
+        <div className={s.row}>
+          <h2>
+            {newVersion ? `${base.name} 새 버전 v${version}` : "새 상품 등록"}
+          </h2>
+          <Button variant="ghost" disabled={busy} onClick={cancel}>
+            입력 취소
+          </Button>
+        </div>
+        <div className={s.editGrid}>
+          <label className={s.field}>
+            상품 코드
+            <input
+              value={doc.code}
+              readOnly={newVersion}
+              placeholder="예: ELS-DEMO-004"
+              onChange={(e) =>
+                edit((draft) => {
+                  draft.code = e.target.value.toUpperCase();
+                })
+              }
+            />
+          </label>
+          <label className={s.field}>
+            상품 유형
+            <select
+              value={doc.type}
+              onChange={(e) =>
+                edit((draft) => {
+                  draft.type = e.target.value as ProductType;
+                })
+              }
+            >
+              {PRODUCT_TYPES.map((type) => (
+                <option key={type}>{type}</option>
+              ))}
+            </select>
+          </label>
+          <label className={s.field}>
+            위험등급
+            <select
+              value={doc.riskGrade}
+              onChange={(e) =>
+                edit((draft) => {
+                  draft.riskGrade = Number(e.target.value) as RiskGrade;
+                })
+              }
+            >
+              {GRADES.map((grade) => (
+                <option key={grade} value={grade}>
+                  {gradeName(grade)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {!newVersion && sameCode.length > 0 && (
+          <Notice>
+            이미 등록한 상품 코드입니다. 이 상품의 새 버전 v{version}으로
+            등록합니다.
+          </Notice>
+        )}
+        {text("name", "상품명")}
+        <div className={s.checks}>
+          <label>
+            <input
+              type="checkbox"
+              checked={doc.complex}
+              onChange={(e) =>
+                edit((draft) => {
+                  draft.complex = e.target.checked;
+                })
+              }
+            />
+            고난도 금융투자상품
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={doc.derivative}
+              onChange={(e) =>
+                edit((draft) => {
+                  draft.derivative = e.target.checked;
+                })
+              }
+            />
+            파생결합증권
+          </label>
+        </div>
+        <div className={s.editGrid}>
+          {text("issuer", doc.type === "펀드" ? "운용사" : "발행사")}
+          {text("seller", "판매사")}
+        </div>
+        {text("targetMarket", "판매대상 고객군")}
+        <div className={s.editGrid}>
+          {text("maxLoss", "최대 손실")}
+          {text("fee", "수수료")}
+        </div>
+        <label className={s.field}>
+          상품 요약
+          <textarea
+            rows={3}
+            maxLength={500}
+            value={doc.summary}
+            onChange={(e) =>
+              edit((draft) => {
+                draft.summary = e.target.value;
+              })
+            }
+          />
+        </label>
+        <h3 className={s.subTitle}>핵심 설명 카드 {PRODUCT_CARD_COUNT}장</h3>
+        <p className={s.small}>
+          고객은 가입 중에 카드를 차례로 봅니다. 첫 장에는 부적합 고객 유형과
+          손실 사례를 씁니다.
+        </p>
+        {doc.cards.map((card, index) => (
+          <fieldset key={index} className={s.questionEdit}>
+            <legend>
+              {index + 1}번 카드
+              {index === 0 && " · 부적합 고객 유형과 손실 사례"}
+            </legend>
+            <label className={s.field}>
+              제목
+              <input
+                value={card.title}
+                maxLength={100}
+                onChange={(e) =>
+                  edit((draft) => {
+                    draft.cards[index].title = e.target.value;
+                  })
+                }
+              />
+            </label>
+            <label className={s.field}>
+              내용
+              <textarea
+                rows={3}
+                maxLength={1000}
+                value={card.text}
+                onChange={(e) =>
+                  edit((draft) => {
+                    draft.cards[index].text = e.target.value;
+                  })
+                }
+              />
+            </label>
+          </fieldset>
+        ))}
+      </section>
+      <aside className={s.editorAside}>
+        <section className={`${s.panel} ${s.pad}`}>
+          <h2>검사</h2>
+          {errors.length ? (
+            <Notice tone="danger">
+              <ul className={s.errorList}>
+                {errors.map((error) => (
+                  <li key={error}>{error}</li>
+                ))}
+              </ul>
+            </Notice>
+          ) : (
+            <Notice>검사를 통과했습니다. 원장에 등록할 수 있습니다.</Notice>
+          )}
+          <Facts
+            rows={[
+              ["버전", `v${version}`],
+              ["상품 ID", <code>{id ?? "—"}</code>],
+              [
+                "설명서 지문",
+                errors.length ? (
+                  "검사 통과 뒤 계산"
+                ) : (
+                  <code>{productDocumentHash(document)}</code>
+                ),
+              ],
+            ]}
+          />
+          <Button
+            disabled={busy || errors.length > 0}
+            onClick={() => void submit()}
+          >
+            원장에 등록
+          </Button>
+          <p className={s.small}>
+            원장은 설명서 원문으로 지문을 다시 계산합니다. 위험등급과
+            고난도·파생 여부도 함께 기록합니다.
+          </p>
+        </section>
+      </aside>
+    </div>
+  );
+}
+
+/** 판매 상품과 설명서 버전 등록, 버전 이력, 투자성향별 권유 가능 상품. */
+export function Products({
+  loaded,
+  rules,
+  products,
+  busy,
+  run,
   register,
 }: {
-  deployment?: Deployment;
-  traces: Trace[];
+  loaded: boolean;
+  rules: RuleEntryDto[];
+  products: ProductEntryDto[];
   busy: boolean;
+  run: Run;
   register: () => unknown;
 }) {
-  const { documentHashes, ruleRegistered, productsRegistered } =
-    registrationStatus(traces, deployment?.ledger);
+  const groups = groupProducts(products);
+  const [selected, setSelected] = useState("");
+  const [form, setForm] = useState<ProductDocument>();
+  const group =
+    groups.find((entry) => entry.id.toLowerCase() === selected.toLowerCase()) ??
+    groups[0];
+  const anyRegistered = products.some((entry) => entry.registered);
+  const seller =
+    products.find((entry) => entry.registered)?.product.document.seller ?? "";
   return (
     <>
       <Heading
-        title="판매 상품을 등록하세요"
-        description="상품의 설명서 지문, 위험등급, 기준 투자성향을 원장에 고정합니다. 등록한 상품은 고칠 수 없습니다."
+        title="판매 상품을 관리하세요"
+        description="상품 유형, 위험등급, 고난도·파생결합증권 여부, 판매대상 고객군, 설명서를 버전으로 등록합니다. 등록한 버전은 고칠 수 없습니다."
       >
-        <Button disabled={busy} onClick={register}>
-          {productsRegistered && ruleRegistered
-            ? "등록 상태 확인"
-            : "상품·진단 기준 등록"}
-        </Button>
+        {!form && (
+          <Button disabled={busy} onClick={() => setForm(blankProduct(seller))}>
+            <Plus size={16} />새 상품 등록
+          </Button>
+        )}
       </Heading>
-      <div className={s.detailGrid}>
-        <section className={`${s.panel} ${s.pad}`}>
-          <h2>상품별 등록 현황</h2>
-          <div className={s.tableWrap}>
+      {loaded && !anyRegistered && !activeRule(rules) && (
+        <RegisterNotice busy={busy} register={register} />
+      )}
+      {form ? (
+        <ProductForm
+          base={form}
+          existing={products}
+          busy={busy}
+          run={run}
+          cancel={() => setForm(undefined)}
+          registered={(id) => {
+            setForm(undefined);
+            setSelected(id);
+          }}
+        />
+      ) : (
+        <>
+          <section className={`${s.panel} ${s.tableWrap}`}>
             <table>
+              <caption className={s.tableCaption}>
+                판매 상품 · 청약에는 최신 등록 버전을 씁니다.
+              </caption>
               <thead>
                 <tr>
                   <th scope="col">상품</th>
+                  <th scope="col">유형</th>
                   <th scope="col">위험등급</th>
-                  <th scope="col">기준 투자성향</th>
-                  <th scope="col">등록 상태</th>
-                  <th scope="col">원장 설명서 지문</th>
+                  <th scope="col">속성</th>
+                  <th scope="col">최신 버전</th>
+                  <th scope="col">원장 등록</th>
+                  <th scope="col">보기</th>
                 </tr>
               </thead>
               <tbody>
-                {PRODUCTS.map((product) => {
-                  const hash = documentHashes.get(product.id.toLowerCase());
-                  const matches = hash === product.documentHash.toLowerCase();
+                {groups.map(({ id, latest, versions }) => {
+                  const { document } = latest.product;
                   return (
-                    <tr key={product.id}>
-                      <th scope="row">{product.document.name}</th>
-                      <td>{product.document.risk}</td>
-                      <td>{profileName(product.minimumProfile)}</td>
+                    <tr
+                      key={id}
+                      className={group?.id === id ? s.selectedRow : ""}
+                    >
+                      <td className={s.wrapCell}>
+                        <strong>{productName(document)}</strong>
+                      </td>
+                      <td>{document.type}</td>
+                      <td>{gradeName(document.riskGrade)}</td>
                       <td>
-                        <Badge
-                          tone={
-                            matches ? "success" : hash ? "warning" : "neutral"
-                          }
-                        >
-                          {matches
-                            ? "등록 확인"
-                            : hash
-                              ? "지문 불일치"
-                              : "등록 근거 없음"}
+                        {[
+                          document.complex && "고난도",
+                          document.derivative && "파생결합증권",
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
+                      </td>
+                      <td>
+                        v{latest.product.version}
+                        {versions.length > 1 && ` · ${versions.length}개 버전`}
+                      </td>
+                      <td>
+                        <Badge tone={latest.registered ? "success" : "warning"}>
+                          {latest.registered ? "등록" : "등록 전"}
                         </Badge>
                       </td>
                       <td>
-                        <code title={hash}>{short(hash)}</code>
+                        <Button
+                          variant="ghost"
+                          onClick={() => setSelected(id)}
+                          aria-label={`${document.name} 보기`}
+                        >
+                          보기
+                        </Button>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-          </div>
-          {PRODUCTS.map(({ id, document, documentHash }) => (
-            <details key={id}>
-              <summary>
-                {document.name} 설명서 {document.version} 보기
-              </summary>
-              <Facts
-                rows={[
-                  ["상품 ID", <code>{id}</code>],
-                  ["설명서 지문", <code>{documentHash}</code>],
-                  [
-                    "원장 설명서 지문",
-                    <code>{documentHashes.get(id.toLowerCase()) ?? "—"}</code>,
-                  ],
-                ]}
-              />
-              <pre>{JSON.stringify(document, null, 2)}</pre>
-            </details>
-          ))}
-        </section>
-        <aside className={`${s.panel} ${s.pad}`}>
-          <h2>등급별 판매 기준</h2>
-          <p>
-            투자성향별로 바로 가입할 수 있는 상품은 진단 기준 화면에서
-            확인합니다.
-          </p>
-          <Button variant="outline" asChild>
-            <Link to="/rules">진단 기준 보기</Link>
-          </Button>
-          <h3>역할별 테스트 주소</h3>
-          <Facts
-            rows={Object.entries(deployment?.roles ?? {})
-              .filter(([r]) => r !== "deployer")
-              .map(([r, a]) => [r, <code title={a}>{short(a)}</code>])}
-          />
-        </aside>
-      </div>
+            {groups.length === 0 && (
+              <p className={s.empty}>
+                {loaded
+                  ? "등록한 상품이 없습니다."
+                  : "상품을 불러오고 있습니다."}
+              </p>
+            )}
+          </section>
+          {group && (
+            <div className={`${s.detailGrid} ${s.spaced}`}>
+              <section className={`${s.panel} ${s.pad}`}>
+                <div className={s.row}>
+                  <h2>
+                    {productName(group.latest.product.document)} v
+                    {group.latest.product.version}
+                  </h2>
+                  <Badge tone={group.latest.registered ? "success" : "warning"}>
+                    {group.latest.registered ? "원장 등록" : "등록 전"}
+                  </Badge>
+                </div>
+                <p className={s.lead}>
+                  {group.latest.product.document.summary}
+                </p>
+                <ProductFacts document={group.latest.product.document} />
+                <h3 className={s.subTitle}>핵심 설명 카드</h3>
+                <ExplanationCards cards={group.latest.product.document.cards} />
+              </section>
+              <aside className={`${s.panel} ${s.pad}`}>
+                <h2>버전 이력</h2>
+                <ul className={s.versionList}>
+                  {[...group.versions].reverse().map((entry) => (
+                    <li key={entry.product.version}>
+                      <div>
+                        <span>
+                          <strong>v{entry.product.version}</strong>{" "}
+                          {gradeName(entry.product.document.riskGrade)}
+                        </span>
+                        <small>
+                          설명서 지문{" "}
+                          <code title={entry.product.documentHash}>
+                            {short(entry.product.documentHash)}
+                          </code>
+                        </small>
+                        <small>
+                          등록 거래{" "}
+                          <code title={entry.txHash}>
+                            {short(entry.txHash)}
+                          </code>
+                        </small>
+                        <Badge
+                          tone={
+                            entry.latest
+                              ? "success"
+                              : entry.registered
+                                ? "neutral"
+                                : "warning"
+                          }
+                        >
+                          {entry.latest
+                            ? "판매 중"
+                            : entry.registered
+                              ? "이전 버전"
+                              : "등록 전"}
+                        </Badge>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  variant="outline"
+                  disabled={busy || !group.latest.registered}
+                  onClick={() =>
+                    setForm(structuredClone(group.latest.product.document))
+                  }
+                >
+                  새 버전 등록
+                </Button>
+                <p className={s.small}>
+                  새 버전을 등록하면 다음 청약부터 새 설명서를 씁니다. 청약한
+                  판매 건은 그때의 버전으로 남습니다.
+                </p>
+              </aside>
+            </div>
+          )}
+        </>
+      )}
+      <section className={`${s.panel} ${s.pad} ${s.spaced}`}>
+        <h2>투자성향별 권유 가능 상품</h2>
+        <p>
+          적용 중인 진단 기준(v{activeRule(rules)?.version ?? "—"})의 적합성
+          기준으로 나눕니다. 진단 기준 화면에서 기준을 바꿀 수 있습니다.
+        </p>
+        <ProfileProducts
+          rule={activeRule(rules)?.document}
+          products={latestProducts(products)}
+        />
+      </section>
     </>
   );
 }

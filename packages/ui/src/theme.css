@@ -43,13 +43,15 @@ body {
 }
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 button,
 a,
 input,
-select {
+select,
+textarea {
   touch-action: manipulation;
 }
 button {
@@ -98,12 +100,14 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible,
+textarea:focus-visible,
 summary:focus-visible {
   outline: 3px solid var(--ring);
   outline-offset: 3px;
 }
 input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
-select {
+select,
+textarea {
   border: 1px solid var(--input);
   border-radius: 8px;
   background: var(--card);
@@ -113,8 +117,13 @@ select {
   max-width: 100%;
   min-width: 0;
 }
-input::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: var(--input);
+}
+textarea {
+  resize: vertical;
+  line-height: 1.6;
 }
 input {
   caret-color: var(--primary);

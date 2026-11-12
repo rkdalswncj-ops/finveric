@@ -21,10 +21,7 @@ node_modules/
 dist/
 circuits/build/
 contracts/src/Groth16Verifier.sol
-packages/ui/public/deployment.json
-packages/ui/public/deployment-v1.json
-packages/ui/public/deployment-v2.json
-packages/ui/public/deployment-v3.json
+packages/ui/public/deployment*.json
 coverage/
 test-results/
 

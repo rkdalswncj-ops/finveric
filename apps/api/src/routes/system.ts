@@ -1,6 +1,5 @@
 // 경로: 상태 확인과 검증 설정. 접근 코드 없이 열린다.
 import type { FastifyInstance } from "fastify";
-import { DOCUMENT, PRODUCTS } from "../../../../packages/core/src/index.ts";
 import type {
   ConfigResponse,
   HealthResponse,
@@ -21,8 +20,7 @@ export function systemRoutes(
   });
   app.get("/api/config", async (): Promise<ConfigResponse> => ({
     deployment: service.dep,
-    product: DOCUMENT,
-    products: PRODUCTS,
     requiresToken,
+    demoCustomer: service.demoCustomer(),
   }));
 }

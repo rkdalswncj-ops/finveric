@@ -1,12 +1,198 @@
-/* 기관 업무: 판매·검토 현황과 온체인 처리 */
+/* 판매사 업무: 대시보드, 진단 기준, 상품 관리, 판매·검토, 위험 신호, 온체인 처리 */
+.tableCaption {
+  padding: 16px;
+}
+.spaced {
+  margin-top: 24px;
+}
+.subTitle {
+  margin: 28px 0 12px;
+}
+.lead {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  margin: 8px 0 4px;
+}
+.productList {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 8px;
+  font-size: 12px;
+}
+.productList li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+}
+.choiceList {
+  margin: 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 4px;
+}
+.choiceList small {
+  margin-left: 8px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.versionList {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 12px;
+  display: grid;
+  gap: 8px;
+}
+.versionList button,
+.versionList li > div {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+.versionList button:hover {
+  background: var(--muted);
+}
+.versionList .versionActive {
+  border-color: var(--primary);
+  background: #edf3ff;
+}
+.versionList small {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+/* 편집기: 왼쪽 입력, 오른쪽 검사·미리보기 */
+.editorGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+}
+.editorAside {
+  display: grid;
+  gap: 16px;
+  position: sticky;
+  top: 16px;
+}
+.questionEdit {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px 16px;
+  margin: 16px 0;
+  min-width: 0;
+}
+.questionEdit legend {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 6px;
+}
+.questionEdit > label {
+  margin: 10px 0;
+}
+.editRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.editRow label {
+  display: grid;
+  gap: 6px;
+}
+.grow {
+  flex: 1;
+  min-width: 220px;
+}
+.grow input {
+  width: 100%;
+}
+.choiceTable td,
+.choiceTable th {
+  padding: 6px 8px;
+}
+.choiceTable td:first-child input {
+  width: 100%;
+  min-width: 200px;
+}
+.numberInput {
+  width: 84px;
+}
+.editGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0 16px;
+}
+.editGrid > label {
+  margin: 10px 0;
+}
+.editGrid > label input,
+.editGrid > label select {
+  width: 100%;
+}
+.checks {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.checks label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+}
+.errorList {
+  margin: 0;
+  padding-left: 16px;
+}
+/* 판매·검토 */
+.salesTable {
+  margin: 20px 0 28px;
+}
+.salesTable caption {
+  padding: 16px;
+}
+.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+.timeline li {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.timeline time {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  flex: none;
+  width: 120px;
+}
+.timelineLabel {
+  flex: 1;
+}
+/* 온체인 처리 */
 .logGrid {
   display: grid;
   grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr);
-  margin-top: 22px;
+  margin-top: 16px;
   overflow: hidden;
 }
 .logList {
-  max-height: 620px;
+  max-height: 640px;
   overflow: auto;
   border-right: 1px solid var(--border);
 }
@@ -51,20 +237,19 @@
 }
 .logDetail h2 {
   font-size: 18px;
-  margin-bottom: 18px;
 }
-.salesTable {
-  margin: 20px 0 28px;
-}
-.salesTable caption {
-  padding: 16px;
-}
-.salesTable .selectedRow {
-  background: #edf3ff;
+@media (max-width: 1150px) {
+  .editorGrid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
 }
 @media (max-width: 950px) {
+  .editorGrid,
   .logGrid {
     grid-template-columns: 1fr;
+  }
+  .editorAside {
+    position: static;
   }
   .logList {
     max-height: 340px;
@@ -80,7 +265,10 @@
     gap: 8px;
     padding: 14px 12px;
   }
-  .logList time {
-    font-size: 10px;
+  .timeline time {
+    width: auto;
+  }
+  .timeline li {
+    flex-wrap: wrap;
   }
 }

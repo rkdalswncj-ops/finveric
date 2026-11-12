@@ -7,3 +7,16 @@ import { resolve } from "node:path";
  */
 export const fromRoot = (path: string) =>
   resolve(process.env.FINVERIC_ROOT ?? process.cwd(), path);
+
+/**
+ * 증명 키 디렉터리의 파일. FINVERIC_ZK_DIR이 있으면 그 디렉터리, 없으면 circuits/build다.
+ * 검사와 개발은 FINVERIC_ZK_DIR로 시연 키와 다른 디렉터리를 쓸 수 있다.
+ */
+export const zkPath = (name: string) =>
+  process.env.FINVERIC_ZK_DIR
+    ? resolve(process.env.FINVERIC_ZK_DIR, name)
+    : fromRoot(`circuits/build/${name}`);
+export const ZK_FILES = {
+  zkey: "suitability.zkey",
+  wasm: "suitability_js/suitability.wasm",
+} as const;

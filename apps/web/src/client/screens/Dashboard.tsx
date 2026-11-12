@@ -1,127 +1,169 @@
 import { Link } from "react-router";
-import {
-  PRODUCTS,
-  RULE_HASH,
-  type Deployment,
-  type Trace,
-} from "../../../../../packages/core/src/index.ts";
+import type {
+  CustomerDto,
+  ProductEntryDto,
+  RuleEntryDto,
+} from "../../../../../packages/core/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
   Badge,
   Facts,
   Heading,
 } from "../../../../../packages/ui/src/components.tsx";
-import {
-  profileName,
-  saleProductName,
-  short,
-  status,
-  type Sale,
-} from "../../../../../packages/ui/src/sale.ts";
+import { dateTime, short } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
-import { awaitingApproval, riskSignals } from "../signals.ts";
-import { registrationStatus } from "../traces.ts";
+import { RegisterNotice, StatusBadge } from "../components.tsx";
+import {
+  activeRule,
+  awaitingApproval,
+  latestProducts,
+  nowSeconds,
+  productName,
+  saleProduct,
+  saleSignals,
+  type Sale,
+} from "../sales.ts";
 
 const s = { ...ui, ...client, ...local };
 
-/** 판매사 콘솔의 첫 화면. 판매 건, 승인 대기, 위험 신호, 적용 기준을 요약한다. */
+/** 판매사 콘솔의 첫 화면. 진행 중인 판매 건, 승인 대기, 위험 신호, 적용 기준을 요약한다. */
 export function Dashboard({
+  loaded,
+  rules,
+  products,
   sales,
-  traces,
-  deployment,
+  customer,
+  busy,
+  register,
   open,
 }: {
+  loaded: boolean;
+  rules: RuleEntryDto[];
+  products: ProductEntryDto[];
   sales: Sale[];
-  traces: Trace[];
-  deployment?: Deployment;
+  customer?: CustomerDto;
+  busy: boolean;
+  register: () => unknown;
   open: (id: string) => void;
 }) {
-  const { ruleRegistered, productsRegistered } = registrationStatus(
-    traces,
-    deployment?.ledger,
-  );
-  const signals = riskSignals(sales);
-  const inProgress = sales.filter((sale) => !sale.state.finalized);
-  const enrolled = sales.filter((sale) => sale.state.finalized);
+  const now = nowSeconds();
+  const rule = activeRule(rules);
+  const selling = latestProducts(products);
+  const drafts = sales.filter((sale) => sale.status === "draft");
+  const subscribed = sales.filter((sale) => sale.status === "subscribed");
+  const confirmed = sales.filter((sale) => sale.status === "confirmed");
   const approvals = sales.filter(awaitingApproval);
+  const signals = saleSignals(customer, sales);
   const recent = [...sales]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 5);
+    .slice(0, 6);
   const stats = [
-    { label: "진행 중인 가입", value: inProgress.length, to: "/review" },
-    { label: "가입 확정", value: enrolled.length, to: "/review" },
-    { label: "관리자 승인 대기", value: approvals.length, to: "/review" },
-    { label: "위험 신호", value: signals.length, to: "/signals" },
+    {
+      label: "진행 중·숙려 중 청약",
+      value: drafts.length + subscribed.length,
+      note: `신청 ${drafts.length}건 · 청약 ${subscribed.length}건`,
+      to: "/review",
+    },
+    { label: "가입 확정", value: confirmed.length, note: "건", to: "/review" },
+    {
+      label: "관리자 승인 대기",
+      value: approvals.length,
+      note: "3회차 이상 진단한 고객의 신청",
+      to: "/review",
+    },
+    {
+      label: "위험 신호",
+      value: signals.length,
+      note: "원장 기록 기준",
+      to: "/signals",
+    },
   ];
   return (
     <>
       <Heading
         title="판매 현황을 확인하세요"
-        description="판매 건과 관리자 승인 대기, 위험 신호를 확인하세요. 모든 판정은 원장에 등록한 기준으로 기록합니다."
+        description="진행 중인 판매 건, 관리자 승인 대기, 위험 신호를 확인하세요. 모든 판정은 원장에 등록한 기준으로 기록합니다."
       />
+      {loaded && !rule && !selling.length && (
+        <RegisterNotice busy={busy} register={register} />
+      )}
       <div className={s.stats}>
         {stats.map((stat) => (
           <Link key={stat.label} className={s.stat} to={stat.to}>
             <span>{stat.label}</span>
             <strong>{stat.value}</strong>
-            <small>건</small>
+            <small>{stat.note}</small>
           </Link>
         ))}
       </div>
       <div className={s.detailGrid}>
         <section className={`${s.panel} ${s.tableWrap}`}>
           <table>
-            <caption>최근 판매 건</caption>
+            <caption className={s.tableCaption}>최근 판매 건</caption>
             <thead>
               <tr>
                 <th scope="col">판매 ID</th>
                 <th scope="col">상품</th>
-                <th scope="col">판매 절차</th>
-                <th scope="col">진단</th>
+                <th scope="col">상태</th>
+                <th scope="col">회차</th>
+                <th scope="col">적합성</th>
+                <th scope="col">신청 시각</th>
                 <th scope="col">보기</th>
               </tr>
             </thead>
             <tbody>
-              {recent.map((sale) => (
-                <tr key={sale.id}>
-                  <td>
-                    <code title={sale.id}>{short(sale.id)}</code>
-                  </td>
-                  <td>{saleProductName(sale)}</td>
-                  <td>
-                    <Badge
-                      tone={
-                        sale.state.finalized
-                          ? "success"
-                          : awaitingApproval(sale)
-                            ? "warning"
-                            : "neutral"
-                      }
-                    >
-                      {status(sale)}
-                    </Badge>
-                  </td>
-                  <td>
-                    {sale.attempts.length}회차 ·{" "}
-                    {profileName(sale.attempts.at(-1)?.profile)}
-                  </td>
-                  <td>
-                    <Button
-                      variant="ghost"
-                      onClick={() => open(sale.id)}
-                      aria-label={`${short(sale.id)} 판매 건 보기`}
-                    >
-                      보기
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+              {recent.map((sale) => {
+                const product = saleProduct(products, sale);
+                const attempt = sale.chain?.attempt ?? sale.latestAttempt;
+                return (
+                  <tr key={sale.id}>
+                    <td>
+                      <code title={sale.id}>{short(sale.id)}</code>
+                    </td>
+                    <td className={s.wrapCell}>
+                      {productName(product?.document)} v{sale.productVersion}
+                    </td>
+                    <td>
+                      <StatusBadge sale={sale} now={now} />
+                    </td>
+                    <td>
+                      {sale.status === "abandoned"
+                        ? "—"
+                        : attempt
+                          ? `${attempt}회차`
+                          : "진단 전"}
+                    </td>
+                    <td>
+                      {sale.status === "abandoned" ||
+                      sale.suitable === undefined
+                        ? "—"
+                        : sale.suitable
+                          ? "적합"
+                          : "부적합"}
+                    </td>
+                    <td>{dateTime(sale.createdAt)}</td>
+                    <td>
+                      <Button
+                        variant="ghost"
+                        onClick={() => open(sale.id)}
+                        aria-label={`${short(sale.id)} 판매 건 보기`}
+                      >
+                        보기
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           {recent.length === 0 && (
-            <p className={s.empty}>아직 판매 건이 없습니다.</p>
+            <p className={s.empty}>
+              {loaded
+                ? "아직 판매 건이 없습니다."
+                : "판매 건을 불러오고 있습니다."}
+            </p>
           )}
         </section>
         <aside className={`${s.panel} ${s.pad}`}>
@@ -130,25 +172,39 @@ export function Dashboard({
             rows={[
               [
                 "진단 기준",
-                <>
-                  v3 ·{" "}
-                  <Badge tone={ruleRegistered ? "success" : "neutral"}>
-                    {ruleRegistered ? "등록 확인" : "등록 근거 없음"}
-                  </Badge>
-                </>,
+                rule ? (
+                  <>
+                    v{rule.version} · <Badge tone="success">원장 등록</Badge>
+                  </>
+                ) : (
+                  <Badge tone="warning">등록 전</Badge>
+                ),
               ],
-              ["기준 지문", <code title={RULE_HASH}>{short(RULE_HASH)}</code>],
+              ["기준 이름", rule?.document.name ?? "—"],
+              [
+                "기준 해시",
+                <code title={rule?.hash}>{short(rule?.hash)}</code>,
+              ],
               [
                 "판매 상품",
-                <>
-                  {PRODUCTS.length}종 ·{" "}
-                  <Badge tone={productsRegistered ? "success" : "neutral"}>
-                    {productsRegistered ? "등록 확인" : "등록 근거 없음"}
-                  </Badge>
-                </>,
+                selling.length ? (
+                  <>
+                    {selling.length}종 · <Badge tone="success">원장 등록</Badge>
+                  </>
+                ) : (
+                  <Badge tone="warning">등록 전</Badge>
+                ),
               ],
             ]}
           />
+          <ul className={s.productList}>
+            {selling.map(({ product }) => (
+              <li key={product.id}>
+                <span>{productName(product.document)}</span>
+                <Badge>v{product.version}</Badge>
+              </li>
+            ))}
+          </ul>
           <Button variant="outline" asChild>
             <Link to="/rules">진단 기준 보기</Link>
           </Button>

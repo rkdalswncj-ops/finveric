@@ -1,22 +1,30 @@
-// 외부 연동: 원장(EVM) 읽기·쓰기. 판매 기록은 바꾸지 않는다. 기록은 modules/transactions.ts가 남긴다.
+// 외부 연동: 원장(EVM) 읽기·시뮬레이션·쓰기·서명. 판매 기록은 바꾸지 않는다. 기록은 modules/transactions.ts가 남긴다.
 import {
+  BaseError,
+  ContractFunctionRevertedError,
   createWalletClient,
   http,
   keccak256,
   parseEventLogs,
   type Hex,
   type TransactionReceipt,
-  type TransactionSerializedEIP1559,
 } from "viem";
 import {
+  LEDGER_ERRORS,
   ledgerAbi,
-  RULE_HASH,
+  type ChainDiagnosis,
+  type ChainSale,
+  type LedgerError,
   type Role,
 } from "../../../../packages/core/src/index.ts";
 import type { FundService } from "../service.ts";
 
 /** 원장 연동에 필요한 실행 맥락: 역할 키, 배포 설정, RPC 클라이언트. */
 export type Chain = Pick<FundService, "env" | "dep" | "client">;
+export type LedgerFunction = Extract<
+  (typeof ledgerAbi)[number],
+  { type: "function"; stateMutability: "nonpayable" }
+>["name"];
 
 export const readChainId = (chain: Chain) => chain.client.getChainId();
 
@@ -26,117 +34,139 @@ export async function readCodeHash(chain: Chain, address: Hex) {
   return code ? keccak256(code) : undefined;
 }
 
-export const readSale = (chain: Chain, id: string) =>
+const view = (chain: Chain) =>
+  ({ address: chain.dep.ledger, abi: ledgerAbi }) as const;
+
+export const readLedgerVersion = (chain: Chain) =>
+  chain.client.readContract({ ...view(chain), functionName: "ledgerVersion" });
+export const readCoolingPeriod = (chain: Chain) =>
+  chain.client.readContract({ ...view(chain), functionName: "coolingPeriod" });
+
+export const readSale = (chain: Chain, id: string): Promise<ChainSale> =>
   chain.client.readContract({
-    address: chain.dep.ledger,
-    abi: ledgerAbi,
+    ...view(chain),
     functionName: "getSale",
     args: [BigInt(id)],
   });
 
-/** 원장에 등록된 상품의 설명서 지문과 기준 투자성향. 등록 전이면 기준 투자성향이 0이다. */
-export async function readProduct(chain: Chain, productId: Hex) {
-  const call = {
-    address: chain.dep.ledger,
-    abi: ledgerAbi,
-    args: [productId],
-  } as const;
-  const [documentHash, minimumProfile] = await Promise.all([
-    chain.client.readContract({ ...call, functionName: "documents" }),
-    chain.client.readContract({ ...call, functionName: "minimumProfiles" }),
-  ]);
-  return { documentHash, minimumProfile };
-}
-
-/** 진단 규칙 v3이 원장에 등록되어 있는지. */
-export const readRule = (chain: Chain) =>
+export const readAttemptCount = (chain: Chain, customerRef: Hex) =>
   chain.client.readContract({
-    address: chain.dep.ledger,
-    abi: ledgerAbi,
-    functionName: "rules",
-    args: [RULE_HASH],
+    ...view(chain),
+    functionName: "attemptCount",
+    args: [BigInt(customerRef)],
   });
 
+export const readDiagnosis = (
+  chain: Chain,
+  customerRef: Hex,
+  attempt: number,
+): Promise<ChainDiagnosis> =>
+  chain.client.readContract({
+    ...view(chain),
+    functionName: "getDiagnosis",
+    args: [BigInt(customerRef), attempt],
+  });
+
+/** 기준 해시의 등록 여부와 버전. */
+export async function readRule(chain: Chain, ruleHash: Hex) {
+  const [registered, version, registeredAt] = await chain.client.readContract({
+    ...view(chain),
+    functionName: "rules",
+    args: [BigInt(ruleHash)],
+  });
+  return { registered, version, registeredAt };
+}
+export const readRuleCount = (chain: Chain) =>
+  chain.client.readContract({ ...view(chain), functionName: "ruleCount" });
+
+export const readLatestProductVersion = (chain: Chain, productId: Hex) =>
+  chain.client.readContract({
+    ...view(chain),
+    functionName: "latestProductVersion",
+    args: [productId],
+  });
+export const readProduct = (chain: Chain, productId: Hex, version: number) =>
+  chain.client.readContract({
+    ...view(chain),
+    functionName: "getProduct",
+    args: [productId, version],
+  });
+
+/** 최신 블록 시각(초). 숙려 남은 시간 계산에 쓴다. */
 export async function readBlockTime(chain: Chain) {
-  return (await chain.client.getBlock()).timestamp;
+  return Number((await chain.client.getBlock()).timestamp);
 }
 
-/** 역할 키로 원장 함수를 호출하고 거래 해시를 돌려준다. */
-export function submit(
+/** 원장이 거절한 호출. 오류 이름은 원장의 사용자 정의 오류다. */
+export class LedgerRejection extends Error {
+  constructor(readonly error?: LedgerError) {
+    super(
+      `원장이 요청을 거절했어요. ${error ? LEDGER_ERRORS[error] : "필수 기록과 현재 단계를 확인하세요."}`,
+    );
+  }
+}
+function rejection(error: unknown) {
+  if (!(error instanceof BaseError)) return undefined;
+  const reverted = error.walk(
+    (cause) => cause instanceof ContractFunctionRevertedError,
+  ) as ContractFunctionRevertedError | null;
+  if (!reverted) return undefined;
+  const name = reverted.data?.errorName;
+  return new LedgerRejection(
+    name && name in LEDGER_ERRORS ? (name as LedgerError) : undefined,
+  );
+}
+
+/**
+ * 역할 계정으로 원장 호출을 시뮬레이션한다. 원장이 거절하면 LedgerRejection을 던진다.
+ * 거래를 보내기 전에 거절 이유(예: TooEarly)를 알려 주고, 실패 거래로 가스를 쓰지 않는다.
+ * 가스도 같은 블록 기준으로 정해 요청에 넣는다.
+ */
+export async function simulate(
   chain: Chain,
   role: Role,
-  functionName: string,
-  args: unknown[],
+  functionName: LedgerFunction,
+  args: readonly unknown[],
 ) {
+  // 로컬 Anvil은 거래가 없으면 블록을 만들지 않는다. 최신 블록 시각이 멈춰 숙려 경과를 알 수 없다.
+  // 그래서 현재 시각으로 다음 블록을 만드는 pending 기준으로 시뮬레이션한다. Sepolia는 약 12초마다 블록이 생긴다.
+  const call = {
+    ...view(chain),
+    account: chain.env.accounts[role],
+    functionName,
+    args,
+    ...(chain.dep.chainId === 31337 ? { blockTag: "pending" } : {}),
+  } as never;
+  try {
+    const [{ request }, gas] = await Promise.all([
+      chain.client.simulateContract(call),
+      chain.client.estimateContractGas(call),
+    ]);
+    return { ...(request as object), gas: (gas * 6n) / 5n };
+  } catch (error) {
+    throw rejection(error) ?? error;
+  }
+}
+
+/** 시뮬레이션한 호출을 역할 키로 서명해 보낸다. 거래 해시를 돌려준다. */
+export function submit(chain: Chain, role: Role, request: unknown) {
   const wallet = createWalletClient({
     account: chain.env.accounts[role],
     chain: chain.env.chain,
     transport: http(chain.env.rpcUrl),
   });
-  // Fixed gas also lets the missing-record demonstration reach the EVM and produce a reverted receipt.
-  return wallet.writeContract({
-    address: chain.dep.ledger,
-    abi: ledgerAbi,
-    functionName: functionName as any,
-    args: args as any,
-    gas: 1_500_000n,
-  });
+  return wallet.writeContract(request as never);
 }
 
-/**
- * 역할 키로 원장 호출 거래에 서명만 한다. 보내지는 않는다.
- * 서명한 원문을 보관하면 같은 해시·nonce로 다시 보낼 수 있다.
- */
-export async function signTransaction(
-  chain: Chain,
-  role: Role,
-  data: Hex,
-  gas: bigint,
-) {
-  const account = chain.env.accounts[role];
-  const wallet = createWalletClient({
-    account,
-    chain: chain.env.chain,
-    transport: http(chain.env.rpcUrl),
-  });
-  const { nonce, maxFeePerGas, maxPriorityFeePerGas } =
-    await wallet.prepareTransactionRequest({
-      type: "eip1559",
-      to: chain.dep.ledger,
-      data,
-      gas,
-    });
-  const rawTransaction = (await account.signTransaction({
-    type: "eip1559",
-    chainId: chain.dep.chainId,
-    to: chain.dep.ledger,
-    data,
-    gas,
-    nonce,
-    maxFeePerGas,
-    maxPriorityFeePerGas,
-  })) as TransactionSerializedEIP1559;
-  return { rawTransaction, txHash: keccak256(rawTransaction) };
-}
-
-export const broadcast = (
-  chain: Chain,
-  rawTransaction: TransactionSerializedEIP1559,
-) => chain.client.sendRawTransaction({ serializedTransaction: rawTransaction });
+/** 승인자 키로 승인 원문 해시에 EIP-191 서명을 한다. 거래는 보내지 않는다. */
+export const signApproval = (chain: Chain, digest: Hex) =>
+  chain.env.accounts.approver.signMessage({ message: { raw: digest } });
 
 export const getReceipt = (chain: Chain, hash: Hex) =>
   chain.client.getTransactionReceipt({ hash });
 
-export const waitForReceipt = (
-  chain: Chain,
-  hash: Hex,
-  options: { checkReplacement?: boolean } = {},
-) =>
-  chain.client.waitForTransactionReceipt({
-    hash,
-    timeout: 180_000,
-    ...options,
-  });
+export const waitForReceipt = (chain: Chain, hash: Hex) =>
+  chain.client.waitForTransactionReceipt({ hash, timeout: 180_000 });
 
 /** 영수증에서 이 원장이 남긴 이벤트만 고른다. */
 export function ledgerEvents(chain: Chain, receipt: TransactionReceipt) {
@@ -144,3 +174,4 @@ export function ledgerEvents(chain: Chain, receipt: TransactionReceipt) {
     (log) => log.address.toLowerCase() === chain.dep.ledger.toLowerCase(),
   );
 }
+export type LedgerEvent = ReturnType<typeof ledgerEvents>[number];

@@ -1,49 +1,97 @@
+// 독립 검증. 판매사 API 없이 지정한 RPC와 원장으로 판매 건을 대조한다.
+// 호출자는 자기가 설치한 배포 설정을 넘긴다. 증빙 파일의 체인·주소·RPC는 쓰지 않는다.
 import {
-  createPublicClient,
-  http,
-  keccak256,
   decodeFunctionData,
-  getAbiItem,
-  parseEventLogs,
+  keccak256,
   recoverMessageAddress,
   type Hex,
   type PublicClient,
 } from "viem";
-import { anvil, sepolia } from "viem/chains";
-import { poseidon10 } from "poseidon-lite/poseidon10";
+import { ledgerAbi, verifierAbi } from "./abi.ts";
+import { FIELD, fieldHex } from "./encoding.ts";
 import {
-  ledgerAbi,
-  ledgerAbiV3,
-  ledgerAbiV2,
-  legacyLedgerAbi,
-  verifierAbi,
-  FIELD,
-  PRODUCTS,
-  MIN_PROFILE,
-  classifyProfile,
+  approvalDigest,
   diagnosisCommitment,
-  deploymentRuleHash,
-  hashObject,
-  field,
-  signatureMessage,
-  legacySignatureMessage,
-  reviewDigest,
+  recordingHash,
+  SALE_STATUSES,
+  verifierArgs,
+  type Check,
   type Deployment,
   type EvidenceReceipt,
   type OriginalBundle,
-  type Check,
-  type ChainSale,
-  type PreparedProof,
-  type Product,
 } from "./index.ts";
+import {
+  isProtectedSale,
+  isSuitable,
+  productDocumentHash,
+} from "./products.ts";
+import { answersFit, evaluateRule } from "./rules.ts";
+import {
+  ledgerClient,
+  readLedger,
+  type LedgerDiagnosis,
+  type LedgerProduct,
+  type LedgerSale,
+  type LedgerSnapshot,
+} from "./ledger.ts";
 
-function publicClient(dep: Deployment) {
-  return createPublicClient({
-    chain: dep.chainId === 11155111 ? sepolia : anvil,
-    transport: http(dep.rpcUrl, { timeout: 15_000, retryCount: 1 }),
-  });
-}
+export type VerifyOutcome = "match" | "mismatch" | "missing";
+/** 검증 결과 화면 문구. */
+export const OUTCOME_LABELS: Readonly<Record<VerifyOutcome, string>> = {
+  match: "일치",
+  mismatch: "불일치",
+  missing: "기록 없음",
+};
+export type VerificationReference = {
+  kind:
+    | "rule"
+    | "product"
+    | "diagnosis"
+    | "subscribe"
+    | "confirm"
+    | "withdraw"
+    | "settle";
+  attempt?: number;
+  txHash: Hex;
+  block: string;
+};
+export type SaleVerification = {
+  outcome: VerifyOutcome;
+  saleId: string;
+  chainId: number;
+  checks: Check[];
+  sale?: LedgerSale;
+  product?: LedgerProduct;
+  /** 이 고객 가명 ID의 모든 진단 회차(청약 뒤 회차 포함). */
+  diagnoses: LedgerDiagnosis[];
+  references: VerificationReference[];
+  verifiedAt: string;
+};
 
+/** 검사 이름. 화면은 이 순서로 표시한다. */
+export const CHECK_NAMES = {
+  sale: "판매 기록",
+  product: "상품 설명서 버전",
+  rule: "진단 기준 원문",
+  attempts: "진단 회차",
+  original: "원본 답변 대조",
+  conditions: "적합성·필수 확인",
+  confirmation: "숙려·최종 확인",
+  receipt: "증명서 대조",
+} as const;
+
+export type VerifyClient = Pick<
+  PublicClient,
+  | "getChainId"
+  | "getCode"
+  | "getBlockNumber"
+  | "getLogs"
+  | "getBlock"
+  | "readContract"
+  | "getTransaction"
+>;
+
+/** RPC의 체인과 원장·Verifier 코드가 배포 설정과 같은지 확인한다. */
 export async function requireDeployment(
   client: Pick<PublicClient, "getChainId" | "getCode">,
   dep: Deployment,
@@ -64,695 +112,421 @@ export async function requireDeployment(
     throw new Error("컨트랙트 코드가 고정한 배포 설정과 다릅니다.");
 }
 
-function matchesSignals(
-  dep: Deployment,
-  id: string,
-  round: number,
-  commitment: bigint,
-  signals: PreparedProof["signals"],
-  ruleHash: Hex,
-  documentHash: Hex,
-) {
-  return (
-    signals[1] === commitment &&
-    signals[2] === BigInt(dep.chainId) &&
-    signals[3] === BigInt(dep.ledger) &&
-    signals[4] === BigInt(id) &&
-    signals[5] === BigInt(round) &&
-    signals[6] === BigInt(field(ruleHash)) &&
-    signals[7] === BigInt(field(documentHash))
-  );
-}
+const same = (a?: string, b?: string) =>
+  !!a && !!b && a.toLowerCase() === b.toLowerCase();
+/** 사용자 파일은 형식을 믿지 않는다. 검사 중 오류는 불일치로 본다. */
+const safely = async (test: () => boolean | Promise<boolean>) => {
+  try {
+    return await test();
+  } catch {
+    return false;
+  }
+};
+const ZERO = `0x${"0".repeat(64)}` as Hex;
 
-export async function verifyPreparedDiagnosis(
+export async function verifySale(
   dep: Deployment,
-  id: string,
-  round: number,
-  expectedCommitment: string,
-  proof: PreparedProof,
-  product?: Product,
-): Promise<number> {
-  const { a, b, c, signals } = proof;
-  const selected =
-    product ?? (dep.ledgerVersion === 3 ? PRODUCTS[0] : undefined);
-  if (
-    !selected ||
-    (dep.ledgerVersion === 4
-      ? dep.ruleVersion !== 3
-      : dep.ledgerVersion !== 3 || dep.ruleVersion !== 2) ||
-    signals[0] < 1n ||
-    signals[0] > 3n ||
-    !matchesSignals(
-      dep,
-      id,
-      round,
-      BigInt(expectedCommitment),
-      signals,
-      deploymentRuleHash(dep),
-      selected.documentHash,
-    )
-  )
-    throw new Error("진단 증명이 이번 가입 신청과 일치하지 않아요.");
-  const client = publicClient(dep);
-  await requireDeployment(client, dep);
-  if (
-    !(await client.readContract({
-      address: dep.verifier,
-      abi: verifierAbi,
-      functionName: "verifyProof",
-      args: [a, b, c, signals],
-    }))
-  )
-    throw new Error("투자성향 증명을 확인하지 못했어요.");
-  return Number(signals[0]);
-}
-
-async function readEnrollment(
-  client: Pick<PublicClient, "getTransaction" | "getTransactionReceipt">,
-  dep: Deployment,
-  hash: Hex,
-) {
-  const [tx, mined] = await Promise.all([
-    client.getTransaction({ hash }),
-    client.getTransactionReceipt({ hash }),
-  ]);
-  const decoded = decodeFunctionData({ abi: ledgerAbi, data: tx.input });
-  if (decoded.functionName !== "completeEnrollment") return;
-  return {
-    tx,
-    mined,
-    args: decoded.args,
-    events: parseEventLogs({
-      abi: ledgerAbi,
-      logs: mined.logs.filter(
-        (log) => log.address.toLowerCase() === dep.ledger.toLowerCase(),
-      ),
-    }),
-  };
-}
-
-/** The caller supplies its installed deployment, never a chain/address/RPC from an evidence file. */
-export async function verifyEvidence(
-  dep: Deployment,
-  id: string,
+  saleId: string,
   receipt?: EvidenceReceipt,
   original?: OriginalBundle,
-) {
-  const evidenceVersion = dep.ledgerVersion ?? dep.ruleVersion ?? 1;
-  const legacy = evidenceVersion === 1;
-  const v4 = evidenceVersion === 4;
-  const atomicLedger = v4 || evidenceVersion === 3;
-  const ruleHash = deploymentRuleHash(dep);
-  const abi = v4
-    ? ledgerAbi
-    : atomicLedger
-      ? ledgerAbiV3
-      : legacy
-        ? legacyLedgerAbi
-        : ledgerAbiV2;
-  if (!/^[1-9][0-9]{0,76}$/.test(id) || BigInt(id) >= FIELD)
+  options: { client?: VerifyClient; snapshot?: LedgerSnapshot } = {},
+): Promise<SaleVerification> {
+  if (!/^[1-9][0-9]{0,76}$/.test(saleId) || BigInt(saleId) >= FIELD)
     throw new Error("판매 ID 형식을 확인하세요.");
-  if (
-    receipt &&
-    (receipt.format !== `finveric-receipt-v${evidenceVersion}` ||
-      receipt.saleId !== id ||
-      receipt.chainId !== dep.chainId ||
-      receipt.ledger.toLowerCase() !== dep.ledger.toLowerCase())
-  )
-    throw new Error(
-      "영수증의 판매 ID 또는 원장이 지정한 검증 기준과 다릅니다.",
-    );
-  if (
-    original &&
-    (original.format !== `finveric-original-v${evidenceVersion}` ||
-      original.saleId !== id ||
-      !Array.isArray(original.attempts))
-  )
-    throw new Error("고객 원본 형식과 판매 ID를 확인하세요.");
-  const client = publicClient(dep);
+  const client = options.client ?? ledgerClient(dep);
   await requireDeployment(client, dep);
-  const state = await client.readContract({
-    address: dep.ledger,
-    abi,
-    functionName: "getSale",
-    args: [BigInt(id)],
-  });
-  if (state.productId === "0x" + "0".repeat(64))
-    throw new Error("지정 원장에 없는 판매 ID입니다.");
-  const product = v4
-    ? PRODUCTS.find(({ id }) => id === state.productId)
-    : PRODUCTS[0];
-  if (!product)
-    throw new Error("등록된 시연 상품에서 이 가입의 상품을 찾을 수 없어요.");
-  if (state.attempts > 100)
-    throw new Error("지원하는 진단 이력 크기를 초과했습니다.");
+  const snapshot =
+    options.snapshot ?? (await readLedger(dep, client as PublicClient));
+  const contract = { address: dep.ledger, abi: ledgerAbi } as const;
+  const [state, coolingPeriod] = await Promise.all([
+    client.readContract({
+      ...contract,
+      functionName: "getSale",
+      args: [BigInt(saleId)],
+    }),
+    client.readContract({ ...contract, functionName: "coolingPeriod" }),
+  ]);
   const checks: Check[] = [];
   const check = (name: string, ok: boolean, detail: string) =>
     checks.push({ name, ok, detail });
-  const [document, rule, minimumProfile] = await Promise.all([
-    client.readContract({
-      address: dep.ledger,
-      abi: ledgerAbi,
-      functionName: "documents",
-      args: [product.id],
-    }),
-    client.readContract({
-      address: dep.ledger,
-      abi: ledgerAbi,
-      functionName: "rules",
-      args: [ruleHash],
-    }),
-    v4
-      ? client.readContract({
-          address: dep.ledger,
-          abi: ledgerAbi,
-          functionName: "minimumProfiles",
-          args: [product.id],
-        })
-      : MIN_PROFILE,
-  ]);
-  const productVersionOk =
-    state.productId === product.id &&
-    state.documentHash === product.documentHash &&
-    state.ruleHash === ruleHash &&
-    document === product.documentHash &&
-    minimumProfile === product.minimumProfile &&
-    rule &&
-    (!receipt ||
-      (receipt.productId === state.productId &&
-        receipt.documentHash === state.documentHash &&
-        receipt.ruleHash === state.ruleHash));
+  const references: VerificationReference[] = [];
+  const reference = (
+    kind: VerificationReference["kind"],
+    txHash: Hex,
+    block: bigint,
+    attempt?: number,
+  ) => references.push({ kind, txHash, block: block.toString(), attempt });
+  const sale = snapshot.sales.find((entry) => entry.saleId === saleId);
+  const result = (outcome?: VerifyOutcome): SaleVerification => ({
+    outcome:
+      outcome ?? (checks.every((entry) => entry.ok) ? "match" : "mismatch"),
+    saleId,
+    chainId: dep.chainId,
+    checks,
+    sale,
+    product,
+    diagnoses,
+    references,
+    verifiedAt: new Date().toISOString(),
+  });
+  let product: LedgerProduct | undefined;
+  let diagnoses: LedgerDiagnosis[] = [];
+
+  // 1. 판매 기록
+  if (!sale && state.status === 0) {
+    check(
+      CHECK_NAMES.sale,
+      false,
+      "지정한 원장에 이 판매 ID의 청약 기록이 없어요.",
+    );
+    if (receipt)
+      check(CHECK_NAMES.receipt, false, "증명서의 판매 기록을 찾지 못했어요.");
+    return result("missing");
+  }
+  const saleOk =
+    !!sale &&
+    SALE_STATUSES[state.status] === sale.status &&
+    fieldHex(state.customerRef) === sale.customerRef &&
+    state.productId === sale.productId &&
+    state.productVersion === sale.productVersion &&
+    state.attempt === sale.attempt &&
+    state.suitable === sale.suitable &&
+    state.protectedSale === sale.protectedSale &&
+    state.amount === sale.amount &&
+    state.explanationSeconds === sale.explanationSeconds &&
+    state.higherRiskConfirmed === sale.higherRiskConfirmed &&
+    state.approved === sale.approved &&
+    state.recordingHash === (sale.recordingHash ?? ZERO) &&
+    Number(state.settledAt) === (sale.settlement?.at ?? 0) &&
+    Number(state.subscribedAt) === sale.subscribed.at;
   check(
-    "상품·문서·규칙 버전",
-    productVersionOk,
-    `상품 ${product.document.product} · ${product.document.class} · 설명서 ${product.document.version} · 진단 규칙 v${dep.ruleVersion ?? 1}`,
+    CHECK_NAMES.sale,
+    saleOk,
+    saleOk
+      ? `청약 이벤트와 원장 상태가 같아요. 상태: ${{ subscribed: "청약", confirmed: "확정", withdrawn: "철회" }[sale!.status]}`
+      : "청약 이벤트와 원장 상태가 달라요.",
+  );
+  if (!sale) return result();
+  reference("subscribe", sale.subscribed.txHash, sale.subscribed.block);
+  diagnoses = snapshot.diagnoses
+    .filter((entry) => same(entry.customerRef, sale.customerRef))
+    .sort((a, b) => a.attempt - b.attempt);
+  const used = diagnoses.filter((entry) => entry.attempt <= sale.attempt);
+  const final = used.find((entry) => entry.attempt === sale.attempt);
+
+  // 2. 상품 설명서 버전
+  product = snapshot.products.find(
+    (entry) =>
+      entry.id === sale.productId && entry.version === sale.productVersion,
+  );
+  const stored = product
+    ? await client.readContract({
+        ...contract,
+        functionName: "getProduct",
+        args: [product.id, product.version],
+      })
+    : undefined;
+  const newerBefore = snapshot.products.some(
+    (entry) =>
+      entry.id === sale.productId &&
+      entry.version > sale.productVersion &&
+      entry.block < sale.subscribed.block,
+  );
+  const originalDocumentOk = original
+    ? await safely(
+        () =>
+          productDocumentHash(original.productDocument) ===
+          product?.documentHash,
+      )
+    : true;
+  const productOk =
+    !!product &&
+    !!stored &&
+    product.matches &&
+    stored.documentHash === product.documentHash &&
+    stored.riskGrade === product.riskGrade &&
+    stored.complex === product.complex &&
+    stored.derivative === product.derivative &&
+    product.block <= sale.subscribed.block &&
+    !newerBefore &&
+    originalDocumentOk;
+  if (product) reference("product", product.txHash, product.block);
+  check(
+    CHECK_NAMES.product,
+    productOk,
+    !product
+      ? "청약한 상품 버전의 등록 기록이 없어요."
+      : !originalDocumentOk
+        ? "제출한 설명서가 원장에 등록한 설명서 지문과 달라요."
+        : productOk
+          ? `${product.parsed?.name ?? "상품"} v${product.version} · 청약 당시 최신 버전 · 설명서 지문 일치`
+          : "설명서 원문, 지문, 등록 속성 또는 청약 당시 최신 여부가 맞지 않아요.",
   );
 
-  const latest = await client.getBlockNumber();
-  if (latest - BigInt(dep.blockNumber) > 200_000n)
-    throw new Error(
-      "조회 범위를 초과했습니다. 검증 배포의 시작 블록을 확인하세요.",
+  // 3. 진단 기준 원문
+  const ruleHashes = [...new Set(used.map((entry) => entry.ruleHash))];
+  const rules = ruleHashes.map((hash) =>
+    snapshot.rules.find((entry) => entry.hash === hash),
+  );
+  const ruleOk =
+    used.length > 0 &&
+    rules.every(
+      (rule) =>
+        !!rule &&
+        rule.hashMatches &&
+        used
+          .filter((entry) => entry.ruleHash === rule.hash)
+          .every((entry) => rule.block <= entry.block),
     );
-  const diagnosisEvent = getAbiItem({ abi, name: "DiagnosisRecorded" });
-  const higherRiskEvent = getAbiItem({
-    abi: ledgerAbi,
-    name: "HigherRiskConfirmed",
-  });
-  const signatureEvent = getAbiItem({
-    abi: ledgerAbiV2,
-    name: "MockSignatureConfirmed",
-  });
-  const completionEvent = getAbiItem({
-    abi: ledgerAbi,
-    name: "ConditionsVerified",
-  });
-  const diagnoses = [];
-  const higherRiskConfirmations = [];
-  const signatures = [];
-  const completions = [];
-  for (let from = BigInt(dep.blockNumber); from <= latest; from += 2000n) {
-    const to = from + 1999n < latest ? from + 1999n : latest;
-    const filter = {
-      address: dep.ledger,
-      args: { saleId: BigInt(id) },
-      fromBlock: from,
-      toBlock: to,
-      strict: true,
-    } as const;
-    const [diagnosisLogs, higherRiskLogs, signatureLogs, completionLogs] =
-      await Promise.all([
-        client.getLogs({ ...filter, event: diagnosisEvent }),
-        legacy ? [] : client.getLogs({ ...filter, event: higherRiskEvent }),
-        !atomicLedger && state.signed
-          ? client.getLogs({ ...filter, event: signatureEvent })
-          : [],
-        client.getLogs({ ...filter, event: completionEvent }),
+  for (const rule of rules)
+    if (rule) reference("rule", rule.txHash, rule.block);
+  check(
+    CHECK_NAMES.rule,
+    ruleOk,
+    ruleOk
+      ? `등록 원문으로 다시 계산한 기준 해시가 같아요. ${rules.map((rule) => `v${rule!.version}`).join(", ")}`
+      : "진단 기준 원문이 없거나 원문으로 계산한 해시가 달라요.",
+  );
+
+  // 4. 진단 회차: 1회차부터 빠짐없이 있고, 청약 회차가 당시 최신이며, 증명이 다시 검증된다.
+  const complete =
+    used.length === sale.attempt &&
+    used.every((entry, index) => entry.attempt === index + 1);
+  const latestAtSubscription = diagnoses
+    .filter((entry) => entry.attempt > sale.attempt)
+    .every((entry) => entry.block >= sale.subscribed.block);
+  let proofsOk = complete;
+  for (const entry of used) {
+    reference("diagnosis", entry.txHash, entry.block, entry.attempt);
+    proofsOk &&= await safely(async () => {
+      const [view, tx] = await Promise.all([
+        client.readContract({
+          ...contract,
+          functionName: "getDiagnosis",
+          args: [BigInt(entry.customerRef), entry.attempt],
+        }),
+        client.getTransaction({ hash: entry.txHash }),
       ]);
-    diagnoses.push(...diagnosisLogs);
-    higherRiskConfirmations.push(...higherRiskLogs);
-    signatures.push(...signatureLogs);
-    completions.push(...completionLogs);
-  }
-  const completion =
-    completions.length === 1 && completions[0].args.attempt === state.attempts
-      ? completions[0]
-      : undefined;
-  const atomic =
-    atomicLedger && state.finalized && completion
-      ? await readEnrollment(client, dep, completion.transactionHash)
-      : undefined;
-  const atomicEnvelopeOk =
-    !!atomic &&
-    !!completion &&
-    atomic.mined.status === "success" &&
-    atomic.tx.hash === completion.transactionHash &&
-    atomic.mined.transactionHash === completion.transactionHash &&
-    atomic.mined.blockHash === completion.blockHash &&
-    atomic.tx.to?.toLowerCase() === dep.ledger.toLowerCase() &&
-    atomic.tx.from.toLowerCase() === dep.roles.customer.toLowerCase() &&
-    atomic.mined.to?.toLowerCase() === dep.ledger.toLowerCase() &&
-    atomic.mined.from.toLowerCase() === atomic.tx.from.toLowerCase() &&
-    atomic.args[0] === BigInt(id) &&
-    atomic.args[1] === state.productId &&
-    atomic.args[2] === state.documentHash &&
-    atomic.args[3] === state.ruleHash &&
-    atomic.args[4].length === state.attempts &&
-    atomic.events.some(
-      (event) =>
-        event.eventName === "SaleOpened" &&
-        event.args.saleId === BigInt(id) &&
-        event.args.productId === state.productId &&
-        event.args.documentHash === state.documentHash &&
-        event.args.ruleHash === state.ruleHash,
-    );
-  let proofsOk = diagnoses.length === state.attempts && state.attempts > 0;
-  let originalsOk =
-    !!original &&
-    original.attempts.length === state.attempts &&
-    hashObject(original.document) === state.documentHash;
-  const references: {
-    round: number;
-    profile?: number;
-    legacyPassed?: boolean;
-    txHash: Hex;
-    block: string;
-  }[] = [];
-  const procedureReferences: {
-    kind: "higher-risk" | "signature" | "completion";
-    txHash: Hex;
-    block: string;
-  }[] = [];
-  let finalDiagnosis: { commitment: bigint; profile: number } | undefined;
-  for (let round = 1; round <= state.attempts; round++) {
-    const attempt = await client.readContract({
-      address: dep.ledger,
-      abi,
-      functionName: "getAttempt",
-      args: [BigInt(id), round],
-    });
-    const signal =
-      "profile" in attempt ? attempt.profile : Number(attempt.passed);
-    if (round === state.attempts && attempt.recorded)
-      finalDiagnosis = { commitment: attempt.commitment, profile: signal };
-    const log = diagnoses.find((l) => l.args.attempt === round);
-    if (!log || !attempt.recorded) {
-      proofsOk = false;
-      originalsOk = false;
-      continue;
-    }
-    let proof: PreparedProof | undefined;
-    if (atomicLedger) {
+      const decoded = decodeFunctionData({ abi: ledgerAbi, data: tx.input });
       if (
-        atomicEnvelopeOk &&
-        atomic &&
-        atomic.tx.hash === log.transactionHash &&
-        atomic.mined.blockHash === log.blockHash &&
-        atomic.events.some(
-          (event) =>
-            event.eventName === "AnswersCommitted" &&
-            event.args.saleId === BigInt(id) &&
-            event.args.attempt === round &&
-            event.args.commitment === attempt.commitment,
-        ) &&
-        atomic.events.some(
-          (event) =>
-            event.eventName === "DiagnosisRecorded" &&
-            event.args.saleId === BigInt(id) &&
-            event.args.attempt === round &&
-            event.args.commitment === attempt.commitment &&
-            event.args.profile === signal,
-        )
+        decoded.functionName !== "recordDiagnosis" ||
+        !same(tx.to!, dep.ledger)
       )
-        proof = atomic.args[4][round - 1];
-    } else {
-      const [tx, mined] = await Promise.all([
-        client.getTransaction({ hash: log.transactionHash }),
-        client.getTransactionReceipt({ hash: log.transactionHash }),
-      ]);
-      const decoded = decodeFunctionData({ abi: ledgerAbiV2, data: tx.input });
-      if (
-        decoded.functionName === "recordDiagnosis" &&
-        mined.status === "success" &&
-        tx.to?.toLowerCase() === dep.ledger.toLowerCase() &&
-        mined.blockHash === log.blockHash
-      ) {
-        const [saleId, attemptNo, a, b, c, signals] = decoded.args;
-        if (saleId === BigInt(id) && attemptNo === round)
-          proof = { a, b, c, signals };
-      }
-    }
-    const valid =
-      !!proof &&
-      proof.signals[0] === BigInt(signal) &&
-      (legacy || (signal >= 1 && signal <= 3)) &&
-      matchesSignals(
-        dep,
-        id,
-        round,
-        attempt.commitment,
-        proof.signals,
-        state.ruleHash,
-        state.documentHash,
-      ) &&
-      (await client.readContract({
-        address: dep.verifier,
-        abi: verifierAbi,
-        functionName: "verifyProof",
-        args: [proof.a, proof.b, proof.c, proof.signals],
-      })) &&
-      log.args.commitment === attempt.commitment &&
-      ("profile" in log.args ? log.args.profile : Number(log.args.passed)) ===
-        signal;
-    proofsOk &&= valid;
-    references.push({
-      round,
-      ...(legacy ? { legacyPassed: signal === 1 } : { profile: signal }),
-      txHash: log.transactionHash,
-      block: log.blockNumber.toString(),
-    });
-    if (original) {
-      const raw = original.attempts[round - 1];
-      const risk =
-        legacy && raw?.answers && "risk" in raw.answers
-          ? raw.answers.risk
-          : undefined;
-      if (
-        !raw?.answers ||
-        raw.round !== round ||
-        !/^[0-9]{1,77}$/.test(raw.salt) ||
-        BigInt(raw.salt) >= FIELD ||
-        ![raw.answers.loss, raw.answers.experience].every(
-          (v) => Number.isInteger(v) && v >= 0 && v <= 2,
-        ) ||
-        (legacy && risk !== 0 && risk !== 1)
-      ) {
-        originalsOk = false;
-        continue;
-      }
-      const commitment = legacy
-        ? poseidon10([
-            BigInt(raw.answers.loss),
-            BigInt(raw.answers.experience),
-            BigInt(risk ?? 0),
-            BigInt(raw.salt),
-            BigInt(dep.chainId),
-            BigInt(dep.ledger),
-            BigInt(id),
-            BigInt(round),
-            BigInt(field(state.ruleHash)),
-            BigInt(field(state.documentHash)),
-          ])
-        : diagnosisCommitment(raw.answers, raw.salt, {
-            chainId: dep.chainId,
-            ledger: dep.ledger,
-            id,
-            round,
-            ruleHash: state.ruleHash,
-            documentHash: state.documentHash,
-          });
-      originalsOk &&=
-        commitment === attempt.commitment &&
-        (legacy
-          ? Number(classifyProfile(raw.answers) === MIN_PROFILE && risk === 1)
-          : classifyProfile(raw.answers)) === signal;
-    }
-  }
-  check(
-    "진단 증명·전체 회차",
-    proofsOk,
-    `${state.attempts}개 회차 · EVM Verifier 재검증 · 거래 영수증·이벤트·상태 대조`,
-  );
-  check(
-    "고객 원본 무결성",
-    originalsOk,
-    original
-      ? "모든 답변·임의값의 Poseidon 커밋먼트와 설명서 지문 대조"
-      : "고객 원본 파일을 열면 답변과 문서 변경을 확인할 수 있어요.",
-  );
-  const higherRiskConfirmed =
-    "higherRiskConfirmed" in state && state.higherRiskConfirmed === true;
-  let higherRiskOk = true;
-  if (!legacy) {
-    const required =
-      !!finalDiagnosis && finalDiagnosis.profile < minimumProfile;
-    const currentConfirmations = higherRiskConfirmations.filter(
-      (log) => log.args.attempt === state.attempts,
-    );
-    let confirmed = false;
-    if (required && higherRiskConfirmed && currentConfirmations.length === 1) {
-      const [log] = currentConfirmations;
-      if (atomicLedger) {
-        confirmed =
-          atomicEnvelopeOk &&
-          !!atomic &&
-          atomic.args[6] &&
-          atomic.tx.hash === log.transactionHash &&
-          atomic.mined.blockHash === log.blockHash &&
-          atomic.events.some(
-            (event) =>
-              event.eventName === "HigherRiskConfirmed" &&
-              event.args.saleId === BigInt(id) &&
-              event.args.attempt === state.attempts,
-          );
-      } else {
-        const mined = await client.getTransactionReceipt({
-          hash: log.transactionHash,
-        });
-        confirmed =
-          mined.status === "success" && mined.blockHash === log.blockHash;
-      }
-      if (confirmed) {
-        procedureReferences.push({
-          kind: "higher-risk",
-          txHash: log.transactionHash,
-          block: log.blockNumber.toString(),
-        });
-      }
-    }
-    higherRiskOk =
-      !!finalDiagnosis &&
-      (required
-        ? confirmed
-        : !higherRiskConfirmed && currentConfirmations.length === 0);
-    check(
-      "추가 위험 확인",
-      higherRiskOk,
-      !finalDiagnosis
-        ? "투자성향 진단 기록을 기다리고 있어요."
-        : required
-          ? confirmed
-            ? atomicLedger
-              ? "가입 거래에 최종 진단의 추가 위험 확인이 포함돼 있어요."
-              : "추가 위험 안내 확인 거래와 최종 진단 회차가 일치해요."
-            : "이 펀드에 필요한 추가 위험 안내 확인을 기다리고 있어요."
-          : "최종 투자성향에 해당하는 상품이에요. 추가 위험 확인 대상이 아니에요.",
-    );
-  }
-  const atomicAuthorizationOk =
-    atomicEnvelopeOk &&
-    !!atomic &&
-    state.signed &&
-    atomic.events.some(
-      (event) =>
-        event.eventName === "EnrollmentAuthorized" &&
-        event.args.saleId === BigInt(id) &&
-        event.args.attempt === state.attempts &&
-        event.args.customer.toLowerCase() === atomic.tx.from.toLowerCase(),
-    );
-  let signatureOk = atomicAuthorizationOk;
-  if (
-    original &&
-    (original.format === "finveric-original-v1" ||
-      original.format === "finveric-original-v2") &&
-    original.signature &&
-    original.signatureMessage &&
-    finalDiagnosis
-  ) {
-    const expectedMessage = legacy
-      ? legacySignatureMessage(
-          dep,
-          id,
-          state.attempts,
-          finalDiagnosis.commitment.toString(),
-        )
-      : signatureMessage(
-          dep,
-          id,
-          state.attempts,
-          finalDiagnosis.commitment.toString(),
-          finalDiagnosis.profile,
-        );
-    try {
-      signatureOk =
-        original.signatureMessage === expectedMessage &&
-        keccak256(original.signature) === state.signatureHash &&
-        (
-          await recoverMessageAddress({
-            message: expectedMessage,
-            signature: original.signature,
-          })
-        ).toLowerCase() === dep.roles.customer.toLowerCase();
-    } catch {
-      signatureOk = false;
-    }
-  }
-  check(
-    atomicLedger ? "고객 거래 서명" : "고객 모의 서명",
-    signatureOk,
-    atomicLedger
-      ? "가입 거래의 발신 계정과 승인 이벤트를 지정한 고객 계정과 대조해요."
-      : original
-        ? legacy
-          ? "가상 고객 키·최종 회차·답변·설명서에 연결한 서명 대조"
-          : "테스트 계정과 최종 진단 회차, 설명서, 추가 위험 확인이 서명에 연결돼 있는지 확인해요."
-        : "고객 원본 파일이 필요해요. 실제 전자서명은 아니에요.",
-  );
-  const currentSignatures = signatures.filter(
-    (log) =>
-      log.args.attempt === state.attempts &&
-      log.args.commitment === finalDiagnosis?.commitment &&
-      log.args.signatureHash === state.signatureHash,
-  );
-  if (atomicAuthorizationOk && atomic) {
-    procedureReferences.push({
-      kind: "signature",
-      txHash: atomic.tx.hash,
-      block: atomic.mined.blockNumber.toString(),
-    });
-  } else if (currentSignatures.length === 1) {
-    const [log] = currentSignatures;
-    const mined = await client.getTransactionReceipt({
-      hash: log.transactionHash,
-    });
-    if (mined.status === "success" && mined.blockHash === log.blockHash) {
-      procedureReferences.push({
-        kind: "signature",
-        txHash: log.transactionHash,
-        block: log.blockNumber.toString(),
-      });
-    }
-  }
-  const explanationOk =
-    state.explained &&
-    (!atomicLedger ||
-      (atomicEnvelopeOk &&
-        !!atomic &&
-        atomic.args[5] &&
-        atomic.events.some(
-          (event) =>
-            event.eventName === "ExplanationConfirmed" &&
-            event.args.saleId === BigInt(id) &&
-            event.args.attempt === state.attempts &&
-            event.args.documentHash === state.documentHash,
-        )));
-  let reviewOk = state.attempts < 3 || state.reviewed;
-  if (atomicLedger && state.attempts >= 3) {
-    reviewOk =
-      reviewOk &&
-      atomicEnvelopeOk &&
-      !!atomic &&
-      atomic.events.some(
-        (event) =>
-          event.eventName === "ReviewApproved" &&
-          event.args.saleId === BigInt(id) &&
-          event.args.attempt === state.attempts,
+        return false;
+      const [
+        customerRef,
+        attempt,
+        ruleHash,
+        commitment,
+        profile,
+        limit,
+        elderly,
+        proof,
+      ] = decoded.args;
+      const sameRecord =
+        customerRef === BigInt(entry.customerRef) &&
+        attempt === entry.attempt &&
+        ruleHash === BigInt(entry.ruleHash) &&
+        commitment === entry.commitment &&
+        profile === entry.profile &&
+        limit === entry.limit &&
+        elderly === entry.elderly &&
+        view.ruleHash === ruleHash &&
+        view.commitment === commitment &&
+        view.profile === profile &&
+        view.limit === limit &&
+        view.elderly === elderly;
+      return (
+        sameRecord &&
+        (await client.readContract({
+          address: dep.verifier,
+          abi: verifierAbi,
+          functionName: "verifyProof",
+          args: [
+            ...verifierArgs(proof),
+            [
+              BigInt(profile),
+              BigInt(limit),
+              elderly ? 1n : 0n,
+              commitment,
+              BigInt(dep.chainId),
+              BigInt(dep.ledger),
+              customerRef,
+              BigInt(attempt),
+              ruleHash,
+            ],
+          ],
+        }))
       );
-    if (reviewOk && atomic) {
-      try {
-        reviewOk =
-          (
-            await recoverMessageAddress({
-              message: { raw: reviewDigest(dep, id, atomic.args[4], product) },
-              signature: atomic.args[7],
-            })
-          ).toLowerCase() === dep.roles.compliance.toLowerCase();
-      } catch {
-        reviewOk = false;
-      }
-    }
+    });
   }
-  const signed = atomicLedger ? atomicAuthorizationOk : state.signed;
-  const requiredRecordsOk = explanationOk && signed && higherRiskOk && reviewOk;
+  const attemptsOk = complete && latestAtSubscription && proofsOk;
   check(
-    "필수 확인 기록",
-    requiredRecordsOk,
-    `설명 ${explanationOk ? "확인" : "누락"} · ${atomicLedger ? "거래 서명" : "모의 서명"} ${signed ? "확인" : "누락"} · 관리자 승인 ${state.attempts < 3 ? "대상 아님" : reviewOk ? "완료" : "대기"}`,
+    CHECK_NAMES.attempts,
+    attemptsOk,
+    !complete
+      ? `청약 회차(${sale.attempt})까지의 진단 기록이 빠져 있어요.`
+      : !latestAtSubscription
+        ? "청약 당시 더 최근 회차가 있었어요."
+        : proofsOk
+          ? `${sale.attempt}개 회차 · 청약 회차가 당시 최신 · Verifier로 증명 재검증`
+          : "진단 기록과 증명이 맞지 않아요.",
   );
-  let completed = false;
-  if (state.finalized && completion) {
-    if (atomicLedger) {
-      completed =
-        atomicEnvelopeOk &&
-        !!atomic &&
-        atomic.events.some(
-          (event) =>
-            event.eventName === "ConditionsVerified" &&
-            event.args.saleId === BigInt(id) &&
-            event.args.attempt === state.attempts,
-        );
-    } else {
-      const mined = await client.getTransactionReceipt({
-        hash: completion.transactionHash,
-      });
-      completed =
-        mined.status === "success" && mined.blockHash === completion.blockHash;
-    }
-    if (completed) {
-      procedureReferences.push({
-        kind: "completion",
-        txHash: completion.transactionHash,
-        block: completion.blockNumber.toString(),
-      });
-    }
-  }
-  check(
-    "가입 조건 검증 완료",
-    completed &&
-      proofsOk &&
-      (legacy || requiredRecordsOk) &&
-      (!v4 || productVersionOk),
-    completed
-      ? "성공 영수증·완료 이벤트·원장 상태 일치. 실제 매입과는 별도예요."
-      : "원장에서 가입 조건 검증이 완료되지 않았어요.",
-  );
-  if (receipt) {
-    if (
-      !Array.isArray(receipt.transactions) ||
-      receipt.transactions.length > 100
-    )
-      throw new Error("영수증의 거래 참조 형식을 확인하세요.");
-    const unique = new Set(receipt.transactions);
-    let referencesOk =
-      unique.size === receipt.transactions.length &&
-      unique.size > 0 &&
-      diagnoses.every((log) => unique.has(log.transactionHash)) &&
-      higherRiskConfirmations.every((log) => unique.has(log.transactionHash)) &&
-      completions.every((log) => unique.has(log.transactionHash));
-    for (const hash of unique) {
-      const mined = await client.getTransactionReceipt({ hash });
-      const events = parseEventLogs({ abi, logs: mined.logs });
-      referencesOk &&=
-        mined.status === "success" &&
-        events.some(
-          (log) =>
-            log.address.toLowerCase() === dep.ledger.toLowerCase() &&
-            "saleId" in log.args &&
-            log.args.saleId === BigInt(id),
-        );
-    }
+
+  // 5. 원본 답변 대조
+  if (original) {
+    const originalOk = await safely(
+      () =>
+        original.format === "finveric-original-v5" &&
+        original.saleId === saleId &&
+        same(original.customerRef, sale.customerRef) &&
+        original.explanationSeconds === sale.explanationSeconds &&
+        complete &&
+        used.every((entry) => {
+          const raw = original.attempts.find(
+            (item) => item.attempt === entry.attempt,
+          );
+          const rule = snapshot.rules.find(
+            (item) => item.hash === entry.ruleHash,
+          )?.parsed;
+          if (
+            !raw ||
+            !rule ||
+            !same(raw.ruleHash, entry.ruleHash) ||
+            !/^[0-9]{1,77}$/.test(raw.salt) ||
+            BigInt(raw.salt) >= FIELD ||
+            !answersFit(rule, raw.answers)
+          )
+            return false;
+          const evaluation = evaluateRule(rule, raw.answers);
+          return (
+            diagnosisCommitment(raw.answers, raw.salt, {
+              chainId: dep.chainId,
+              ledger: dep.ledger,
+              customerRef: entry.customerRef,
+              attempt: entry.attempt,
+              ruleHash: entry.ruleHash,
+            }) === entry.commitment &&
+            evaluation.profile === entry.profile &&
+            evaluation.limit === entry.limit &&
+            evaluation.elderly === entry.elderly
+          );
+        }),
+    );
     check(
-      "검증 영수증 거래 참조",
-      referencesOk,
-      "파일에 담긴 모든 거래의 성공 영수증과 같은 판매 ID 이벤트 대조",
+      CHECK_NAMES.original,
+      originalOk,
+      originalOk
+        ? "모든 회차의 답변·임의값으로 커밋먼트와 판정을 다시 계산했어요."
+        : "원본의 답변, 임의값 또는 설명 확인 시간이 원장 기록과 달라요.",
     );
   }
-  return {
-    checks,
-    references,
-    procedureReferences,
-    state: { ...state, higherRiskConfirmed } satisfies ChainSale,
-    saleId: id,
-    verifiedAt: new Date().toISOString(),
-    network: dep.chainId,
-  };
+
+  // 6. 적합성·필수 확인
+  let approvalOk = sale.attempt < 3 ? !sale.approved : sale.approved;
+  if (approvalOk && sale.attempt >= 3)
+    approvalOk = await safely(async () => {
+      const tx = await client.getTransaction({
+        hash: sale.subscribed.txHash,
+      });
+      const decoded = decodeFunctionData({ abi: ledgerAbi, data: tx.input });
+      if (decoded.functionName !== "subscribe") return false;
+      const signer = await recoverMessageAddress({
+        message: {
+          raw: approvalDigest(dep, saleId, sale.customerRef, sale.attempt),
+        },
+        signature: decoded.args[9],
+      });
+      return same(signer, dep.roles.approver);
+    });
+  const suitable =
+    !!product && !!final && isSuitable(product.riskGrade, final.limit);
+  const protectedSale =
+    !!product && !!final && isProtectedSale(product, final, suitable);
+  const recordingOk = protectedSale
+    ? !!sale.recordingHash &&
+      sale.recordingHash !== ZERO &&
+      (!original ||
+        (await safely(
+          () => recordingHash(original.recording!.text) === sale.recordingHash,
+        )))
+    : !sale.recordingHash;
+  const conditionsOk =
+    !!final &&
+    !!product &&
+    suitable === sale.suitable &&
+    protectedSale === sale.protectedSale &&
+    sale.explanationSeconds > 0 &&
+    sale.higherRiskConfirmed === !suitable &&
+    approvalOk &&
+    recordingOk;
+  check(
+    CHECK_NAMES.conditions,
+    conditionsOk,
+    [
+      suitable ? "적합" : "부적합 · 추가 위험 확인",
+      `설명 확인 ${sale.explanationSeconds}초`,
+      sale.attempt >= 3
+        ? `관리자 승인 ${approvalOk ? "확인" : "불일치"}`
+        : "관리자 승인 대상 아님",
+      protectedSale
+        ? `녹취 지문 ${recordingOk ? "일치" : "불일치"}`
+        : "녹취 대상 아님",
+    ].join(" · "),
+  );
+
+  // 7. 숙려·최종 확인
+  const coolingEnds = sale.subscribed.at + Number(coolingPeriod);
+  let confirmationOk = Number(coolingPeriod) === dep.coolingPeriod;
+  let confirmationDetail: string;
+  if (sale.status === "confirmed" && sale.confirmed) {
+    const { at, txHash, block } = sale.confirmed;
+    reference("confirm", txHash, block);
+    if (sale.settlement)
+      reference("settle", sale.settlement.txHash, sale.settlement.block);
+    confirmationOk &&=
+      Number(state.confirmedAt) === at &&
+      (!sale.protectedSale || at >= coolingEnds);
+    confirmationDetail = sale.protectedSale
+      ? `숙려 ${Number(coolingPeriod)}초 뒤 최종 확인했어요.`
+      : "숙려 대상이 아니에요. 최종 확인했어요.";
+  } else if (sale.status === "withdrawn" && sale.withdrawn) {
+    reference("withdraw", sale.withdrawn.txHash, sale.withdrawn.block);
+    confirmationOk &&= Number(state.withdrawnAt) === sale.withdrawn.at;
+    confirmationDetail = "고객이 최종 확인 전에 철회했어요.";
+  } else {
+    confirmationDetail = sale.protectedSale
+      ? `숙려기간 중이에요. ${new Date(coolingEnds * 1000).toISOString()} 뒤 최종 확인할 수 있어요.`
+      : "최종 확인 전이에요.";
+  }
+  check(CHECK_NAMES.confirmation, confirmationOk, confirmationDetail);
+
+  // 8. 증명서 대조
+  if (receipt) {
+    const receiptOk = await safely(
+      () =>
+        receipt.format === "finveric-receipt-v5" &&
+        receipt.saleId === saleId &&
+        receipt.chainId === dep.chainId &&
+        same(receipt.ledger, dep.ledger) &&
+        same(receipt.customerRef, sale.customerRef) &&
+        same(receipt.productId, sale.productId) &&
+        receipt.productVersion === sale.productVersion &&
+        same(receipt.documentHash, product?.documentHash) &&
+        receipt.attempt === sale.attempt &&
+        same(receipt.ruleHash, final?.ruleHash) &&
+        receipt.amount === sale.amount.toString() &&
+        same(receipt.subscribeTx, sale.subscribed.txHash) &&
+        (receipt.confirmTx === undefined ||
+          same(receipt.confirmTx, sale.confirmed?.txHash)),
+    );
+    check(
+      CHECK_NAMES.receipt,
+      receiptOk,
+      receiptOk
+        ? "증명서의 판매 ID, 상품 버전, 회차, 기준, 금액, 거래가 원장과 같아요."
+        : "증명서 내용이 원장 기록과 달라요.",
+    );
+  }
+  return result();
 }

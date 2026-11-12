@@ -1,12 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  Link,
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate,
-} from "react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, Route, Routes, useLocation, useNavigate } from "react-router";
 import {
   Activity,
   BadgeCheck,
@@ -20,37 +13,34 @@ import {
   ShieldCheck,
   Siren,
 } from "lucide-react";
-import { PRODUCTS, type Product } from "../../../../packages/core/src/index.ts";
 import type {
-  AbandonResponse,
   ConfigDto,
+  CustomerDto,
   ExportKind,
   ExportResponse,
   OpenSaleRequest,
-  OpenSaleResponse,
-  RegisterResponse,
+  ProductEntryDto,
+  RegisterDto,
+  RuleEntryDto,
   SaleAction,
-  SaleActionDto,
+  SaleDto,
   TraceDto,
 } from "../../../../packages/core/src/api.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
 import { api, saveFile } from "../../../../packages/ui/src/api.ts";
 import { AccessCodeForm } from "../../../../packages/ui/src/components.tsx";
 import { useDeployment } from "../../../../packages/ui/src/deployment.ts";
+import { networkName } from "../../../../packages/ui/src/format.ts";
 import { Shell, type NavGroup } from "../../../../packages/ui/src/Shell.tsx";
-import {
-  getProduct,
-  saleProduct,
-  type Sale,
-} from "../../../../packages/ui/src/sale.ts";
 import { Empty } from "./components.tsx";
-import { auditorUrl, channel, draftProofKey, fundPath } from "./links.ts";
+import { auditorUrl, channel, fundPath } from "./links.ts";
+import { findProduct, type Sale } from "./sales.ts";
 import { Catalog } from "./screens/Catalog.tsx";
 import { Chain } from "./screens/Chain.tsx";
 import { CustomerVerify } from "./screens/CustomerVerify.tsx";
 import { Dashboard } from "./screens/Dashboard.tsx";
 import { Enrollment } from "./screens/Enrollment.tsx";
-import { FundDetail } from "./screens/FundDetail.tsx";
+import { ProductDetail } from "./screens/ProductDetail.tsx";
 import { Products } from "./screens/Products.tsx";
 import { Records } from "./screens/Records.tsx";
 import { Review } from "./screens/Review.tsx";
@@ -76,7 +66,7 @@ const groups: NavGroup[] = [
     label: CHANNEL,
     caption: "증권사 앱에서 고객이 보는 화면",
     items: [
-      { path: channel.catalog, label: "펀드 찾기", icon: LayoutGrid },
+      { path: channel.catalog, label: "상품 찾기", icon: LayoutGrid },
       { path: channel.enroll, label: "가입하기", icon: BriefcaseBusiness },
       { path: channel.records, label: "내 가입 기록", icon: FileText },
       { path: channel.verify, label: "가입 기록 확인", icon: BadgeCheck },
@@ -90,85 +80,90 @@ const groups: NavGroup[] = [
 const isChannel = (pathname: string) =>
   pathname === channel.catalog || pathname.startsWith(`${channel.catalog}/`);
 function pageTitle(pathname: string) {
-  if (pathname === channel.fund) return "펀드 찾기";
+  if (pathname === channel.fund) return "상품 상세";
   for (const group of groups)
     for (const item of group.items)
       if (item.path === pathname) return item.label;
   return "대시보드";
 }
-/** 이전 단일 웹의 독립 검증 주소(/verify)는 auditor 앱으로 보낸다. */
-function LegacyVerify() {
-  const { search } = useLocation();
-  useEffect(() => {
-    window.location.replace(auditorUrl(search));
-  }, [search]);
-  return null;
-}
+
+/** 화면이 부르는 처리. 실패하면 오류를 보여 주고 undefined를 돌려준다. */
+export type Run = <T>(
+  name: string,
+  operation?: () => Promise<T>,
+) => Promise<T | undefined>;
 
 export function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const deployment = useDeployment(setError);
+  const [config, setConfig] = useState<ConfigDto>();
+  const configRef = useRef<ConfigDto>(undefined);
+  const [rules, setRules] = useState<RuleEntryDto[]>([]);
+  const [products, setProducts] = useState<ProductEntryDto[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
-  const [salesReady, setSalesReady] = useState(false);
   const [traces, setTraces] = useState<TraceDto[]>([]);
+  const [customer, setCustomer] = useState<CustomerDto>();
+  const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState(
     sessionStorage.getItem("finveric-sale") ?? "",
   );
   const [draftId, setDraftId] = useState(
     sessionStorage.getItem("finveric-draft") ?? "",
   );
-  const [recordsProduct, setRecordsProduct] = useState("");
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
-  const [tokenRequired, setTokenRequired] = useState(false);
-  const sale = sales.find((s) => s.id === selected) ?? sales[0];
-  const draft = sales.find((s) => s.id === draftId);
-  const activeDraft = draft && !draft.state.finalized ? draft : undefined;
-  const records = sales.filter(
-    (s) =>
-      s.state.finalized &&
-      (!recordsProduct || saleProduct(s)?.id === recordsProduct),
-  );
-  const record = records.find((s) => s.id === selected) ?? records[0];
-  const requestedProduct = new URLSearchParams(location.search).get("product");
-  const detailProduct =
-    requestedProduct === null ? PRODUCTS[0] : getProduct(requestedProduct);
+  const params = new URLSearchParams(location.search);
+
   const reload = useCallback(async () => {
-    const [newSales, newTraces] = await Promise.all([
-      api<Sale[]>("/sales"),
-      api<TraceDto[]>("/traces"),
-    ]);
+    const current = configRef.current ?? (await api<ConfigDto>("/config"));
+    if (!configRef.current) {
+      configRef.current = current;
+      setConfig(current);
+    }
+    const [newRules, newProducts, newSales, newTraces, newCustomer] =
+      await Promise.all([
+        api<RuleEntryDto[]>("/rules"),
+        api<ProductEntryDto[]>("/products"),
+        api<SaleDto[]>("/sales"),
+        api<TraceDto[]>("/traces"),
+        api<CustomerDto>(
+          `/customers/${encodeURIComponent(current.demoCustomer.number)}`,
+        ),
+      ]);
+    setRules(newRules);
+    setProducts(newProducts);
     setSales(newSales);
     setTraces(newTraces);
-    setSalesReady(true);
+    setCustomer(newCustomer);
+    setLoaded(true);
   }, []);
+  /** 화면을 막지 않고 다시 읽는다. 승인 대기·숙려 화면이 쓴다. */
+  const refresh = useCallback(() => reload().catch(() => undefined), [reload]);
   useEffect(() => {
-    api<ConfigDto>("/config")
-      .then((c) => {
-        setTokenRequired(c.requiresToken);
-        return reload();
-      })
-      .catch((e) => setError(e.message));
+    reload().catch((e: Error) => setError(e.message));
   }, [reload]);
+  // 오래 걸리는 처리(증명 생성, 거래 영수증) 중에도 처리 기록을 갱신한다.
   useEffect(() => {
     if (!busy) return;
-    const timer = setInterval(() => {
-      void reload().catch(() => {});
-    }, 2000);
+    const timer = setInterval(() => void refresh(), 2000);
     return () => clearInterval(timer);
-  }, [busy, reload]);
-  const run = async (name: string, operation?: () => Promise<unknown>) => {
-    if (busy) return;
+  }, [busy, refresh]);
+
+  const run: Run = async (name, operation) => {
+    if (busy) return undefined;
     setBusy(name);
     setError("");
     setNotice("");
     try {
-      await operation?.();
+      const result = await operation?.();
       await reload();
+      return result;
     } catch (e) {
       setError(e instanceof Error ? e.message : "처리를 완료하지 못했어요.");
+      await refresh();
+      return undefined;
     } finally {
       setBusy("");
     }
@@ -182,64 +177,83 @@ export function App() {
     select(id);
     navigate("/review");
   };
+  const setDraft = (id: string) => {
+    setDraftId(id);
+    if (id) sessionStorage.setItem("finveric-draft", id);
+    else sessionStorage.removeItem("finveric-draft");
+  };
   const register = () =>
-    run("상품·진단 기준 등록 중", () => api<RegisterResponse>("/register", {}));
-  const start = (product: Product) =>
-    run("가입 초안을 준비하고 있어요", async () => {
+    run("진단 기준과 시연 상품을 원장에 등록하고 있습니다", () =>
+      api<RegisterDto>("/register", {}),
+    );
+  const draft = sales.find((sale) => sale.id === draftId);
+  const activeDraft =
+    draft && (draft.status === "draft" || draft.status === "subscribed")
+      ? draft
+      : undefined;
+  const start = (productId: string) =>
+    run("가입 신청을 준비하고 있어요", async () => {
       if (activeDraft) {
-        if (saleProduct(activeDraft)?.id !== product.id)
+        if (activeDraft.productId.toLowerCase() !== productId.toLowerCase())
           throw new Error(
-            "작성 중인 가입을 완료하거나 중단한 뒤 새로 시작해 주세요.",
+            "작성 중인 가입을 마치거나 중단한 뒤 새로 시작해 주세요.",
           );
-        navigate(channel.enroll);
-        return;
+      } else {
+        if (!config) throw new Error("설정을 불러온 뒤 다시 시도해 주세요.");
+        const sale = await api<SaleDto>("/sales", {
+          productId: productId as `0x${string}`,
+          customerNo: config.demoCustomer.number,
+        } satisfies OpenSaleRequest);
+        setDraft(sale.id);
       }
-      const result = await api<OpenSaleResponse>("/sales", {
-        productId: product.id,
-      } satisfies OpenSaleRequest);
-      setDraftId(result.id);
-      sessionStorage.setItem("finveric-draft", result.id);
       navigate(channel.enroll);
     });
+  const action = (id: string, name: SaleAction, label: string) =>
+    run(label, () => api<SaleDto>(`/sales/${id}/action/${name}`, {}));
   const abandon = () =>
-    draft &&
-    !draft.state.finalized &&
-    !draft.submissionPending &&
+    activeDraft?.status === "draft" &&
     run("가입을 중단하고 있어요", async () => {
-      const product = saleProduct(draft);
-      await api<AbandonResponse>(`/sales/${draft.id}/action/abandon`, {});
-      sessionStorage.removeItem("finveric-draft");
-      sessionStorage.removeItem(draftProofKey(draft.id));
-      setDraftId("");
-      navigate(product ? fundPath(product) : channel.catalog);
+      await api<SaleDto>(`/sales/${activeDraft.id}/action/abandon`, {});
+      setDraft("");
+      navigate(fundPath(activeDraft.productId));
     });
-  const markEnrolled = (id: string) => {
-    sessionStorage.removeItem("finveric-draft");
-    sessionStorage.removeItem(draftProofKey(id));
-    setRecordsProduct(saleProduct(draft)?.id ?? "");
-    select(id);
+  /** 내 가입 기록에서 숙려 중인 청약을 가입하기 화면으로 다시 연다. */
+  const resume = (id: string) => {
+    setDraft(id);
+    navigate(channel.enroll);
   };
-  const action = (name: SaleAction) =>
-    sale &&
-    run("가입 상태 업데이트 중", () =>
-      api<SaleActionDto>(`/sales/${sale.id}/action/${name}`, {}),
-    );
-  const download = (kind: ExportKind, modified = false) =>
-    record &&
-    run("파일 준비 중", async () => {
+  const download = (id: string, kind: ExportKind, modified = false) =>
+    run("파일을 준비하고 있어요", async () => {
       const value = await api<ExportResponse[ExportKind]>(
-        `/sales/${record.id}/export/${kind}`,
+        `/sales/${id}/export/${kind}`,
       );
-      // 변경 탐지 시연: 원본 사본의 첫 답변만 바꾼다.
-      if (modified && "attempts" in value && value.attempts.length)
-        value.attempts[0].answers.loss =
-          (value.attempts[0].answers.loss + 1) % 3;
+      // 변경 탐지 시연: 원본 사본에서 답변 하나를 다른 선택지로 바꾼다.
+      if (modified && "attempts" in value) {
+        const attempt = value.attempts.at(-1);
+        const rule = rules.find(
+          (entry) =>
+            entry.hash.toLowerCase() === attempt?.ruleHash.toLowerCase(),
+        );
+        if (attempt) {
+          const q = Math.max(
+            0,
+            attempt.answers.findIndex(
+              (_, index) =>
+                (rule?.document.questions[index]?.choices.length ?? 2) > 1,
+            ),
+          );
+          const count = rule?.document.questions[q]?.choices.length ?? 2;
+          attempt.answers[q] = (attempt.answers[q] + 1) % count;
+        }
+      }
       saveFile(
         value,
-        `finveric-${modified ? "modified" : kind}-${record.id.slice(0, 10)}.json`,
+        `finveric-${modified ? "modified" : kind}-${id.slice(0, 10)}.json`,
       );
     });
+
   const channelPage = isChannel(location.pathname);
+  const requestedProduct = params.get("product") ?? "";
   return (
     <Shell
       home="/"
@@ -251,31 +265,36 @@ export function App() {
         text: deployment
           ? channelPage
             ? "테스트 환경"
-            : deployment.chainId === 11155111
-              ? "Sepolia 테스트넷"
-              : "Anvil 테스트 원장"
+            : networkName(deployment)
           : "원장 설정 대기",
       }}
       foot={{
         title: "판매 기록 검증",
-        text: "테스트용 상품과 가입 절차를 제공해요.",
+        text: "테스트용 상품과 가상 고객으로 판매 절차를 시연해요.",
       }}
       error={error}
       dismissError={() => setError("")}
       notice={notice}
       busy={busy}
     >
-      {tokenRequired && (
-        <AccessCodeForm connect={() => void run("접속 중")} busy={!!busy} />
+      {config?.requiresToken && (
+        <AccessCodeForm
+          connect={() => void run("접속 중", reload)}
+          busy={!!busy}
+        />
       )}
       <Routes>
         <Route
           path="/"
           element={
             <Dashboard
+              loaded={loaded}
+              rules={rules}
+              products={products}
               sales={sales}
-              traces={traces}
-              deployment={deployment}
+              customer={customer}
+              busy={!!busy}
+              register={register}
               open={open}
             />
           }
@@ -284,9 +303,11 @@ export function App() {
           path="/rules"
           element={
             <Rules
-              deployment={deployment}
-              traces={traces}
+              loaded={loaded}
+              rules={rules}
+              products={products}
               busy={!!busy}
+              run={run}
               register={register}
             />
           }
@@ -295,26 +316,39 @@ export function App() {
           path="/products"
           element={
             <Products
-              deployment={deployment}
-              traces={traces}
+              loaded={loaded}
+              rules={rules}
+              products={products}
               busy={!!busy}
+              run={run}
               register={register}
             />
           }
         />
         <Route
-          path="/signals"
-          element={<Signals sales={sales} open={open} />}
-        />
-        <Route
           path="/review"
           element={
             <Review
+              loaded={loaded}
               sales={sales}
-              sale={sale}
+              products={products}
+              customer={customer}
+              selected={selected}
               select={select}
-              action={action}
               busy={!!busy}
+              run={run}
+              action={action}
+            />
+          }
+        />
+        <Route
+          path="/signals"
+          element={
+            <Signals
+              sales={sales}
+              products={products}
+              customer={customer}
+              open={open}
             />
           }
         />
@@ -323,23 +357,28 @@ export function App() {
           element={
             <Chain
               traces={traces}
-              sale={sale}
-              action={action}
+              sales={sales}
+              products={products}
+              deployment={config?.deployment}
               busy={!!busy}
-              refresh={() => run("원장 조회 중", reload)}
-              deployment={deployment}
+              refresh={() => run("처리 기록을 다시 읽고 있습니다", reload)}
             />
           }
         />
-        <Route path={channel.catalog} element={<Catalog />} />
+        <Route
+          path={channel.catalog}
+          element={<Catalog loaded={loaded} products={products} />}
+        />
         <Route
           path={channel.fund}
           element={
-            <FundDetail
-              product={detailProduct}
-              start={start}
-              busy={!!busy || (!!draftId && !salesReady)}
+            <ProductDetail
+              loaded={loaded}
+              product={findProduct(products, requestedProduct)}
+              products={products}
               activeDraft={activeDraft}
+              busy={!!busy}
+              start={start}
             />
           }
         />
@@ -348,12 +387,19 @@ export function App() {
           element={
             <Enrollment
               key={draft?.id ?? "empty"}
+              loaded={loaded}
               sale={draft}
-              deployment={deployment}
+              rules={rules}
+              products={products}
+              customer={customer}
+              deployment={config?.deployment}
               busy={!!busy}
               run={run}
+              action={action}
               abandon={abandon}
-              markEnrolled={markEnrolled}
+              refresh={refresh}
+              download={download}
+              finish={() => setDraft("")}
             />
           }
         />
@@ -361,13 +407,15 @@ export function App() {
           path={channel.records}
           element={
             <Records
-              sale={record}
-              sales={records}
-              productFilter={recordsProduct}
-              filterProducts={setRecordsProduct}
+              loaded={loaded}
+              sales={sales}
+              products={products}
+              customer={customer}
+              selected={selected}
               select={select}
-              download={download}
               busy={!!busy}
+              download={download}
+              resume={resume}
             />
           }
         />
@@ -375,37 +423,21 @@ export function App() {
           path={channel.verify}
           element={
             <CustomerVerify
-              key={new URLSearchParams(location.search).get("sale") ?? ""}
+              key={params.get("sale") ?? ""}
               deployment={deployment}
-              initialId={new URLSearchParams(location.search).get("sale") ?? ""}
+              initialId={params.get("sale") ?? ""}
             />
           }
         />
-        <Route path="/manage" element={<Navigate to="/products" replace />} />
-        <Route
-          path="/fund"
-          element={
-            <Navigate
-              to={{ pathname: channel.fund, search: location.search }}
-              replace
-            />
-          }
-        />
-        <Route
-          path="/enroll"
-          element={<Navigate to={channel.enroll} replace />}
-        />
-        <Route
-          path="/records"
-          element={<Navigate to={channel.records} replace />}
-        />
-        <Route path="/verify" element={<LegacyVerify />} />
         <Route
           path="*"
           element={
-            <Empty>
+            <Empty
+              title="화면을 찾을 수 없습니다"
+              text="메뉴에서 화면을 다시 골라 주세요."
+            >
               <Button asChild>
-                <Link to="/">처음 화면으로</Link>
+                <Link to="/">대시보드로 가기</Link>
               </Button>
             </Empty>
           }

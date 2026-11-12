@@ -115,6 +115,18 @@
   padding: 8px 0;
   border-bottom: 1px solid var(--border);
 }
+.checks li > span:first-child {
+  min-width: 0;
+}
+.checks li > span:last-child {
+  flex: none;
+}
+.checks small {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
 @media (max-width: 640px) {
   .main h1 {
     font-size: 22px;

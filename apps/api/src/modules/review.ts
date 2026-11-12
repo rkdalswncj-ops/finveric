@@ -1,28 +1,33 @@
-// 관리자 승인: 세 번째 진단부터 판매사 관리자가 모든 회차를 검토하고 서명한다.
-// 서명은 원장 거래 없이 보관하고, 고객의 가입 확정 거래에 함께 담는다.
-import { reviewDigest } from "../../../../packages/core/src/index.ts";
+// 관리자 승인: 3회차 이상 진단한 고객의 청약 전에 소비자보호 담당이 회차 이력을 보고 서명한다.
+// 서명은 원장 거래 없이 보관하고, 고객의 청약 거래에 함께 담는다. 원장이 승인자 키로 확인한다.
+import { approvalDigest } from "../../../../packages/core/src/index.ts";
 import type { FundService } from "../service.ts";
 import type { StoredSale } from "../repositories/sales.ts";
-import { ensureDraft, preparedProof } from "./enrollment.ts";
-import { requireProduct } from "./products.ts";
+import { readAttemptCount, signApproval } from "../gateways/ledger.ts";
+import { ensureDraft } from "./enrollment.ts";
+import { note } from "./transactions.ts";
 
-export async function review(svc: FundService, record: StoredSale) {
-  ensureDraft(record);
-  if (record.attempts.length < 3)
-    throw new Error("세 번째 진단부터 검토할 수 있어요.");
-  if (record.reviewSignature) return;
-  const proofs = await Promise.all(
-    record.attempts.map((attempt) => preparedProof(attempt)),
-  );
-  record.reviewSignature = await svc.env.accounts.compliance.signMessage({
-    message: {
-      raw: reviewDigest(
-        svc.dep,
-        record.id,
-        proofs,
-        requireProduct(record.productId),
-      ),
+export async function approve(svc: FundService, record: StoredSale) {
+  await ensureDraft(svc, record);
+  const attempt = await readAttemptCount(svc, record.customerRef);
+  if (attempt < 3)
+    throw new Error("3회차 이상 진단한 고객의 신청만 승인 대상이에요.");
+  if (record.approval?.attempt === attempt) return;
+  record.approval = {
+    attempt,
+    signature: await signApproval(
+      svc,
+      approvalDigest(svc.dep, record.id, record.customerRef, attempt),
+    ),
+  };
+  note(
+    svc,
+    {
+      source: "approver",
+      action: "관리자 승인 서명",
+      status: "confirmed",
+      detail: { attempt },
     },
-  });
-  svc.repository.save();
+    record,
+  );
 }

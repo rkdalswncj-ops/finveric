@@ -1,198 +1,212 @@
 import { Link } from "react-router";
-import { ArrowRight, Download, FileText } from "lucide-react";
+import { ArrowRight, Download } from "lucide-react";
+import type {
+  CustomerDto,
+  ExportKind,
+  ProductEntryDto,
+} from "../../../../../packages/core/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
-  Badge,
   Facts,
-  FundFilter,
   Heading,
   Notice,
-  TransactionFacts,
 } from "../../../../../packages/ui/src/components.tsx";
-import {
-  enrollmentTrace,
-  finalProfile,
-  getProduct,
-  higherRiskStatus,
-  procedureLabels,
-  profileName,
-  purchaseNames,
-  saleProduct,
-  saleProductName,
-  status,
-  won,
-  type Sale,
-} from "../../../../../packages/ui/src/sale.ts";
-import type { ExportKind } from "../../../../../packages/core/src/api.ts";
+import { dateTime, won } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import local from "./channel.module.css";
-import { Empty, History, SaleSelect } from "../components.tsx";
-import { fundPath, verifyPath } from "../links.ts";
+import { Empty, StatusBadge } from "../components.tsx";
+import { channel, verifyPath } from "../links.ts";
+import {
+  confirmedTrace,
+  inCooling,
+  nowSeconds,
+  productName,
+  profileName,
+  saleProduct,
+  type Sale,
+} from "../sales.ts";
 
 const s = { ...ui, ...local };
 
+/** 고객이 청약한 가입 기록. 증명서와 원본을 내려받고, 가입 기록 확인 화면으로 간다. */
 export function Records({
-  sale,
+  loaded,
   sales,
-  productFilter,
-  filterProducts,
+  products,
+  customer,
+  selected,
   select,
-  download,
   busy,
+  download,
+  resume,
 }: {
-  sale?: Sale;
+  loaded: boolean;
   sales: Sale[];
-  productFilter: string;
-  filterProducts: (id: string) => void;
+  products: ProductEntryDto[];
+  customer?: CustomerDto;
+  selected: string;
   select: (id: string) => void;
-  download: (kind: ExportKind, modified?: boolean) => unknown;
   busy: boolean;
+  download: (id: string, kind: ExportKind, modified?: boolean) => unknown;
+  resume: (id: string) => void;
 }) {
-  const enrollment = enrollmentTrace(sale);
-  const profile = finalProfile(sale);
-  const selectedProduct = getProduct(productFilter);
-  const product = saleProduct(sale);
+  const now = nowSeconds();
+  const records = sales
+    .filter((sale) => !!sale.chain)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const sale = records.find((entry) => entry.id === selected) ?? records[0];
+  const product = saleProduct(products, sale);
+  const diagnosis = customer?.diagnoses.find(
+    (entry) => entry.attempt === sale?.chain?.attempt,
+  );
+  const subscribeTx = confirmedTrace(sale, "subscribe");
+  const confirmTx = confirmedTrace(sale, "confirm");
   return (
     <>
       <Heading
         title="내 가입 기록"
-        description="가입 진행 상태와 검증 기록을 확인할 수 있어요."
-      />
-      <FundFilter
-        value={productFilter}
-        change={filterProducts}
-        disabled={busy}
+        description="청약하고 확정한 가입을 확인하고, 증명서와 원본을 보관할 수 있어요."
       />
       {sale ? (
-        <>
-          <SaleSelect
-            sales={sales}
-            sale={sale}
-            select={select}
-            label="가입 신청 선택"
-          />
-          <div className={s.detailGrid}>
-            <section className={`${s.panel} ${s.pad}`}>
-              <Badge tone={sale.state.finalized ? "success" : "warning"}>
-                {status(sale)}
-              </Badge>
-              <h2>{saleProductName(sale)}</h2>
+        <div className={s.recordsGrid}>
+          <nav className={s.recordList} aria-label="가입 기록 목록">
+            {records.map((record) => (
+              <button
+                key={record.id}
+                className={record.id === sale.id ? s.recordActive : ""}
+                aria-current={record.id === sale.id}
+                onClick={() => select(record.id)}
+              >
+                <strong>
+                  {productName(saleProduct(products, record)?.document)}
+                </strong>
+                <span>
+                  <StatusBadge sale={record} now={now} />
+                  <small>{dateTime(record.createdAt)}</small>
+                </span>
+              </button>
+            ))}
+          </nav>
+          <section className={`${s.panel} ${s.pad}`}>
+            <StatusBadge sale={sale} now={now} />
+            <h2 className={s.recordTitle}>{productName(product?.document)}</h2>
+            <Facts
+              rows={[
+                ["증명서 번호", <code>{sale.id}</code>],
+                ["설명서 버전", `v${sale.productVersion}`],
+                ["가입 금액", won(sale.amount)],
+                [
+                  "투자성향",
+                  `${profileName(diagnosis?.profile)} · ${sale.chain?.attempt}회차 진단`,
+                ],
+                [
+                  "적합성",
+                  sale.chain?.suitable ? "적합" : "부적합 · 본인 판단으로 가입",
+                ],
+                ["핵심 설명 확인", `${sale.chain?.explanationSeconds}초`],
+                [
+                  "녹취·숙려",
+                  sale.chain?.protectedSale ? "대상 · 녹취 동의" : "대상 아님",
+                ],
+                ["청약", dateTime(Number(sale.chain?.subscribedAt ?? 0))],
+                [
+                  "최종 확인",
+                  sale.status === "confirmed"
+                    ? dateTime(Number(sale.chain?.confirmedAt ?? 0))
+                    : sale.status === "withdrawn"
+                      ? "철회"
+                      : "대기",
+                ],
+                ["결제(모의)", sale.settled ? "완료" : "대기"],
+              ]}
+            />
+            {inCooling(sale, now) && (
+              <Notice>
+                숙려기간이에요. {dateTime(sale.coolingEndsAt)}부터 최종 확인할
+                수 있어요.
+              </Notice>
+            )}
+            {sale.status === "subscribed" && (
+              <Button onClick={() => resume(sale.id)}>
+                최종 확인하러 가기 <ArrowRight size={16} />
+              </Button>
+            )}
+            <details>
+              <summary>기술 정보 보기</summary>
               <Facts
                 rows={[
-                  ["가입 진행 상태", status(sale)],
-                  ["투자성향", profileName(profile)],
                   [
-                    procedureLabels["higher-risk"],
-                    higherRiskStatus(
-                      profile,
-                      product?.minimumProfile,
-                      sale.state.higherRiskConfirmed,
-                    ),
-                  ],
-                  ["매입 상태", purchaseNames[sale.state.purchaseState]],
-                  ["신청 금액", won(sale.amount)],
-                  [
-                    "매입 좌수",
-                    sale.state.purchaseState === 3
-                      ? `${Number(sale.state.units).toLocaleString()}좌`
-                      : "—",
+                    "청약 기록",
+                    subscribeTx ? <code>{subscribeTx.txHash}</code> : "—",
                   ],
                   [
-                    "기준가격",
-                    sale.state.purchaseState === 3
-                      ? `${won(sale.state.nav)} / 1,000좌`
-                      : "—",
+                    "최종 확인 기록",
+                    confirmTx ? <code>{confirmTx.txHash}</code> : "—",
                   ],
+                  ["고객 가명 ID", <code>{sale.customerRef}</code>],
                 ]}
               />
-              <p className={s.small}>매입 금액과 좌수는 테스트 값이에요.</p>
-              <h3>진단 기록</h3>
-              {sale.attempts.length ? (
-                <History sale={sale} />
-              ) : (
-                <p className={s.small}>아직 진단 기록이 없어요.</p>
-              )}
-              <h3>블록체인 기록</h3>
-              {enrollment?.txHash ? (
-                <>
-                  <Link
-                    to={`/chain?trace=${enrollment.id}`}
-                    onClick={() => select(sale.id)}
-                  >
-                    가입 거래 보기 <ArrowRight size={14} />
-                  </Link>
-                  <TransactionFacts
-                    hash={enrollment.txHash}
-                    block={enrollment.blockNumber}
-                  />
-                  <p className={s.small}>
-                    한 거래에 진단 증명, 설명 확인, 가입 조건 검증 결과를
-                    기록했어요.
-                    {sale.state.higherRiskConfirmed &&
-                      " 추가 위험 확인도 함께 기록했어요."}
-                  </p>
-                </>
-              ) : (
-                <p className={s.small}>
-                  가입 거래의 해시와 블록 번호를 아직 확인하지 못했어요.
-                </p>
-              )}
-            </section>
-            <aside className={`${s.panel} ${s.pad}`}>
-              <h2>가입 서류</h2>
-              <p>
-                판매사와 독립된 확인 페이지에서 이 가입 기록을 확인하거나,
-                서류를 내려받아 보관할 수 있어요.
+            </details>
+          </section>
+          <aside className={`${s.panel} ${s.pad}`}>
+            <h2>가입 서류</h2>
+            <p>
+              판매사를 거치지 않는 확인 화면에서 이 기록을 확인하거나, 서류를
+              내려받아 보관할 수 있어요.
+            </p>
+            <Button asChild>
+              <Link to={verifyPath(sale.id)}>
+                가입 기록 확인하기
+                <ArrowRight size={16} />
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => download(sale.id, "receipt")}
+            >
+              <Download size={16} />
+              증명서 내려받기
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => download(sale.id, "original")}
+            >
+              <Download size={16} />
+              가입 원본 내려받기
+            </Button>
+            <Notice>
+              가입 원본에는 진단 답변이 담겨 있어요. 본인만 볼 수 있는 곳에
+              보관해 주세요.
+            </Notice>
+            <details>
+              <summary>시연: 변경한 원본으로 확인해 보기</summary>
+              <p className={s.small}>
+                원본 파일에서 진단 답변 하나를 바꿔 내려받아요. 가입 기록 확인
+                화면에서 이 파일을 고르면 불일치가 나와요.
               </p>
-              <Button asChild>
-                <Link to={verifyPath(sale.id)}>
-                  가입 기록 확인하기
-                  <ArrowRight size={16} />
-                </Link>
-              </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 disabled={busy}
-                onClick={() => download("receipt")}
+                onClick={() => download(sale.id, "original", true)}
               >
-                <Download size={16} />
-                검증 영수증 내려받기
+                변경한 원본 내려받기
               </Button>
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => download("original")}
-              >
-                <Download size={16} />
-                가입 원본 내려받기
-              </Button>
-              <Notice>
-                가입 원본에는 진단 답변이 담겨 있어요. 본인만 볼 수 있는 곳에
-                보관해 주세요.
-              </Notice>
-              <details>
-                <summary>파일 변경 감지 테스트</summary>
-                <Button
-                  variant="ghost"
-                  disabled={busy}
-                  onClick={() => download("original", true)}
-                >
-                  변경한 사본 내려받기
-                </Button>
-              </details>
-            </aside>
-          </div>
-        </>
-      ) : selectedProduct ? (
-        <div className={s.empty}>
-          <FileText size={30} />
-          <h2>이 펀드의 가입 기록이 없어요</h2>
-          <Button asChild>
-            <Link to={fundPath(selectedProduct)}>상품 살펴보기</Link>
-          </Button>
+            </details>
+          </aside>
         </div>
       ) : (
-        <Empty />
+        <Empty
+          title={
+            loaded ? "아직 가입 기록이 없어요" : "가입 기록을 불러오고 있어요"
+          }
+          text="상품을 고르고 진단부터 청약까지 마치면 여기에 기록이 생겨요."
+        >
+          <Button asChild>
+            <Link to={channel.catalog}>상품 보러 가기</Link>
+          </Button>
+        </Empty>
       )}
     </>
   );

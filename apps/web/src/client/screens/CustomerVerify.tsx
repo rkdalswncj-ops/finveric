@@ -5,40 +5,51 @@ import type {
   EvidenceReceipt,
   OriginalBundle,
 } from "../../../../../packages/core/src/index.ts";
-import type { verifyEvidence } from "../../../../../packages/core/src/verify.ts";
+import type { SaleVerification } from "../../../../../packages/core/src/verify.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
   Badge,
   Facts,
   Notice,
 } from "../../../../../packages/ui/src/components.tsx";
-import { short } from "../../../../../packages/ui/src/sale.ts";
+import {
+  dateTime,
+  networkName,
+  short,
+} from "../../../../../packages/ui/src/format.ts";
 import s from "./customer.module.css";
 
-/** 원장의 확인 항목을 고객이 읽는 이름으로 바꾼다. */
-const itemNames: Record<string, string> = {
-  "상품·문서·규칙 버전": "상품 설명서와 진단 기준",
-  "진단 증명·전체 회차": "투자성향 진단 기록",
-  "고객 원본 무결성": "진단 답변과 설명서 원본",
-  "추가 위험 확인": "추가 위험 확인 기록",
-  "고객 거래 서명": "가입 확인 서명",
-  "고객 모의 서명": "가입 확인 서명",
-  "필수 확인 기록": "설명 확인 기록",
-  "가입 조건 검증 완료": "가입 확정 기록",
-  "검증 영수증 거래 참조": "증명서의 기록 위치",
+/** 결과 세 가지의 제목과 안내. 화면 문구는 이 셋만 쓴다. */
+const OUTCOMES = {
+  match: {
+    badge: "일치",
+    tone: "success",
+    title: "가입 기록과 일치해요",
+  },
+  mismatch: {
+    badge: "불일치",
+    tone: "warning",
+    title: "가입 기록과 일치하지 않아요",
+  },
+  missing: {
+    badge: "기록 없음",
+    tone: "neutral",
+    title: "이 번호의 가입 기록을 찾지 못했어요",
+  },
+} as const;
+const REFERENCE_NAMES: Record<string, string> = {
+  rule: "진단 기준 등록",
+  product: "상품 설명서 등록",
+  diagnosis: "진단",
+  subscribe: "청약",
+  confirm: "최종 확인",
+  withdraw: "철회",
+  settle: "모의 결제",
 };
-/** 원본 파일이 있어야 확인할 수 있는 항목. */
-const needsOriginal = new Set(["고객 원본 무결성", "고객 모의 서명"]);
-
-type Verified = Awaited<ReturnType<typeof verifyEvidence>>;
-type Outcome =
-  | { kind: "match"; result: Verified; hasOriginal: boolean }
-  | { kind: "mismatch"; items: string[]; result?: Verified }
-  | { kind: "missing" };
 
 /**
  * 판매 채널 시연의 고객 검증 테스트 화면. 고객이 증명서 번호나 파일로 가입 기록을 확인하는 모습을 보여 준다.
- * 판매사 API를 부르지 않고 브라우저가 지정 RPC로 원장과 대조한다. 결과는 일치, 불일치, 기록 없음 세 가지다.
+ * 판매사 API를 부르지 않고 브라우저가 지정 RPC로 원장과 대조한다(verifySale). 결과는 일치, 불일치, 기록 없음이다.
  */
 export function CustomerVerify({
   deployment,
@@ -50,13 +61,12 @@ export function CustomerVerify({
   const [id, setId] = useState(initialId);
   const [receipt, setReceipt] = useState<EvidenceReceipt>();
   const [original, setOriginal] = useState<OriginalBundle>();
-  const [outcome, setOutcome] = useState<Outcome>();
+  const [result, setResult] = useState<SaleVerification>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const version = `v${deployment?.ledgerVersion ?? deployment?.ruleVersion ?? 1}`;
 
   const load = async (file: File | undefined, kind: "receipt" | "original") => {
-    setOutcome(undefined);
+    setResult(undefined);
     setError("");
     if (kind === "receipt") setReceipt(undefined);
     else setOriginal(undefined);
@@ -66,13 +76,13 @@ export function CustomerVerify({
         throw new Error("2MB 이하 파일을 골라 주세요.");
       const parsed = JSON.parse(await file.text());
       if (
-        parsed?.format !== `finveric-${kind}-${version}` ||
+        parsed?.format !== `finveric-${kind}-v5` ||
         typeof parsed.saleId !== "string"
       )
         throw new Error(
           kind === "receipt"
-            ? "가입 증명서 파일을 골라 주세요. 이전 버전의 증명서는 감독기관 화면에서 확인해요."
-            : "가입 원본 파일을 골라 주세요. 이전 버전의 원본은 감독기관 화면에서 확인해요.",
+            ? "가입 증명서 파일을 골라 주세요."
+            : "가입 원본 파일을 골라 주세요.",
         );
       if (kind === "receipt") {
         setReceipt(parsed);
@@ -94,47 +104,27 @@ export function CustomerVerify({
     const saleId = id.trim();
     if (!deployment || !saleId || loading) return;
     setLoading(true);
-    setOutcome(undefined);
+    setResult(undefined);
     setError("");
     try {
-      const { verifyEvidence } =
+      const { verifySale } =
         await import("../../../../../packages/core/src/verify.ts");
-      const result = await verifyEvidence(
-        deployment,
-        saleId,
-        receipt,
-        original,
-      );
-      const checked = result.checks.filter(
-        (c) => original || !needsOriginal.has(c.name),
-      );
-      const failed = checked.filter((c) => !c.ok);
-      setOutcome(
-        failed.length
-          ? {
-              kind: "mismatch",
-              items: failed.map((c) => itemNames[c.name] ?? c.name),
-              result,
-            }
-          : { kind: "match", result, hasOriginal: !!original },
-      );
+      setResult(await verifySale(deployment, saleId, receipt, original));
     } catch (e) {
       const message = e instanceof Error ? e.message : "";
-      if (message.includes("없는 판매 ID")) setOutcome({ kind: "missing" });
-      else if (message.includes("판매 ID 형식"))
-        setError("증명서 번호를 다시 확인해 주세요. 숫자로만 되어 있어요.");
-      else if (message.includes("영수증") || message.includes("고객 원본"))
-        setOutcome({
-          kind: "mismatch",
-          items: ["증명서나 원본 파일이 이 증명서 번호의 기록과 달라요"],
-        });
-      else setError("기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+      setError(
+        message.includes("판매 ID 형식")
+          ? "증명서 번호를 다시 확인해 주세요. 숫자로만 되어 있어요."
+          : message.includes("네트워크") || message.includes("컨트랙트")
+            ? "확인 화면의 기록 위치 설정이 달라요. 잠시 후 다시 시도해 주세요."
+            : "기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // 내 가입 기록에서 증명서 번호를 넘겨 열면 설정을 받은 뒤 한 번 바로 확인한다.
+  // 내 가입 기록이나 증명서에서 번호를 넘겨 열면 설정을 받은 뒤 한 번 바로 확인한다.
   const autoChecked = useRef(false);
   useEffect(() => {
     if (!initialId || !deployment || autoChecked.current) return;
@@ -143,6 +133,8 @@ export function CustomerVerify({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deployment]);
 
+  const outcome = result && OUTCOMES[result.outcome];
+  const failed = result?.checks.filter((check) => !check.ok) ?? [];
   return (
     <div className={s.page}>
       <div className={s.main}>
@@ -170,14 +162,14 @@ export function CustomerVerify({
               disabled={loading}
               onChange={(e) => {
                 setId(e.target.value);
-                setOutcome(undefined);
+                setResult(undefined);
               }}
               placeholder="증명서에 적힌 번호를 넣어 주세요"
             />
           </label>
           <label className={s.field}>
             가입 증명서 파일 (선택)
-            <small>가입 후 내려받은 검증 영수증이에요.</small>
+            <small>가입 후 내려받은 증명서예요.</small>
             <input
               type="file"
               accept="application/json,.json"
@@ -211,95 +203,74 @@ export function CustomerVerify({
             )}
           </Button>
         </form>
-        {outcome && (
+        {result && outcome && (
           <section
-            className={`${s.card} ${outcome.kind === "match" ? s.match : outcome.kind === "mismatch" ? s.mismatch : ""}`}
+            className={`${s.card} ${result.outcome === "match" ? s.match : result.outcome === "mismatch" ? s.mismatch : ""}`}
             aria-live="polite"
           >
             <div className={s.result}>
               <span className={s.icon}>
-                {outcome.kind === "match" ? (
+                {result.outcome === "match" ? (
                   <Check size={22} />
-                ) : outcome.kind === "mismatch" ? (
+                ) : result.outcome === "mismatch" ? (
                   <AlertTriangle size={22} />
                 ) : (
                   <SearchX size={22} />
                 )}
               </span>
               <div>
-                <Badge
-                  tone={
-                    outcome.kind === "match"
-                      ? "success"
-                      : outcome.kind === "mismatch"
-                        ? "warning"
-                        : "neutral"
-                  }
-                >
-                  {outcome.kind === "match"
-                    ? "일치"
-                    : outcome.kind === "mismatch"
-                      ? "불일치"
-                      : "기록 없음"}
-                </Badge>
-                <h2>
-                  {outcome.kind === "match"
-                    ? "가입 기록과 일치해요"
-                    : outcome.kind === "mismatch"
-                      ? "가입 기록과 일치하지 않아요"
-                      : "이 번호의 가입 기록을 찾지 못했어요"}
-                </h2>
+                <Badge tone={outcome.tone}>{outcome.badge}</Badge>
+                <h2>{outcome.title}</h2>
                 <p>
-                  {outcome.kind === "match"
-                    ? outcome.hasOriginal
+                  {result.outcome === "match"
+                    ? original
                       ? "진단 답변과 설명서까지 가입 당시 기록 그대로 보관돼 있어요."
                       : "가입 기록이 안전하게 보관돼 있어요. 원본 파일을 함께 고르면 진단 답변과 설명서도 확인할 수 있어요."
-                    : outcome.kind === "mismatch"
+                    : result.outcome === "mismatch"
                       ? "아래 항목이 가입 당시 기록과 달라요. 받은 서류를 보관하고 판매사나 감독기관에 문의해 주세요."
                       : "증명서 번호를 다시 확인해 주세요. 번호가 맞다면 판매사나 감독기관에 문의해 주세요."}
                 </p>
-                {outcome.kind === "mismatch" && (
+                {result.outcome === "mismatch" && (
                   <ul className={s.items}>
-                    {outcome.items.map((item) => (
-                      <li key={item}>{item}</li>
+                    {failed.map((check) => (
+                      <li key={check.name}>{check.name}</li>
                     ))}
                   </ul>
                 )}
               </div>
             </div>
-            {outcome.kind !== "missing" && outcome.result && (
+            {result.outcome !== "missing" && (
               <details className={s.tech}>
                 <summary>기술 정보 보기</summary>
                 <Facts
                   rows={[
-                    ["증명서 번호", <code>{outcome.result.saleId}</code>],
-                    [
-                      "네트워크",
-                      deployment?.chainId === 11155111
-                        ? "Sepolia 테스트넷"
-                        : "Anvil 테스트 원장",
-                    ],
-                    ["원장 버전", version],
+                    ["증명서 번호", <code>{result.saleId}</code>],
+                    ["네트워크", networkName(deployment)],
+                    ["원장 버전", `v${deployment?.ledgerVersion ?? "—"}`],
                     ["컨트랙트", <code>{deployment?.ledger}</code>],
+                    ["확인 시각", dateTime(result.verifiedAt)],
                   ]}
                 />
                 <ul className={s.checks}>
-                  {outcome.result.checks.map((c) => (
-                    <li key={c.name}>
-                      <span>{itemNames[c.name] ?? c.name}</span>
+                  {result.checks.map((check) => (
+                    <li key={check.name}>
                       <span>
-                        {!original && needsOriginal.has(c.name)
-                          ? "원본 필요"
-                          : c.ok
-                            ? "일치"
-                            : "불일치"}
+                        {check.name}
+                        <small>{check.detail}</small>
                       </span>
+                      <span>{check.ok ? "일치" : "불일치"}</span>
                     </li>
                   ))}
-                  {outcome.result.procedureReferences.map((r) => (
-                    <li key={`${r.kind}:${r.txHash}`}>
-                      <span>기록 거래 · 블록 {r.block}</span>
-                      <code title={r.txHash}>{short(r.txHash)}</code>
+                  {result.references.map((reference) => (
+                    <li key={`${reference.kind}:${reference.txHash}`}>
+                      <span>
+                        {REFERENCE_NAMES[reference.kind]}
+                        {reference.attempt ? ` ${reference.attempt}회차` : ""} ·
+                        블록 {reference.block}
+                      </span>
+                      <code title={reference.txHash}>
+                        {short(reference.txHash)}
+                      </code>
                     </li>
                   ))}
                 </ul>

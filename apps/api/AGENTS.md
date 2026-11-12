@@ -16,22 +16,25 @@ modules/       업무 절차(서비스): 담당자별 절차
 repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gateways/  원장(EVM)·증명(snarkjs) 연동
 ```
 
-| 위치                          | 내용                                                                                 |
-| ----------------------------- | ------------------------------------------------------------------------------------ |
-| `src/app.ts`                  | Fastify 조립: 접근 코드, 출처 검사, CORS, 요청 한도, 오류 응답, 경로 등록            |
-| `src/routes/`                 | `system`(상태·설정), `products`(등록), `sales`(가입 절차), `records`(처리 기록·증빙) |
-| `src/service.ts`              | `FundService`: 실행 맥락, 시작 검사. 업무 메서드는 모듈로 넘긴다                     |
-| `src/modules/products.ts`     | 운용사·판매사: 상품·설명서 버전과 진단 규칙 등록                                     |
-| `src/modules/enrollment.ts`   | 판매 채널: 가입 신청, 진단, 최종 확인과 가입 거래, 중단                              |
-| `src/modules/review.ts`       | 관리자 승인: 세 번째 진단부터 판매사 관리자의 검토 서명                              |
-| `src/modules/purchase.ts`     | 기존 펀드 업무 인프라: 모의 매입                                                     |
-| `src/modules/records.ts`      | 공개 조회, 처리 기록, 고객 증빙(영수증·원본)                                         |
-| `src/modules/health.ts`       | 운영: RPC·원장·저장소 점검(`/api/health`, 실패 시 503)                               |
-| `src/modules/transactions.ts` | 원장 거래 처리 기록: 제출 기록, 영수증 대조                                          |
-| `src/repositories/sales.ts`   | `SaleRepository`: 판매 건·처리 기록, 저장, 잠금(`transaction`, `read`)               |
-| `src/repositories/store.ts`   | 저장 방식: 로컬 `FileStore`, Vercel `RedisStore`                                     |
-| `src/gateways/ledger.ts`      | 원장 읽기·쓰기·서명·영수증. 판매 기록은 바꾸지 않는다                                |
-| `src/gateways/proofs.ts`      | Groth16 증명 생성과 원장 호출 형식 변환                                              |
+| 위치                          | 내용                                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------------- |
+| `src/app.ts`                  | Fastify 조립: 접근 코드, 출처 검사, CORS, 요청 한도, 오류 응답, 경로 등록                   |
+| `src/routes/`                 | `system`(상태·설정), `registry`(기준·상품), `customers`(진단·변경 시연), `sales`, `records` |
+| `src/service.ts`              | `FundService`: 실행 맥락, 시작 검사. 업무 메서드는 모듈로 넘긴다                            |
+| `src/modules/rules.ts`        | 소비자보호 담당: 진단 기준 버전 등록과 조회, 최신 기준                                      |
+| `src/modules/products.ts`     | 소비자보호 담당: 상품 설명서 버전 등록과 조회, 시연 기준·상품 일괄 등록                     |
+| `src/modules/customers.ts`    | 판매 채널: 고객 가명 ID, 진단 회차(증명 생성 → 판매사 키로 기록)                            |
+| `src/modules/enrollment.ts`   | 판매 채널: 신청(초안), 중단, 청약, 숙려 뒤 최종 확인, 철회                                  |
+| `src/modules/review.ts`       | 관리자 승인: 3회차 이상 진단한 고객의 청약 전 승인자 서명                                   |
+| `src/modules/settlement.ts`   | 기존 업무 인프라: 모의 결제 기록                                                            |
+| `src/modules/records.ts`      | 판매 건 조회, 처리 기록, 고객 증빙(증명서·원본 묶음)                                        |
+| `src/modules/demo.ts`         | 시연: 기록한 회차의 사후 변경 시도(시뮬레이션만)                                            |
+| `src/modules/health.ts`       | 운영: RPC·원장·저장소 점검(`/api/health`, 실패 시 503)                                      |
+| `src/modules/transactions.ts` | 원장 거래 처리: 시뮬레이션 → 제출 → 영수증 대조와 처리 기록                                 |
+| `src/repositories/sales.ts`   | `SaleRepository`: 판매 건·진단 원본·등록 원문·처리 기록, 저장, 잠금(`transaction`, `read`)  |
+| `src/repositories/store.ts`   | 저장 방식: 로컬 `FileStore`, Vercel `RedisStore`                                            |
+| `src/gateways/ledger.ts`      | 원장 읽기·시뮬레이션·쓰기·승인 서명·영수증. 판매 기록은 바꾸지 않는다                       |
+| `src/gateways/proofs.ts`      | Groth16 증명 생성. 증명 키는 `FINVERIC_ZK_DIR`(기본 `circuits/build`)                       |
 
 - 경로는 `FundService`만 부른다. 모듈·리포지토리·게이트웨이를 직접 부르지 않는다.
 - 모듈은 판매 기록을 `svc.repository`로만 바꾼다. 원장과 증명은 `gateways/`로만 부른다. `svc.client`를 직접 쓰지 않는다.
@@ -39,6 +42,14 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
 - 요청 스키마와 요청·응답 타입은 `packages/core/src/api.ts`의 DTO를 쓴다. 경로에서 스키마를 새로 쓰지 않는다. 모듈 함수의 반환 타입도 DTO(`SaleView` 등)로 적는다.
 - 모듈 함수는 첫 인자로 `FundService`를 받는다. 하위 계층은 `service.ts`를 타입으로만 import한다. 실행 시 순환 import를 만들지 않는다.
 - 새 업무는 맞는 모듈에 넣는다. `FundService`에는 외부(경로, 테스트, 스크립트)가 부르는 메서드만 둔다.
+
+## 원장 거래
+
+- 원장 쓰기는 `transactions.send()`만 쓴다. 먼저 역할 계정으로 시뮬레이션한다. 원장이 거절하면 거래를 보내지 않고, 원장 오류 이름(예: `TooEarly`)을 처리 기록에 남긴다.
+- 미확정 거래가 있으면 새 거래를 거절한다. 진단 회차 번호는 원장의 `attemptCount + 1`이다.
+- 진단 원본(답변·임의값)과 등록 원문은 거래를 보내기 전에 저장한다. 원장이 거절하거나 거래가 실패하면 지운다. 영수증을 기다리는 중이면 남긴다.
+- 청약 뒤 판매 건 상태는 원장에서 읽는다. 저장소에는 원장 밖의 값(초안, 승인 서명, 모의 녹취록, 진단 원본)만 둔다.
+- 기준과 상품 버전 번호는 API가 원장의 다음 버전으로 정한다. 원장에는 정렬한 JSON 원문을 등록한다.
 
 ## 기록과 잠금
 
@@ -50,17 +61,18 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
 ## 오류와 비밀 값
 
 - 응답 오류는 우리가 쓴 한국어 문장만 내보낸다. RPC와 Redis 오류에는 주소와 토큰이 들어갈 수 있다.
-- 공개 조회와 로그에 답변·총점·임의값·개인키를 넣지 않는다.
+- 공개 조회와 로그에 답변·총점·임의값·고객 번호·개인키·승인 서명을 넣지 않는다. 고객은 가명 ID로만 표시한다.
+- 고객 가명 ID 비밀값은 `CUSTOMER_REF_SECRET`이다. 없으면 판매사 키에서 만든다. 비밀값을 바꾸면 같은 고객의 회차가 이어지지 않는다.
 
 ## 파일과 배포
 
-- 실행 중 읽는 파일의 경로는 `scripts/root.ts`의 `fromRoot()`로 만든다. Vercel 함수는 함수 디렉터리를 기준으로 읽는다.
+- 실행 중 읽는 파일의 경로는 `scripts/root.ts`의 `fromRoot()`로 만든다. 증명 키는 `zkPath()`로 만든다. Vercel 함수는 함수 디렉터리를 기준으로 읽는다.
 - 새로 읽는 파일이 생기면 `scripts/build-vercel.mjs`에서 함수 디렉터리에 복사한다.
 - 증명 키를 바꾸면 Verifier와 원장을 다시 배포한다. 키 지문이 배포 설정과 다르면 API가 시작을 거절한다.
 - 한 요청은 Vercel 함수 최대 실행 시간 300초 안에 끝나야 한다. Sepolia 영수증 대기도 포함한다.
 
 ## 검사
 
-- `tests/mvp.test.ts`: 실제 회로·EVM·API·독립 검증과 공유 저장소 인스턴스.
+- `tests/mvp.test.ts`: 실제 회로·EVM·API·독립 검증, 위험 신호, 공유 저장소 인스턴스, 재시작 복구.
 - `tests/store.test.ts`: 잠금, 만료, 오류 노출, 출처, Vercel 주소 변환.
 - 함수 번들: `NETWORK=local npm run build:vercel` 뒤 임시 디렉터리에서 로컬 Anvil로 번들 핸들러를 호출해 확인한다.

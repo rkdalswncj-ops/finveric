@@ -1,60 +1,152 @@
-// 운용사·판매사: 상품·설명서 버전과 진단 규칙 등록.
+// 판매사 소비자보호 담당: 상품 설명서 버전 등록과 조회, 시연 기준·상품 일괄 등록.
 import type { Hex } from "viem";
 import {
-  PRODUCTS,
-  RULE_HASH,
+  DEMO_PRODUCTS,
+  DEMO_RULE,
+  defineProduct,
+  productId,
+  productText,
+  validateProduct,
   type Product,
+  type ProductDocument,
 } from "../../../../packages/core/src/index.ts";
-import type { RegisterResponse } from "../../../../packages/core/src/api.ts";
+import type {
+  ProductEntry,
+  RegisterResponse,
+} from "../../../../packages/core/src/api.ts";
 import type { FundService } from "../service.ts";
-import { readProduct, readRule } from "../gateways/ledger.ts";
+import type { StoredProduct } from "../repositories/sales.ts";
+import {
+  readLatestProductVersion,
+  readProduct,
+  readRuleCount,
+} from "../gateways/ledger.ts";
 import { send } from "./transactions.ts";
+import { listRules, registerRule } from "./rules.ts";
 
-export function requireProduct(id: Hex): Product {
-  const product = PRODUCTS.find((entry) => entry.id === id.toLowerCase());
-  if (!product) throw new Error("가입할 수 있는 펀드를 선택해 주세요.");
-  return product;
+/** 상품마다 모든 등록 버전을 준다. 등록하지 않은 시연 상품은 미등록으로 함께 준다. */
+export async function listProducts(svc: FundService): Promise<ProductEntry[]> {
+  const stored = [...svc.repository.products()].sort((a, b) =>
+    a.product.id === b.product.id
+      ? a.product.version - b.product.version
+      : a.product.document.code.localeCompare(b.product.document.code),
+  );
+  const ids = [
+    ...new Set([
+      ...stored.map((entry) => entry.product.id),
+      ...DEMO_PRODUCTS.map((product) => product.id),
+    ]),
+  ];
+  const latest = new Map<Hex, number>(
+    await Promise.all(
+      ids.map(
+        async (id) => [id, await readLatestProductVersion(svc, id)] as const,
+      ),
+    ),
+  );
+  const entries: ProductEntry[] = await Promise.all(
+    stored.map(async ({ product, txHash }) => {
+      const chain = await readProduct(svc, product.id, product.version);
+      const registered = chain.documentHash === product.documentHash;
+      return {
+        product,
+        registered,
+        latest: registered && latest.get(product.id) === product.version,
+        txHash,
+      };
+    }),
+  );
+  for (const product of DEMO_PRODUCTS)
+    if (
+      !latest.get(product.id) &&
+      !stored.some((e) => e.product.id === product.id)
+    )
+      entries.push({ product, registered: false, latest: false });
+  return entries;
 }
 
-/** 상품의 설명서와 진단 규칙 v3이 원장에 등록되어 있는지 확인한다. */
-export async function isRegistered(svc: FundService, product: Product) {
-  const [{ documentHash, minimumProfile }, rule] = await Promise.all([
-    readProduct(svc, product.id),
-    readRule(svc),
-  ]);
-  return (
-    documentHash === product.documentHash &&
-    minimumProfile === product.minimumProfile &&
-    rule
-  );
+/** 청약에 쓸 상품 버전. 원장의 최신 버전이고 원문이 판매 기록에 있어야 한다. */
+export async function latestProduct(
+  svc: FundService,
+  id: Hex,
+): Promise<Product> {
+  const version = await readLatestProductVersion(svc, id);
+  if (version === 0) throw new Error("이 상품을 먼저 원장에 등록하세요.");
+  return storedProduct(svc, id, version);
+}
+export function storedProduct(svc: FundService, id: Hex, version: number) {
+  const entry = svc.repository
+    .products()
+    .find(
+      ({ product }) =>
+        product.id.toLowerCase() === id.toLowerCase() &&
+        product.version === version,
+    );
+  if (!entry)
+    throw new Error("원장의 상품 설명서 원문을 판매 기록에서 찾을 수 없어요.");
+  return entry.product;
 }
 
 /**
- * 운용사가 세 상품의 설명서를, 판매사가 진단 규칙 v3을 원장에 등록한다.
- * 이미 같은 값이 있으면 거래를 보내지 않는다. 다른 값이 있으면 거절한다.
+ * 설명서를 검사하고 그 상품의 다음 버전으로 원장에 등록한다.
+ * 원장은 원문(정렬한 JSON)에서 지문을 계산한다. 위험등급·고난도·파생 여부는 원문과 같은 값을 보낸다.
  */
-export async function register(svc: FundService): Promise<RegisterResponse> {
-  const registrations = await Promise.all(
-    PRODUCTS.map((product) => readProduct(svc, product.id)),
-  );
-  for (const [index, product] of PRODUCTS.entries()) {
-    const { documentHash, minimumProfile } = registrations[index];
-    if (minimumProfile === 0) {
-      await send(
-        svc,
-        "manager",
-        "registerProduct",
-        [product.id, product.documentHash, product.minimumProfile],
-        "ProductRegistered",
+export async function registerProduct(
+  svc: FundService,
+  document: ProductDocument,
+): Promise<ProductEntry> {
+  const id = productId(document.code);
+  const version = (await readLatestProductVersion(svc, id)) + 1;
+  const doc: ProductDocument = { ...document, version };
+  const errors = validateProduct(doc);
+  if (errors.length)
+    throw new Error(`상품 설명서를 확인해 주세요. ${errors.join(" ")}`);
+  const product = defineProduct(doc);
+  const stored: StoredProduct = { product };
+  svc.repository.addProduct(stored);
+  try {
+    await send(
+      svc,
+      "seller",
+      "registerProduct",
+      [id, productText(doc), doc.riskGrade, doc.complex, doc.derivative],
+      {
+        event: "ProductRegistered",
+        match: (log) =>
+          log.eventName === "ProductRegistered" &&
+          log.args.productId === id &&
+          log.args.version === version &&
+          log.args.documentHash === product.documentHash,
+        onSubmitted: (txHash) => {
+          stored.txHash = txHash;
+        },
+      },
+    );
+  } catch (error) {
+    const pending = svc.repository
+      .traces()
+      .some(
+        ({ trace }) =>
+          !!stored.txHash &&
+          trace.txHash === stored.txHash &&
+          trace.status === "pending",
       );
-    } else if (
-      documentHash !== product.documentHash ||
-      minimumProfile !== product.minimumProfile
-    ) {
-      throw new Error("이미 등록한 상품의 설명서나 위험 기준이 달라요.");
-    }
+    if (!pending) svc.repository.removeProduct(stored);
+    throw error;
   }
-  if (!(await readRule(svc)))
-    await send(svc, "seller", "registerRule", [RULE_HASH], "RuleRegistered");
-  return { documentHash: PRODUCTS[0].documentHash, ruleHash: RULE_HASH };
+  return { product, registered: true, latest: true, txHash: stored.txHash };
+}
+
+/**
+ * 시연 단축 동작. 기준이 하나도 없으면 시연 기준 v1을, 등록하지 않은 시연 상품을 v1로 등록한다.
+ * 이미 있으면 거래를 보내지 않는다.
+ */
+export async function registerDemo(
+  svc: FundService,
+): Promise<RegisterResponse> {
+  if ((await readRuleCount(svc)) === 0) await registerRule(svc, DEMO_RULE);
+  for (const product of DEMO_PRODUCTS)
+    if ((await readLatestProductVersion(svc, product.id)) === 0)
+      await registerProduct(svc, product.document);
+  return { rules: await listRules(svc), products: await listProducts(svc) };
 }

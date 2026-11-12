@@ -1,439 +1,320 @@
+// core 공개 API: 진단 기준·상품·판정·해시·커밋먼트·증명 형식·원장 ABI·증빙 형식.
+// 원장 읽기(ledger.ts)와 독립 검증(verify.ts)은 각 파일에서 직접 import한다.
 import {
+  concat,
   encodeAbiParameters,
-  getAbiItem,
   keccak256,
-  parseAbi,
   parseAbiParameters,
   stringToHex,
   type Address,
-  type ContractFunctionArgs,
   type Hex,
 } from "viem";
-import { poseidon10 } from "poseidon-lite/poseidon10";
+import { poseidon16 } from "poseidon-lite/poseidon16";
+import { FIELD, fieldHex } from "./encoding.ts";
+import {
+  MAX_QUESTIONS,
+  answersFit,
+  ruleFields,
+  ruleTextHash,
+  type RuleDocument,
+} from "./rules.ts";
+import type { ProductDocument } from "./products.ts";
 
-export const FIELD =
-  21888242871839275222246405745257275088548364400416034343698204186575808495617n;
-export const RULE_TEXT =
-  "FINVERIC_RULE_V3:profile=1+[sum>=2]+[sum>=3];higher-risk-if-profile<registered-product-minimum;self-directed-confirmation";
-export const RULE_HASH = keccak256(stringToHex(RULE_TEXT));
-export const RULE_HASH_V2 = keccak256(
-  stringToHex(
-    "FINVERIC_RULE_V2:profile=1+[sum>=2]+[sum>=3];higher-risk-if-profile<3;self-directed-confirmation",
-  ),
-);
-export const RULE_HASH_V1 = keccak256(
-  stringToHex("FINVERIC_RULE_V1:loss[0,2]+experience[0,2]>=3;risk=1"),
-);
-export const MIN_PROFILE = 3;
-export const PROFILE_NAMES: Readonly<Record<number, string>> = {
-  1: "안정형",
-  2: "균형형",
-  3: "적극형",
-};
-export const PRODUCT_ID = keccak256(stringToHex("FUND-DEMO-001:Ce:v1"));
-export const DOCUMENT = {
-  product: "FUND-DEMO-001",
-  name: "균형성장 글로벌 펀드",
-  class: "온라인 Ce",
-  version: "v1",
-  manager: "데모자산운용",
-  seller: "데모증권",
-  risk: "3등급 · 다소 높은 위험",
-  annualFee: "0.68%",
-  strategy: "글로벌 주식 60%와 채권 40%에 분산 투자해요.",
-  warning:
-    "원금 손실 가능. 예금자보호 대상이 아니에요. 모든 상품과 기관은 시연용이에요.",
-};
-export function canonical(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
-  return `{${Object.keys(value)
-    .sort()
-    .map(
-      (k) =>
-        `${JSON.stringify(k)}:${canonical((value as Record<string, unknown>)[k])}`,
-    )
-    .join(",")}}`;
-}
-export const hashObject = (value: unknown) =>
-  keccak256(stringToHex(canonical(value)));
-export const DOCUMENT_HASH = hashObject(DOCUMENT);
+export * from "./encoding.ts";
+export * from "./rules.ts";
+export * from "./products.ts";
+export * from "./abi.ts";
+export * from "./signals.ts";
 
-export type Product = {
-  id: Hex;
-  document: typeof DOCUMENT;
-  documentHash: Hex;
-  category: "주식혼합" | "채권" | "주식";
-  minimumProfile: number;
-};
-function defineProduct(
-  document: Product["document"],
-  category: Product["category"],
-  minimumProfile: number,
-): Product {
-  return {
-    id: keccak256(stringToHex(`${document.product}:Ce:${document.version}`)),
-    document,
-    documentHash: hashObject(document),
-    category,
-    minimumProfile,
-  };
-}
-export const PRODUCTS = [
-  defineProduct(DOCUMENT, "주식혼합", MIN_PROFILE),
-  defineProduct(
-    {
-      ...DOCUMENT,
-      product: "FUND-DEMO-002",
-      name: "단기채권 안정추구 펀드",
-      risk: "5등급 · 낮은 위험",
-      annualFee: "0.24%",
-      strategy: "단기 우량채권을 중심으로 운용하는 가상 상품이에요.",
-    },
-    "채권",
-    1,
-  ),
-  defineProduct(
-    {
-      ...DOCUMENT,
-      product: "FUND-DEMO-003",
-      name: "글로벌 혁신기업 펀드",
-      risk: "2등급 · 높은 위험",
-      annualFee: "0.92%",
-      strategy: "글로벌 기술·성장 기업에 투자하는 가상 상품이에요.",
-    },
-    "주식",
-    3,
-  ),
+// ── 배포와 역할 ─────────────────────────────────────────────
+
+/** 역할별 키. 원장은 deployer를 제외한 네 역할만 안다. */
+export const ROLES = [
+  "deployer",
+  "seller",
+  "approver",
+  "customer",
+  "infrastructure",
 ] as const;
-export const field = (value: string | bigint) =>
-  (BigInt(value) % FIELD).toString();
-export const json = (value: unknown) =>
-  JSON.stringify(
-    value,
-    (_, v) => (typeof v === "bigint" ? v.toString() : v),
-    2,
-  );
+export type Role = (typeof ROLES)[number];
 
+/** 공개 검증 설정. `.local/deployment-<network>.json`과 `deploy/<network>/deployment.json`. */
 export interface Deployment {
-  ruleVersion?: 2 | 3;
-  ledgerVersion?: 3 | 4;
+  ledgerVersion: 5;
   proofKeyHash: string;
   chainId: 31337 | 11155111;
   ledger: Address;
   verifier: Address;
   blockNumber: string;
   rpcUrl: string;
+  /** 녹취·숙려 대상의 최소 경과 시간(초). 원장 생성자 값과 같다. */
+  coolingPeriod: number;
   roles: Record<Role, Address>;
   verifierCodeHash: Hex;
   ledgerCodeHash: Hex;
 }
-export function deploymentRuleHash({
-  ruleVersion,
-}: Pick<Deployment, "ruleVersion">) {
-  return ruleVersion === 3
-    ? RULE_HASH
-    : ruleVersion === 2
-      ? RULE_HASH_V2
-      : RULE_HASH_V1;
+
+// ── 고객 가명 ID ────────────────────────────────────────────
+
+/** 시연 고객 번호. */
+export const DEMO_CUSTOMER_NO = "C-0001";
+export const CUSTOMER_NO_PATTERN = /^[A-Za-z0-9-]{1,32}$/;
+/**
+ * 고객 가명 ID = keccak256(판매사 비밀값 ‖ 고객 번호) mod FIELD. 0x 32바이트 hex.
+ * 비밀값이 없으면 고객 번호에서 가명 ID를 다시 만들 수 없다.
+ */
+export function customerRefFor(secret: Hex, customerNo: string): Hex {
+  if (!CUSTOMER_NO_PATTERN.test(customerNo))
+    throw new Error("고객 번호 형식을 확인해 주세요.");
+  return fieldHex(
+    BigInt(keccak256(concat([secret, stringToHex(customerNo)]))) % FIELD,
+  );
 }
-export type Role =
-  | "deployer"
-  | "manager"
-  | "seller"
-  | "compliance"
-  | "customer"
-  | "infrastructure";
-export interface Answers {
-  loss: number;
-  experience: number;
-}
-export function classifyProfile({ loss, experience }: Answers): number {
-  const score = loss + experience;
-  return 1 + Number(score >= 2) + Number(score >= 3);
-}
+/** 비밀값을 따로 정하지 않으면 판매사 키에서 만든다. */
+export const customerRefSecret = (sellerPrivateKey: Hex) =>
+  keccak256(concat([sellerPrivateKey, stringToHex("finveric-customer-ref")]));
+
+// ── 커밋먼트와 증명 ─────────────────────────────────────────
+
+export type DiagnosisContext = {
+  chainId: number;
+  ledger: string;
+  customerRef: Hex | bigint;
+  attempt: number;
+  ruleHash: Hex | bigint;
+};
+
+/** 답변을 회로의 10칸에 맞춘다. 쓰지 않는 문항의 답은 0이다. */
+export const paddedAnswers = (answers: readonly number[]) =>
+  Array.from({ length: MAX_QUESTIONS }, (_, q) => BigInt(answers[q] ?? 0));
+
+/** 답변 커밋먼트 = Poseidon(답변 10개, 임의값, 체인 ID, 원장, 고객 가명 ID, 회차, 기준 해시). */
 export function diagnosisCommitment(
-  answers: Answers,
-  salt: string,
-  context: {
-    chainId: number;
-    ledger: string;
-    id: string;
-    round: number;
-    ruleHash?: string;
-    documentHash?: string;
-  },
+  answers: readonly number[],
+  salt: string | bigint,
+  context: DiagnosisContext,
 ): bigint {
-  return poseidon10([
-    BigInt(answers.loss),
-    BigInt(answers.experience),
-    0n,
+  return poseidon16([
+    ...paddedAnswers(answers),
     BigInt(salt),
     BigInt(context.chainId),
     BigInt(context.ledger),
-    BigInt(context.id),
-    BigInt(context.round),
-    BigInt(field(context.ruleHash ?? RULE_HASH)),
-    BigInt(field(context.documentHash ?? DOCUMENT_HASH)),
+    BigInt(context.customerRef),
+    BigInt(context.attempt),
+    BigInt(context.ruleHash),
   ]);
 }
-export interface Diagnosis {
-  round: number;
-  answers: Answers;
-  salt: string;
-  commitment: string;
-  profile?: number;
-  proof?: any;
-  publicSignals?: string[];
-  confirmed: boolean;
+
+/** snarkjs `groth16.fullProve`에 넣는 회로 입력. 이름과 순서는 suitability.circom과 같다. */
+export function proofInput(
+  rule: RuleDocument,
+  answers: readonly number[],
+  salt: string | bigint,
+  context: DiagnosisContext,
+) {
+  if (!answersFit(rule, answers))
+    throw new Error("답변이 진단 기준의 선택지 범위를 벗어났어요.");
+  const fields = ruleFields(rule).map(String);
+  const chunk = (q: number) => fields.slice(q * 16, q * 16 + 16);
+  const option = (offset: number) =>
+    Array.from({ length: MAX_QUESTIONS }, (_, q) =>
+      Array.from({ length: 5 }, (_, o) => chunk(q)[1 + o * 3 + offset]),
+    );
+  const tail = chunk(10);
+  return {
+    answers: paddedAnswers(answers).map(String),
+    salt: BigInt(salt).toString(),
+    optionCount: Array.from({ length: MAX_QUESTIONS }, (_, q) => chunk(q)[0]),
+    score: option(0),
+    cap: option(1),
+    elderly: option(2),
+    threshold: tail.slice(0, 4),
+    matrix: tail.slice(4, 9),
+    textHash: ruleTextHash(rule).toString(),
+    commitment: diagnosisCommitment(answers, salt, context).toString(),
+    chainId: String(context.chainId),
+    ledger: BigInt(context.ledger).toString(),
+    customerRef: BigInt(context.customerRef).toString(),
+    attempt: String(context.attempt),
+    ruleHash: BigInt(context.ruleHash).toString(),
+  };
 }
+
+/** 회로의 공개 신호 순서. */
+export const PUBLIC_SIGNALS = [
+  "profile",
+  "limit",
+  "elderly",
+  "commitment",
+  "chainId",
+  "ledger",
+  "customerRef",
+  "attempt",
+  "ruleHash",
+] as const;
+
+/** snarkjs 증명(JSON). */
+export type Groth16Proof = {
+  pi_a: string[];
+  pi_b: string[][];
+  pi_c: string[];
+};
+/** 원장 recordDiagnosis의 증명 인자 [a0, a1, b00, b01, b10, b11, c0, c1]. b는 Solidity 순서로 바꾼다. */
+export type ProofWords = readonly [
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+];
+export function solidityProof({ pi_a, pi_b, pi_c }: Groth16Proof): ProofWords {
+  return [
+    pi_a[0],
+    pi_a[1],
+    pi_b[0][1],
+    pi_b[0][0],
+    pi_b[1][1],
+    pi_b[1][0],
+    pi_c[0],
+    pi_c[1],
+  ].map(BigInt) as unknown as ProofWords;
+}
+/** Verifier 호출 형식으로 나눈다. */
+export const verifierArgs = (proof: ProofWords) =>
+  [
+    [proof[0], proof[1]],
+    [
+      [proof[2], proof[3]],
+      [proof[4], proof[5]],
+    ],
+    [proof[6], proof[7]],
+  ] as const;
+
+// ── 승인과 녹취 ─────────────────────────────────────────────
+
+const approvalParameters = parseAbiParameters(
+  "string, uint256, address, uint256, uint256, uint32",
+);
+/**
+ * 관리자 승인 원문의 해시. 승인자는 이 32바이트를 EIP-191(personal_sign)로 서명한다.
+ * 판매 ID, 고객 가명 ID, 회차에 묶인다. 원장과 같은 식이다.
+ */
+export function approvalDigest(
+  dep: Pick<Deployment, "chainId" | "ledger">,
+  saleId: string | bigint,
+  customerRef: Hex | bigint,
+  attempt: number,
+): Hex {
+  return keccak256(
+    encodeAbiParameters(approvalParameters, [
+      "FINVERIC_APPROVAL_V5",
+      BigInt(dep.chainId),
+      dep.ledger,
+      BigInt(saleId),
+      BigInt(customerRef),
+      attempt,
+    ]),
+  );
+}
+/** 녹취 지문 = keccak256(녹취록). 시연은 모의 녹취록을 쓴다. */
+export const recordingHash = (text: string) => keccak256(stringToHex(text));
+
+// ── 원장 상태 ───────────────────────────────────────────────
+
+/** getSale의 status 값. */
+export const SALE_STATUSES = [
+  "none",
+  "subscribed",
+  "confirmed",
+  "withdrawn",
+] as const;
+export type ChainSaleStatus = (typeof SALE_STATUSES)[number];
+/** 원장 getSale 결과. */
+export type ChainSale = {
+  customerRef: bigint;
+  productId: Hex;
+  recordingHash: Hex;
+  amount: bigint;
+  productVersion: number;
+  attempt: number;
+  explanationSeconds: number;
+  suitable: boolean;
+  protectedSale: boolean;
+  higherRiskConfirmed: boolean;
+  approved: boolean;
+  status: number;
+  subscribedAt: bigint;
+  confirmedAt: bigint;
+  withdrawnAt: bigint;
+  settledAt: bigint;
+};
+/** 원장 getDiagnosis 결과. */
+export type ChainDiagnosis = {
+  ruleHash: bigint;
+  commitment: bigint;
+  profile: number;
+  limit: number;
+  elderly: boolean;
+  recordedAt: bigint;
+};
+
+// ── 처리 기록과 증빙 ────────────────────────────────────────
+
 export interface Trace {
   id: string;
   at: string;
   source: string;
   action: string;
   status: "pending" | "confirmed" | "failed";
+  saleId?: string;
+  customerRef?: Hex;
   txHash?: Hex;
   blockNumber?: string;
   event?: string;
   detail?: unknown;
 }
-export interface SaleRecord {
-  id: string;
-  amount: number;
-  createdAt: string;
-  attempts: Diagnosis[];
-  signature?: Hex;
-  signatureMessage?: string;
-  traces: Trace[];
-}
-export interface ChainSale {
-  productId: Hex;
-  documentHash: Hex;
-  ruleHash: Hex;
-  attempts: number;
-  explained: boolean;
-  signed: boolean;
-  reviewed: boolean;
-  finalized: boolean;
-  purchaseState: number;
-  amount: bigint;
-  nav: bigint;
-  units: bigint;
-  pricedAt: bigint;
-  signatureHash: Hex;
-  higherRiskConfirmed: boolean;
-}
-export interface ChainAttempt {
-  commitment: bigint;
-  recorded: boolean;
-  profile: number;
-}
-export interface EvidenceReceipt {
-  format:
-    | "finveric-receipt-v1"
-    | "finveric-receipt-v2"
-    | "finveric-receipt-v3"
-    | "finveric-receipt-v4";
-  saleId: string;
-  chainId: number;
-  ledger: Address;
-  productId: Hex;
-  documentHash: Hex;
-  ruleHash: Hex;
-  transactions: Hex[];
-}
-type Original = {
-  saleId: string;
-  document: typeof DOCUMENT;
-};
-type LegacySignature = {
-  signature?: Hex;
-  signatureMessage?: string;
-};
-export type OriginalBundle = Original &
-  (
-    | (LegacySignature & {
-        format: "finveric-original-v1";
-        attempts: {
-          round: number;
-          answers: Answers & { risk: number };
-          salt: string;
-        }[];
-      })
-    | (LegacySignature & {
-        format: "finveric-original-v2";
-        attempts: { round: number; answers: Answers; salt: string }[];
-      })
-    | {
-        format: "finveric-original-v3" | "finveric-original-v4";
-        attempts: { round: number; answers: Answers; salt: string }[];
-      }
-  );
 export interface Check {
   name: string;
   ok: boolean;
   detail: string;
 }
 
-const sharedLedgerAbi = [
-  "function registerRule(bytes32 ruleHash)",
-  "function requestMockPurchase(uint256 saleId)",
-  "function awaitMockPurchase(uint256 saleId)",
-  "function recordMockPurchase(uint256 saleId, uint256 amount, uint256 nav, uint256 pricedAt)",
-  "function getSale(uint256 saleId) view returns (Sale)",
-  "function getAttempt(uint256 saleId, uint32 attempt) view returns (Attempt)",
-  "function documents(bytes32 productId) view returns (bytes32)",
-  "function rules(bytes32 ruleHash) view returns (bool)",
-  "event ProductRegistered(bytes32 indexed productId, bytes32 documentHash)",
-  "event RuleRegistered(bytes32 indexed ruleHash)",
-  "event SaleOpened(uint256 indexed saleId, bytes32 productId, bytes32 documentHash, bytes32 ruleHash)",
-  "event AnswersCommitted(uint256 indexed saleId, uint32 indexed attempt, uint256 commitment)",
-  "event ExplanationConfirmed(uint256 indexed saleId, uint32 attempt, bytes32 documentHash)",
-  "event ReviewApproved(uint256 indexed saleId, uint32 attempt)",
-  "event ConditionsVerified(uint256 indexed saleId, uint32 attempt)",
-  "event MockPurchaseUpdated(uint256 indexed saleId, uint8 state, uint256 amount, uint256 nav, uint256 units, uint256 pricedAt)",
-  "error Unauthorized()",
-  "error InvalidVersion()",
-  "error InvalidState()",
-  "error InvalidProof()",
-  "error MissingRecords()",
-] as const;
-const legacyProductRegistration =
-  "function registerProduct(bytes32 productId, bytes32 documentHash)" as const;
-const preAtomicLedgerAbi = [
-  "function openSale(uint256 saleId, bytes32 productId, bytes32 documentHash, bytes32 ruleHash)",
-  "function commitAnswers(uint256 saleId, uint32 attempt, uint256 commitment)",
-  "function recordDiagnosis(uint256 saleId, uint32 attempt, uint256[2] a, uint256[2][2] b, uint256[2] c, uint256[8] signals)",
-  "function confirmExplanation(uint256 saleId, uint32 attempt, bytes32 documentHash)",
-  "function confirmMockSignature(uint256 saleId, uint32 attempt, uint256 commitment, bytes32 signatureHash)",
-  "function approveReview(uint256 saleId, uint32 attempt)",
-  "function finalize(uint256 saleId)",
-  "event MockSignatureConfirmed(uint256 indexed saleId, uint32 attempt, uint256 commitment, bytes32 signatureHash)",
-] as const;
-const saleFields =
-  "bytes32 productId; bytes32 documentHash; bytes32 ruleHash; uint32 attempts; bool explained; bool signed; bool reviewed; bool finalized; uint8 purchaseState; uint256 amount; uint256 nav; uint256 units; uint256 pricedAt; bytes32 signatureHash;" as const;
-const profileLedgerAbi = [
-  `struct Sale { ${saleFields} bool higherRiskConfirmed; }`,
-  "struct Attempt { uint256 commitment; bool recorded; uint8 profile; }",
-  "event DiagnosisRecorded(uint256 indexed saleId, uint32 indexed attempt, uint256 commitment, uint8 profile)",
-  "event HigherRiskConfirmed(uint256 indexed saleId, uint32 attempt)",
-] as const;
-const atomicLedgerAbi = [
-  ...profileLedgerAbi,
-  ...sharedLedgerAbi,
-  "struct DiagnosisProof { uint256[2] a; uint256[2][2] b; uint256[2] c; uint256[8] signals; }",
-  "function completeEnrollment(uint256 saleId, bytes32 productId, bytes32 documentHash, bytes32 ruleHash, DiagnosisProof[] proofs, bool explanationAccepted, bool higherRiskAccepted, bytes reviewSignature)",
-  "event EnrollmentAuthorized(uint256 indexed saleId, uint32 attempt, address customer)",
-] as const;
-export const ledgerAbi = parseAbi([
-  ...atomicLedgerAbi,
-  "function registerProduct(bytes32 productId, bytes32 documentHash, uint8 minimumProfile)",
-  "function minimumProfiles(bytes32 productId) view returns (uint8)",
-]);
-export const ledgerAbiV3 = parseAbi([
-  ...atomicLedgerAbi,
-  legacyProductRegistration,
-]);
-export const ledgerAbiV2 = parseAbi([
-  ...profileLedgerAbi,
-  ...sharedLedgerAbi,
-  ...preAtomicLedgerAbi,
-  legacyProductRegistration,
-  "function confirmHigherRisk(uint256 saleId, uint32 attempt)",
-]);
-export const legacyLedgerAbi = parseAbi([
-  `struct Sale { ${saleFields} }`,
-  "struct Attempt { uint256 commitment; bool recorded; bool passed; }",
-  ...sharedLedgerAbi,
-  ...preAtomicLedgerAbi,
-  legacyProductRegistration,
-  "event DiagnosisRecorded(uint256 indexed saleId, uint32 indexed attempt, uint256 commitment, bool passed)",
-]);
-export const verifierAbi = parseAbi([
-  "function verifyProof(uint256[2] a, uint256[2][2] b, uint256[2] c, uint256[8] signals) view returns (bool)",
-]);
-export type SolidityProof = ContractFunctionArgs<
-  typeof verifierAbi,
-  "view",
-  "verifyProof"
->;
-export type PreparedProof = {
-  a: SolidityProof[0];
-  b: SolidityProof[1];
-  c: SolidityProof[2];
-  signals: SolidityProof[3];
+/** 고객 증명서. 가입 기록 확인과 감독기관 조회가 원장과 대조한다. */
+export type EvidenceReceipt = {
+  format: "finveric-receipt-v5";
+  saleId: string;
+  chainId: number;
+  ledger: Address;
+  customerRef: Hex;
+  productId: Hex;
+  productVersion: number;
+  documentHash: Hex;
+  attempt: number;
+  ruleHash: Hex;
+  /** 원 단위 10진 문자열. */
+  amount: string;
+  subscribeTx: Hex;
+  confirmTx?: Hex;
+  issuedAt: string;
 };
-
-const proofsParameter = getAbiItem({
-  abi: ledgerAbi,
-  name: "completeEnrollment",
-}).inputs[4];
-const reviewDomain = keccak256(stringToHex("FINVERIC_V3_REVIEW"));
-const reviewParameters = parseAbiParameters(
-  "bytes32, uint256, address, uint256, bytes32, bytes32, bytes32, bytes32",
-);
-export function reviewDigest(
-  dep: Pick<Deployment, "chainId" | "ledger" | "ruleVersion" | "ledgerVersion">,
-  saleId: string,
-  proofs: readonly PreparedProof[],
-  product?: Product,
-): Hex {
-  if (dep.ledgerVersion === 4 && !product)
-    throw new Error("검토할 상품을 지정해 주세요.");
-  const selected = product ?? PRODUCTS[0];
-  const proofsHash = keccak256(
-    encodeAbiParameters([proofsParameter], [proofs]),
-  );
-  return keccak256(
-    encodeAbiParameters(reviewParameters, [
-      reviewDomain,
-      BigInt(dep.chainId),
-      dep.ledger,
-      BigInt(saleId),
-      selected.id,
-      selected.documentHash,
-      dep.ledgerVersion === 4 ? RULE_HASH : RULE_HASH_V2,
-      proofsHash,
-    ]),
-  );
-}
-
-function signatureFields(
-  deployment: Deployment,
-  id: string,
-  round: number,
-  commitment: string,
-) {
-  return {
-    purpose: "FINVERIC_MOCK_SIGNATURE",
-    chainId: deployment.chainId,
-    ledger: deployment.ledger.toLowerCase(),
-    saleId: id,
-    round,
-    commitment,
-    documentHash: DOCUMENT_HASH,
-  };
-}
-export function legacySignatureMessage(
-  deployment: Deployment,
-  id: string,
-  round: number,
-  commitment: string,
-) {
-  return canonical(signatureFields(deployment, id, round, commitment));
-}
-export function signatureMessage(
-  deployment: Deployment,
-  id: string,
-  round: number,
-  commitment: string,
-  profile: number,
-) {
-  return canonical({
-    ...signatureFields(deployment, id, round, commitment),
-    ruleHash: RULE_HASH_V2,
-    profile,
-    higherRiskConfirmed: profile < MIN_PROFILE,
-  });
-}
+/** 모의 녹취록. 지문은 recordingHash(text)다. */
+export type MockRecording = { name: string; text: string };
+export type OriginalAttempt = {
+  attempt: number;
+  ruleHash: Hex;
+  answers: number[];
+  salt: string;
+};
+/** 고객과 판매사가 보관하는 원본 묶음. 청약 회차까지 모든 회차의 답변과 임의값을 담는다. */
+export type OriginalBundle = {
+  format: "finveric-original-v5";
+  saleId: string;
+  customerRef: Hex;
+  attempts: OriginalAttempt[];
+  productDocument: ProductDocument;
+  recording?: MockRecording;
+  explanationSeconds: number;
+};

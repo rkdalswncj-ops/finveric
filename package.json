@@ -24,7 +24,6 @@
     "sepolia:prepare": "tsx scripts/prepare-sepolia.ts",
     "deploy:sepolia": "tsx scripts/deploy.ts sepolia",
     "demo": "tsx scripts/demo.ts",
-    "demo:attacks": "tsx scripts/demo-attacks.ts",
     "test": "tsx --test tests/*.test.ts",
     "api:start": "tsx apps/api/src/index.ts"
   },
