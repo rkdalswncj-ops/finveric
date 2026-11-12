@@ -14,6 +14,47 @@
 
 업무 규칙과 완료 기준은 [PRD](docs/prd.md)를 따른다.
 
+## 실행하기
+
+Docker로 실행하는 것을 권장한다. Node, Foundry, Circom을 따로 설치하지 않아도 된다.
+
+### Docker로 실행 (권장)
+
+준비물: Docker Desktop 또는 Docker Engine과 Compose v2. 포트 5173, 5174, 3001, 8545가 비어 있어야 한다.
+
+```bash
+git clone <저장소 주소> finveric
+cd finveric
+docker compose up --build -d
+```
+
+- 이미지 하나, 컨테이너 하나에서 Anvil, API, client, auditor를 실행한다.
+- 첫 실행은 이미지 빌드(약 3~4분)와 증명 키 생성·컨트랙트 배포(약 2~4분)를 거친다. 다음 실행은 볼륨에 남은 키와 원장을 써서 10초 안팎이면 준비된다.
+- `docker compose ps`의 상태가 `healthy`가 되면 연다. 이 상태는 health API가 RPC·원장·저장소를 점검한 결과다.
+  - [client](http://localhost:5173/client/) · [auditor](http://localhost:5174/auditor/) · [health](http://localhost:3001/api/health)
+- 진행 로그는 `docker compose logs -f`로 본다.
+- 멈출 때는 `docker compose down`을 실행한다. 원장 상태와 판매 기록은 볼륨에 남는다. 기록까지 지우려면 `docker compose down -v`를 실행한다.
+
+### Node로 실행
+
+Node.js 22.12 이상 22.x와 npm 10이 필요하다. Foundry와 Circom은 npm 패키지에 들어 있다.
+
+```bash
+npm ci
+npm run dev
+```
+
+- [client](http://127.0.0.1:5173/client/) · [auditor](http://127.0.0.1:5174/auditor/) · [health](http://127.0.0.1:3001/api/health)
+- 로컬 원장 상태와 판매 기록은 `.local/`에 저장한다. 이 폴더를 지우면 이력과 고객 원본을 잃는다.
+
+### 처음 써 보기
+
+1. client의 **상품·문서 관리**에서 **상품·규칙 v3 등록**을 누른다.
+2. **판매 채널 시연 › 펀드 찾기**에서 펀드를 고르고 진단부터 가입까지 진행한다.
+3. auditor의 **독립 검증**에서 같은 판매 건을 원장과 대조한다.
+
+발표 순서와 시연 수치는 [실행과 시연](docs/runbook.md)을 따른다.
+
 ## 화면
 
 | 앱      | 경로        | 사용자                          | 화면                                                        |
@@ -54,37 +95,12 @@ tests/         통합 검사
 docs/          PRD, 배포, 실행, 결정 기록
 ```
 
-## 시작하기
-
-### Docker
-
-```bash
-docker compose up --build
-```
-
-- 한 컨테이너에서 Anvil, API, client, auditor를 실행한다.
-- 첫 실행은 증명 키를 만들고 컨트랙트를 배포하므로 2~4분 걸린다. `docker compose ps`가 `healthy`이면 준비된 것이다.
-- [client](http://localhost:5173/client/) · [auditor](http://localhost:5174/auditor/) · [health](http://localhost:3001/api/health)
-- 멈출 때는 `docker compose down`, 기록까지 지울 때는 `docker compose down -v`를 실행한다.
-
-### Node
-
-Node.js 22.12 이상 22.x와 npm 10이 필요하다. Foundry와 Circom은 npm 패키지에 들어 있다.
-
-```bash
-npm ci
-npm run dev
-```
-
-- [client](http://127.0.0.1:5173/client/) · [auditor](http://127.0.0.1:5174/auditor/) · [health](http://127.0.0.1:3001/api/health)
-- 처음에는 client의 **상품·문서 관리**에서 상품과 진단 규칙을 등록한다. 그다음 **판매 채널 시연**에서 가입을 시작한다.
-- 로컬 원장 상태와 판매 기록은 `.local/`에 저장한다. 이 폴더를 지우면 이력과 고객 원본을 잃는다.
-
 ## 명령어
 
 | 명령                                                             | 내용                                                            |
 | ---------------------------------------------------------------- | --------------------------------------------------------------- |
-| `npm run dev`                                                    | Anvil, API, client, auditor를 실행한다                          |
+| `docker compose up --build -d`                                   | Docker로 Anvil, API, client, auditor를 실행한다                 |
+| `npm run dev`                                                    | Node로 Anvil, API, client, auditor를 실행한다                   |
 | `npm test`                                                       | 실제 회로·EVM·API 통합 검사와 저장소·잠금 검사                  |
 | `npm run contracts:test`                                         | 원장의 단계·권한 검사 (Foundry)                                 |
 | `npm run build`                                                  | 타입 검사와 웹 빌드                                             |
