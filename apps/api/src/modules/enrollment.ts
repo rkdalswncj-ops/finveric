@@ -75,7 +75,7 @@ function mockRecording(record: StoredSale, product: Product): MockRecording {
   return {
     name: `recording-${record.id.slice(0, 12)}.txt`,
     text: [
-      "[모의 녹취록 · 시연용]",
+      "[녹취록]",
       `일시: ${new Date().toISOString()}`,
       `판매 ID: ${record.id}`,
       `고객 가명 ID: ${record.customerRef}`,
@@ -83,7 +83,7 @@ function mockRecording(record: StoredSale, product: Product): MockRecording {
       `판매 직원: ${document.seller} 판매 채널`,
       `직원: 이 상품의 위험등급은 ${document.riskGrade}등급입니다. 최대 손실은 ${document.maxLoss}입니다.`,
       `직원: ${document.cards[0]?.text ?? ""}`,
-      "직원: 청약 뒤 숙려기간이 지나야 최종 확인할 수 있습니다. 그전에 철회할 수 있습니다.",
+      "직원: 청약 뒤 숙려기간이 지나야 최종 확인할 수 있습니다. 최종 확인 전에는 언제든 철회할 수 있습니다.",
       "고객: 설명을 듣고 이해했습니다. 녹취에 동의합니다.",
     ].join("\n"),
   };

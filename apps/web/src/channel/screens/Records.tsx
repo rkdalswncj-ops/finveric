@@ -5,6 +5,7 @@ import type {
   ExportKind,
   ProductEntryDto,
 } from "../../../../../packages/core/src/api.ts";
+import type { LoadState } from "../../../../../packages/ui/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
   Empty,
@@ -35,7 +36,7 @@ const s = { ...ui, ...local };
  * 상세에서 증명서와 원본을 내려받고, 가입 기록 확인 화면으로 간다.
  */
 export function Records({
-  loaded,
+  load,
   sales,
   products,
   customer,
@@ -44,7 +45,7 @@ export function Records({
   download,
   resume,
 }: {
-  loaded: boolean;
+  load: LoadState;
   sales: Sale[];
   products: ProductEntryDto[];
   customer?: CustomerDto;
@@ -72,9 +73,17 @@ export function Records({
     ) : (
       <Empty
         title={
-          loaded ? "가입 기록을 찾지 못했어요" : "가입 기록을 불러오고 있어요"
+          load === "ready"
+            ? "가입 기록을 찾지 못했어요"
+            : load === "failed"
+              ? "가입 기록을 불러오지 못했어요"
+              : "가입 기록을 불러오고 있어요"
         }
-        text="목록에서 가입 기록을 다시 골라 주세요."
+        text={
+          load === "failed"
+            ? "화면을 새로 고쳐 주세요."
+            : "목록에서 가입 기록을 다시 골라 주세요."
+        }
       >
         <Button asChild>
           <Link to={channel.records}>가입 기록 목록 보기</Link>
@@ -112,9 +121,17 @@ export function Records({
       ) : (
         <Empty
           title={
-            loaded ? "아직 가입 기록이 없어요" : "가입 기록을 불러오고 있어요"
+            load === "ready"
+              ? "아직 가입 기록이 없어요"
+              : load === "failed"
+                ? "가입 기록을 불러오지 못했어요"
+                : "가입 기록을 불러오고 있어요"
           }
-          text="상품을 고르고 진단부터 청약까지 마치면 여기에 기록이 생겨요."
+          text={
+            load === "failed"
+              ? "화면을 새로 고쳐 주세요."
+              : "상품을 고르고 진단부터 청약까지 마치면 여기에 기록이 생겨요."
+          }
         >
           <Button asChild>
             <Link to={channel.catalog}>상품 보러 가기</Link>

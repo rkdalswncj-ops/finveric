@@ -23,11 +23,12 @@ import type {
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
   Badge,
+  ConfirmDialog,
   Facts,
   Heading,
   Notice,
 } from "../../../../../packages/ui/src/components.tsx";
-import { api } from "../../../../../packages/ui/src/api.ts";
+import { api, type LoadState } from "../../../../../packages/ui/src/api.ts";
 import { short } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import client from "../client.module.css";
@@ -184,15 +185,23 @@ function RuleEditor({
     version,
     name: base.name.replace(/v\d+$/, `v${version}`),
   }));
+  // 처음 연 내용. 바뀐 것이 있을 때만 편집 취소를 묻는다.
+  const [initial] = useState(() => JSON.stringify(doc));
+  const changed = JSON.stringify(doc) !== initial;
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  // 오류 목록은 입력을 시작하거나 원장에 등록을 누른 뒤에 보여 준다.
+  const [showErrors, setShowErrors] = useState(false);
   const [answers, setAnswers] = useState<number[]>(() =>
     base.questions.map(() => 0),
   );
-  const edit = (change: (draft: RuleDocument) => void) =>
+  const edit = (change: (draft: RuleDocument) => void) => {
+    setShowErrors(true);
     setDoc((current) => {
       const next = structuredClone(current);
       change(next);
       return next;
     });
+  };
   const errors = validateRule(doc);
   const hash = useMemo(
     () => (validateRule(doc).length ? undefined : ruleHash(doc)),
@@ -217,7 +226,11 @@ function RuleEditor({
       <section className={`${s.panel} ${s.pad}`}>
         <div className={s.row}>
           <h2>새 버전 v{version} 편집</h2>
-          <Button variant="ghost" onClick={cancel} disabled={busy}>
+          <Button
+            variant="ghost"
+            onClick={() => (changed ? setConfirmCancel(true) : cancel())}
+            disabled={busy}
+          >
             편집 취소
           </Button>
         </div>
@@ -468,7 +481,12 @@ function RuleEditor({
       <aside className={s.editorAside}>
         <section className={`${s.panel} ${s.pad}`}>
           <h2>검사</h2>
-          {errors.length ? (
+          {!showErrors && errors.length ? (
+            <Notice>
+              입력하면 검사 결과를 여기에 보여 줍니다. 원장에 등록을 누르면 빠진
+              항목을 모두 보여 줍니다.
+            </Notice>
+          ) : errors.length ? (
             <Notice tone="danger">
               <ul className={s.errorList}>
                 {errors.map((error) => (
@@ -486,8 +504,10 @@ function RuleEditor({
             ]}
           />
           <Button
-            disabled={busy || errors.length > 0}
-            onClick={() => void register()}
+            disabled={busy || (showErrors && errors.length > 0)}
+            onClick={() =>
+              errors.length ? setShowErrors(true) : void register()
+            }
           >
             원장에 등록
           </Button>
@@ -539,20 +559,32 @@ function RuleEditor({
           )}
         </section>
       </aside>
+      <ConfirmDialog
+        open={confirmCancel}
+        title="편집한 내용을 버릴까요?"
+        text="편집한 내용이 모두 사라집니다. 되돌릴 수 없습니다."
+        confirmLabel="편집 내용 버리기"
+        cancelLabel="계속 편집하기"
+        onCancel={() => setConfirmCancel(false)}
+        onConfirm={() => {
+          setConfirmCancel(false);
+          cancel();
+        }}
+      />
     </div>
   );
 }
 
 /** 진단 기준 버전 목록, 버전 보기, 새 버전 편집과 등록, 투자성향별 권유 가능 상품. */
 export function Rules({
-  loaded,
+  load,
   rules,
   products,
   busy,
   run,
   register,
 }: {
-  loaded: boolean;
+  load: LoadState;
   rules: RuleEntryDto[];
   products: ProductEntryDto[];
   busy: boolean;
@@ -578,7 +610,7 @@ export function Rules({
           </Button>
         )}
       </Heading>
-      {loaded && !active && !products.some((p) => p.registered) && (
+      {load === "ready" && !active && !products.some((p) => p.registered) && (
         <RegisterNotice busy={busy} register={register} />
       )}
       {editing && base ? (
@@ -601,9 +633,11 @@ export function Rules({
               <RuleView entry={entry} />
             ) : (
               <p className={s.small}>
-                {loaded
+                {load === "ready"
                   ? "진단 기준이 없습니다."
-                  : "진단 기준을 불러오고 있습니다."}
+                  : load === "failed"
+                    ? "진단 기준을 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
+                    : "진단 기준을 불러오고 있습니다."}
               </p>
             )}
           </section>

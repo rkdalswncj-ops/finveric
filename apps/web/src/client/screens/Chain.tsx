@@ -6,6 +6,7 @@ import type {
   ProductEntryDto,
   TraceDto,
 } from "../../../../../packages/core/src/api.ts";
+import type { LoadState } from "../../../../../packages/ui/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
   Badge,
@@ -48,6 +49,7 @@ function proofDetail(trace: TraceDto) {
 
 /** 증명 생성, 관리자 서명, 거래 제출, 영수증, 원장 거절을 출처별로 보여 준다. */
 export function Chain({
+  load,
   traces,
   sales,
   products,
@@ -55,6 +57,7 @@ export function Chain({
   busy,
   refresh,
 }: {
+  load: LoadState;
   traces: TraceDto[];
   sales: Sale[];
   products: ProductEntryDto[];
@@ -82,7 +85,7 @@ export function Chain({
       >
         <Button variant="outline" disabled={busy} onClick={refresh}>
           <RefreshCw size={16} />
-          새로고침
+          새로 고침
         </Button>
       </Heading>
       <Notice>
@@ -138,7 +141,15 @@ export function Chain({
               );
             })
           ) : (
-            <div className={s.empty}>아직 처리 기록이 없습니다.</div>
+            <div className={s.empty}>
+              {load === "loading"
+                ? "처리 기록을 불러오고 있습니다."
+                : load === "failed" && !traces.length
+                  ? "처리 기록을 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
+                  : group
+                    ? `${TRACE_GROUPS[group]} 기록이 없습니다.`
+                    : "아직 처리 기록이 없습니다."}
+            </div>
           )}
         </div>
         <section className={s.logDetail}>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 import {
   FileDown,
@@ -9,7 +9,10 @@ import {
   TriangleAlert,
   type LucideIcon,
 } from "lucide-react";
-import { useDeployment } from "../../../../packages/ui/src/deployment.ts";
+import {
+  DEPLOYMENT_ERROR,
+  useDeployment,
+} from "../../../../packages/ui/src/deployment.ts";
 import { Shell, type NavGroup } from "../../../../packages/ui/src/Shell.tsx";
 import { Dashboard } from "./screens/Dashboard.tsx";
 import { Disputes } from "./screens/Disputes.tsx";
@@ -33,8 +36,11 @@ const groups: NavGroup[] = [{ label: "감독기관", items: PAGES }];
 export function App() {
   const location = useLocation();
   const [error, setError] = useState("");
-  const deployment = useDeployment(setError);
-  const ledger = useLedger(deployment);
+  // 검증 설정을 읽지 못하면 원장 줄과 각 화면의 원장 영역이 오류를 보여 준다(useLedger). 알림을 따로 띄우지 않는다.
+  const [configFailed, setConfigFailed] = useState(false);
+  const onConfigError = useCallback(() => setConfigFailed(true), []);
+  const deployment = useDeployment(onConfigError, DEPLOYMENT_ERROR.institution);
+  const ledger = useLedger(deployment, configFailed);
   const params = new URLSearchParams(location.search);
   // 이전 분쟁 조회 주소(/?sale=…, /?source=file)는 분쟁 조회로 보낸다.
   const legacy =

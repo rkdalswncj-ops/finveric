@@ -9,15 +9,22 @@ export const short = (value?: string) =>
 export const won = (amount: number | string) =>
   `${Number(amount).toLocaleString("ko-KR")}원`;
 
-/** 블록 시각(초) 또는 ISO 시각을 한국 시간으로 쓴다. */
-export function dateTime(value?: number | string) {
+/**
+ * 블록 시각(초), ISO 시각, Date를 한국 시간으로 쓴다. 모든 페이지가 이 형식 하나를 쓴다.
+ * 예: "2026. 11. 13. 15:04:05". 연도를 넣고 24시간제로 쓴다.
+ */
+export function dateTime(value?: number | string | Date) {
   if (value === undefined || value === "" || value === 0) return "—";
-  const date = new Date(typeof value === "number" ? value * 1000 : value);
+  const date =
+    value instanceof Date
+      ? value
+      : new Date(typeof value === "number" ? value * 1000 : value);
   return Number.isNaN(date.getTime())
     ? "—"
     : date.toLocaleString("ko-KR", {
         timeZone: "Asia/Seoul",
-        hour12: false,
+        hourCycle: "h23",
+        year: "numeric",
         month: "2-digit",
         day: "2-digit",
         hour: "2-digit",

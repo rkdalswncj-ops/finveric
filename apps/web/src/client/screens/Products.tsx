@@ -19,11 +19,12 @@ import type {
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
   Badge,
+  ConfirmDialog,
   Facts,
   Heading,
   Notice,
 } from "../../../../../packages/ui/src/components.tsx";
-import { api } from "../../../../../packages/ui/src/api.ts";
+import { api, type LoadState } from "../../../../../packages/ui/src/api.ts";
 import { short } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import client from "../client.module.css";
@@ -101,12 +102,20 @@ function ProductForm({
 }) {
   const newVersion = base.code !== "";
   const [doc, setDoc] = useState<ProductDocument>(() => structuredClone(base));
-  const edit = (change: (draft: ProductDocument) => void) =>
+  // 처음 연 내용. 바뀐 것이 있을 때만 편집 취소를 묻는다.
+  const [initial] = useState(() => JSON.stringify(base));
+  const changed = JSON.stringify(doc) !== initial;
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  // 빈 양식에 오류 목록을 바로 띄우지 않는다. 입력을 시작하거나 원장에 등록을 누르면 보여 준다.
+  const [showErrors, setShowErrors] = useState(false);
+  const edit = (change: (draft: ProductDocument) => void) => {
+    setShowErrors(true);
     setDoc((current) => {
       const next = structuredClone(current);
       change(next);
       return next;
     });
+  };
   const id = doc.code ? productId(doc.code) : undefined;
   const sameCode = existing.filter(
     (entry) => entry.registered && entry.product.id === id,
@@ -145,10 +154,14 @@ function ProductForm({
       <section className={`${s.panel} ${s.pad}`}>
         <div className={s.row}>
           <h2>
-            {newVersion ? `${base.name} 새 버전 v${version}` : "새 상품 등록"}
+            {newVersion ? `${base.name} 새 버전 v${version}` : "새 상품 만들기"}
           </h2>
-          <Button variant="ghost" disabled={busy} onClick={cancel}>
-            입력 취소
+          <Button
+            variant="ghost"
+            disabled={busy}
+            onClick={() => (changed ? setConfirmCancel(true) : cancel())}
+          >
+            편집 취소
           </Button>
         </div>
         <div className={s.editGrid}>
@@ -295,7 +308,12 @@ function ProductForm({
       <aside className={s.editorAside}>
         <section className={`${s.panel} ${s.pad}`}>
           <h2>검사</h2>
-          {errors.length ? (
+          {!showErrors && errors.length ? (
+            <Notice>
+              입력하면 검사 결과를 여기에 보여 줍니다. 원장에 등록을 누르면 빠진
+              항목을 모두 보여 줍니다.
+            </Notice>
+          ) : errors.length ? (
             <Notice tone="danger">
               <ul className={s.errorList}>
                 {errors.map((error) => (
@@ -321,8 +339,10 @@ function ProductForm({
             ]}
           />
           <Button
-            disabled={busy || errors.length > 0}
-            onClick={() => void submit()}
+            disabled={busy || (showErrors && errors.length > 0)}
+            onClick={() =>
+              errors.length ? setShowErrors(true) : void submit()
+            }
           >
             원장에 등록
           </Button>
@@ -332,20 +352,32 @@ function ProductForm({
           </p>
         </section>
       </aside>
+      <ConfirmDialog
+        open={confirmCancel}
+        title="편집한 내용을 버릴까요?"
+        text="편집한 내용이 모두 사라집니다. 되돌릴 수 없습니다."
+        confirmLabel="편집 내용 버리기"
+        cancelLabel="계속 편집하기"
+        onCancel={() => setConfirmCancel(false)}
+        onConfirm={() => {
+          setConfirmCancel(false);
+          cancel();
+        }}
+      />
     </div>
   );
 }
 
 /** 판매 상품과 설명서 버전 등록, 버전 이력, 투자성향별 권유 가능 상품. */
 export function Products({
-  loaded,
+  load,
   rules,
   products,
   busy,
   run,
   register,
 }: {
-  loaded: boolean;
+  load: LoadState;
   rules: RuleEntryDto[];
   products: ProductEntryDto[];
   busy: boolean;
@@ -369,11 +401,11 @@ export function Products({
       >
         {!form && (
           <Button disabled={busy} onClick={() => setForm(blankProduct(seller))}>
-            <Plus size={16} />새 상품 등록
+            <Plus size={16} />새 상품 만들기
           </Button>
         )}
       </Heading>
-      {loaded && !anyRegistered && !activeRule(rules) && (
+      {load === "ready" && !anyRegistered && !activeRule(rules) && (
         <RegisterNotice busy={busy} register={register} />
       )}
       {form ? (
@@ -452,9 +484,11 @@ export function Products({
             </table>
             {groups.length === 0 && (
               <p className={s.empty}>
-                {loaded
+                {load === "ready"
                   ? "등록한 상품이 없습니다."
-                  : "상품을 불러오고 있습니다."}
+                  : load === "failed"
+                    ? "상품을 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
+                    : "상품을 불러오고 있습니다."}
               </p>
             )}
           </section>
@@ -525,7 +559,7 @@ export function Products({
                     setForm(structuredClone(group.latest.product.document))
                   }
                 >
-                  새 버전 등록
+                  새 버전 만들기
                 </Button>
                 <p className={s.small}>
                   새 버전을 등록하면 다음 청약부터 새 설명서를 씁니다. 청약한

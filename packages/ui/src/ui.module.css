@@ -407,6 +407,32 @@
 .empty p {
   font-size: var(--type-detail);
 }
+/* 확인 창(ConfirmDialog) */
+.dialog {
+  width: min(400px, calc(100vw - 32px));
+  margin: auto;
+  padding: 24px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--card);
+  color: var(--foreground);
+}
+.dialog::backdrop {
+  background: rgb(25 31 40 / 0.45);
+}
+.dialog h2 {
+  font-size: var(--type-title);
+}
+.dialog p {
+  margin: 8px 0 20px;
+  color: var(--muted-foreground);
+  font-size: var(--type-detail);
+}
+.dialogActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
 /* 본문으로 이동 링크. 콘솔(Shell)에서는 사이드바 오른쪽에 둔다. */
 .skip {
   position: fixed;

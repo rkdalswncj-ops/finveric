@@ -8,7 +8,7 @@ export async function settle(svc: FundService, record: StoredSale) {
   const state = await readSale(svc, record.id);
   if (state.settledAt > 0n) return;
   if (state.status !== 2)
-    throw new Error("최종 확인한 가입만 모의 결제를 기록할 수 있어요.");
+    throw new Error("최종 확인한 가입만 결제를 기록할 수 있습니다.");
   await send(svc, "infrastructure", "recordSettlement", [BigInt(record.id)], {
     event: "SettlementRecorded",
     match: (log) =>

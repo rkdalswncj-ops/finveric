@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ArrowRight,
   ExternalLink,
@@ -7,6 +7,7 @@ import {
   Store,
 } from "lucide-react";
 import type { HealthResponse } from "../../../../packages/core/src/api.ts";
+import { api, ApiError } from "../../../../packages/ui/src/api.ts";
 import { Badge } from "../../../../packages/ui/src/components.tsx";
 import { useDeployment } from "../../../../packages/ui/src/deployment.ts";
 import { networkName } from "../../../../packages/ui/src/format.ts";
@@ -16,7 +17,6 @@ import {
 } from "../../../../packages/ui/src/links.ts";
 import s from "./entry.module.css";
 
-const ignore = () => {};
 const roles = [
   {
     href: "/client/",
@@ -43,15 +43,22 @@ const extras = [
 
 /** 사이트 루트(/)의 진입 화면. 역할을 고르고 연결된 원장 상태를 본다. */
 export function Entry() {
-  const deployment = useDeployment(ignore);
+  const [configFailed, setConfigFailed] = useState(false);
+  const deployment = useDeployment(
+    useCallback(() => setConfigFailed(true), []),
+  );
   const [health, setHealth] = useState<"loading" | "ok" | "fail" | "down">(
     "loading",
   );
   useEffect(() => {
-    fetch("/api/health", { cache: "no-store" })
-      .then((response) => response.json() as Promise<HealthResponse>)
+    // 점검이 실패하면 API가 503을 돌려준다. 서버에 닿지 못하면 code가 offline이다.
+    api<HealthResponse>("/health")
       .then((result) => setHealth(result.ok ? "ok" : "fail"))
-      .catch(() => setHealth("down"));
+      .catch((e: unknown) =>
+        setHealth(
+          e instanceof ApiError && e.code !== "offline" ? "fail" : "down",
+        ),
+      );
   }, []);
   return (
     <main className={s.page}>
@@ -124,7 +131,13 @@ export function Entry() {
           </div>
           <div>
             <dt>네트워크</dt>
-            <dd>{deployment ? networkName(deployment) : "설정 대기"}</dd>
+            <dd>
+              {deployment
+                ? networkName(deployment)
+                : configFailed
+                  ? "설정을 읽지 못함"
+                  : "설정 대기"}
+            </dd>
           </div>
           <div>
             <dt>원장 버전</dt>

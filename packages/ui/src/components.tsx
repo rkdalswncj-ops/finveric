@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { AlertTriangle, FileText } from "lucide-react";
 import { Button } from "./button.tsx";
@@ -149,5 +149,68 @@ export function AccessCodeForm({
       />
       <Button disabled={busy}>연결하기</Button>
     </form>
+  );
+}
+
+/**
+ * 되돌릴 수 없는 동작이나 작업을 버리는 동작 전에 묻는 가운데 창.
+ * 안전한 선택(`cancelLabel`)이 주요 버튼이고 처음 초점을 받는다. Esc는 안전한 선택과 같다.
+ * 증권사 앱 예시는 `size="large"` 버튼을 쓴다.
+ */
+export function ConfirmDialog({
+  open,
+  title,
+  text,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  onCancel,
+  size,
+}: {
+  open: boolean;
+  title: string;
+  text: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  size?: "default" | "large";
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const safe = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  const textId = useId();
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (open && !dialog.open) {
+      dialog.showModal();
+      // 처음 초점은 안전한 선택(계속하기)에 둔다.
+      safe.current?.focus();
+    }
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+  return (
+    <dialog
+      ref={ref}
+      className={s.dialog}
+      aria-labelledby={titleId}
+      aria-describedby={textId}
+      onCancel={(e) => {
+        e.preventDefault();
+        onCancel();
+      }}
+    >
+      <h2 id={titleId}>{title}</h2>
+      <p id={textId}>{text}</p>
+      <div className={s.dialogActions}>
+        <Button variant="outline" size={size} onClick={onConfirm}>
+          {confirmLabel}
+        </Button>
+        <Button ref={safe} size={size} onClick={onCancel}>
+          {cancelLabel}
+        </Button>
+      </div>
+    </dialog>
   );
 }

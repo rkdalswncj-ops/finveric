@@ -6,6 +6,7 @@ import type {
   ProductEntryDto,
   SaleAction,
 } from "../../../../../packages/core/src/api.ts";
+import type { LoadState } from "../../../../../packages/ui/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
   Badge,
@@ -54,7 +55,7 @@ function approvalText(sale: Sale) {
 
 /** 판매 건 목록, 선택한 건의 회차 이력·필수 확인·타임라인, 관리자 승인. */
 export function Review({
-  loaded,
+  load,
   sales,
   products,
   customer,
@@ -63,7 +64,7 @@ export function Review({
   busy,
   action,
 }: {
-  loaded: boolean;
+  load: LoadState;
   sales: Sale[];
   products: ProductEntryDto[];
   customer?: CustomerDto;
@@ -212,13 +213,23 @@ export function Review({
             </tbody>
           </table>
         </div>
-        {shown.length === 0 && (
-          <p className={s.empty}>
-            {loaded
-              ? "이 상태의 판매 건이 없습니다."
-              : "판매 건을 불러오고 있습니다."}
-          </p>
-        )}
+        {shown.length === 0 &&
+          (load === "ready" && filter ? (
+            <div className={s.empty}>
+              <p>{STATUS_LABELS[filter]} 상태의 판매 건이 없습니다.</p>
+              <Button variant="outline" onClick={() => setFilter("")}>
+                전체 보기
+              </Button>
+            </div>
+          ) : (
+            <p className={s.empty}>
+              {load === "ready"
+                ? "아직 판매 건이 없습니다."
+                : load === "failed"
+                  ? "판매 건을 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
+                  : "판매 건을 불러오고 있습니다."}
+            </p>
+          ))}
       </div>
       {sale ? (
         <div className={s.detailGrid}>
@@ -333,7 +344,7 @@ export function Review({
           </aside>
         </div>
       ) : (
-        loaded && (
+        load === "ready" && (
           <Empty
             title="아직 판매 건이 없습니다"
             text="고객이 증권사 앱에서 상품을 고르고 가입을 시작하면 판매 건이 생깁니다."

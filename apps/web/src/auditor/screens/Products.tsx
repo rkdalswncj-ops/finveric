@@ -16,18 +16,13 @@ import {
   Heading,
   Notice,
 } from "../../../../../packages/ui/src/components.tsx";
+import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import local from "../auditor.module.css";
 import { ChangeList } from "../ChangeList.tsx";
 import { LedgerGate, LedgerLine } from "../components.tsx";
 import { diffProducts } from "../diff.ts";
-import {
-  dateTime,
-  gradeLabel,
-  productDocument,
-  productName,
-  short,
-} from "../format.ts";
+import { gradeLabel, productDocument, productName, short } from "../format.ts";
 import type { Ledger } from "../useLedger.ts";
 
 const s = { ...ui, ...local };
@@ -52,8 +47,8 @@ export function Products({ ledger }: { ledger: Ledger }) {
   return (
     <div className={s.page}>
       <Heading
-        title="상품 설명서 버전을 대조해요"
-        description="원장에 등록한 설명서 원문의 지문과 위험등급·고난도·파생결합증권 표시를 원장 값과 대조해요. 버전 사이의 차이도 보여 줘요."
+        title="상품 설명서 버전을 대조하세요"
+        description="원장에 등록한 설명서 원문의 지문과 위험등급·고난도·파생결합증권 표시를 원장 값과 대조합니다. 버전 사이의 차이도 보여 줍니다."
       />
       <LedgerLine ledger={ledger} />
       <LedgerGate ledger={ledger}>
@@ -71,8 +66,8 @@ function ProductAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
   if (!selectedId)
     return (
       <div className={`${s.panel} ${s.empty}`}>
-        <h2>등록한 상품이 없어요</h2>
-        <p>판매사가 상품 설명서를 원장에 등록하면 여기에 버전이 나와요.</p>
+        <h2>등록한 상품이 없습니다</h2>
+        <p>판매사가 상품 설명서를 원장에 등록하면 여기에 버전이 나옵니다.</p>
       </div>
     );
   const versionsOf = (id: string) =>
@@ -286,7 +281,7 @@ function ProductDetail({
               document ? (
                 <code>{productDocumentHash(document)}</code>
               ) : (
-                "원문을 JSON으로 읽을 수 없어요."
+                "원문을 JSON으로 읽을 수 없습니다."
               ),
             ],
             [
@@ -320,8 +315,8 @@ function ProductDetail({
         {!selected.matches && (
           <Notice tone="warning">
             등록 원문의 지문, 상품 코드, 버전, 위험등급, 고난도·파생결합증권
-            표시 중 원장 값과 다른 것이 있어요. 아래 내용은 원문을 그대로 읽은
-            것이에요.
+            표시 중 원장 값과 다른 것이 있습니다. 아래 내용은 원문을 그대로 읽은
+            것입니다.
           </Notice>
         )}
         <details>
@@ -352,11 +347,11 @@ function ProductDetail({
           )}
         </div>
         {!current ? (
-          <p className={s.intro}>원문을 읽을 수 없어 비교하지 못해요.</p>
+          <p className={s.intro}>원문을 읽을 수 없어 비교하지 못합니다.</p>
         ) : !previous ? (
           <p className={s.intro}>
-            비교할 다른 버전이 없어요. 판매사가 새 버전을 등록하면 차이를 보여
-            줘요.
+            비교할 다른 버전이 없습니다. 판매사가 새 버전을 등록하면 차이를 보여
+            줍니다.
           </p>
         ) : (
           <ChangeList

@@ -3,7 +3,10 @@
 // 설명·분류·성공 응답은 operations.ts에서, 인증·오류·공통 설명은 이 파일에서 더한다.
 // 응답 스키마는 문서에만 넣는다. 경로의 schema.response에 넣으면 직렬화에 쓰여 필드가 빠진다.
 import type { FastifyDynamicSwaggerOptions } from "@fastify/swagger";
-import { errorResponseSchema } from "../../../../packages/core/src/api.ts";
+import {
+  errorResponseSchema,
+  type ErrorResponse,
+} from "../../../../packages/core/src/api.ts";
 import {
   API_KEY_ID_EXAMPLE,
   CHANNEL_TAG,
@@ -92,7 +95,7 @@ export function openApiOptions(
         title: "FINVERIC API",
         version: "v5",
         description: [
-          "FINVERIC은 증권사(판매사) 앱 아래에서 금융상품 판매 기록을 남기고 검증하는 B2B API입니다. 증권사 앱은 고객의 투자성향 진단, 가입 신청, 청약, 최종 확인, 증빙 내려받기를 이 API로 처리합니다. 판매사 직원은 콘솔에서 진단 기준과 상품을 등록하고, 관리자 승인과 결제를 기록합니다. 진단 결과와 판매 상태는 원장(EVM 스마트 컨트랙트)에 기록합니다. 감독기관은 판매사 서버 없이 원장만으로 기록을 대조합니다.",
+          "FINVERIC은 증권사(판매사) 앱 아래에서 금융상품 판매 기록을 남기고 검증하는 B2B API입니다. 증권사 앱은 고객의 투자성향 진단, 가입 신청, 청약, 최종 확인, 증빙 내려받기를 이 API로 처리합니다. 판매사 직원은 콘솔에서 진단 기준과 상품을 등록하고 관리자 승인을 합니다. 결제 기록은 API(`settle`)로만 합니다. 진단 결과와 판매 상태는 원장(EVM 스마트 컨트랙트)에 기록합니다. 감독기관은 판매사 서버 없이 원장만으로 기록을 대조합니다.",
           "### 기본 주소",
           "모든 경로는 `/api`로 시작합니다. 서버 주소는 `/`입니다. 이 문서를 받은 서버(로컬, Docker, Vercel)에 그대로 요청합니다.",
           "### 접근 코드",
@@ -102,7 +105,7 @@ export function openApiOptions(
           "### 출처 검사",
           "POST 요청에 `Origin` 헤더가 있으면 출처를 검사합니다. API와 같은 도메인, `WEB_ORIGIN`에 등록한 출처, 로컬 개발 서버(5173 포트)만 받습니다. 다른 출처는 403을 돌려줍니다. 서버 간 호출처럼 `Origin` 헤더가 없으면 검사하지 않습니다.",
           "### 오류",
-          '오류 본문은 `{ "error": "<한국어 문장>" }`입니다.',
+          '오류 본문은 `{ "error": "<한국어 문장>", "code": "<이유>", "ledgerError": "<원장 오류 이름>" }`입니다. `error`는 항상 있습니다. 화면에는 `error`를 그대로 보여 주거나, `code`로 고객용 문장을 고릅니다.',
           [
             "- 400: 경로 값이나 본문이 스키마와 다르거나, 본문이 올바른 JSON이 아닙니다.",
             "- 401: 접근 코드가 없거나 다릅니다. 또는 없는 API 키, 폐기한 API 키입니다.",
@@ -113,6 +116,12 @@ export function openApiOptions(
             "- 415: 본문 형식(`Content-Type`)이 JSON이 아닙니다.",
             "- 429: 같은 API 키로, 키가 없으면 같은 IP에서 1분에 120번을 넘게 요청했습니다.",
             "- 503: `GET /api/health`의 점검이 실패했습니다.",
+          ].join("\n"),
+          [
+            "- `code: \"pending\"`: 앞선 원장 거래의 영수증을 아직 받지 못했습니다. 잠시 뒤 다시 요청합니다.",
+            "- `code: \"unavailable\"`: RPC·저장소 연결이 실패했거나 처리를 끝내지 못했습니다. 잠시 뒤 다시 요청합니다.",
+            "- `code: \"rejected\"`: 원장이 요청을 거절했습니다. `ledgerError`에 원장 오류 이름(예: `TooEarly`)이 있습니다. 이름을 모르면 `ledgerError`가 없습니다.",
+            "- `code` 없음: 업무 규칙 오류(예: 진단 전 청약)입니다. `error` 문장에 이유와 다음 행동이 있습니다.",
           ].join("\n"),
           "### 값 형식",
           "원장의 uint256 값(커밋먼트, 블록 번호, 원장 시각 등)은 10진수 문자열입니다. 판매 ID도 10진수 문자열입니다. 해시와 주소는 `0x`로 시작하는 16진수입니다. 응답에 없는 선택 필드는 키를 넣지 않습니다.",
@@ -159,9 +168,12 @@ function finish(spec: Spec, publicPaths: ReadonlySet<string>) {
   const byId = new Map(
     Object.values(OPERATIONS).map((op) => [op.operationId, op]),
   );
-  const error = (description: string, message: string) => ({
+  const error = (description: string, example: string | ErrorResponse) => ({
     description,
-    content: json(components.ref(errorResponseSchema), { error: message }),
+    content: json(
+      components.ref(errorResponseSchema),
+      typeof example === "string" ? { error: example } : example,
+    ),
   });
   const errors = {
     BadRequest: error(
@@ -177,8 +189,12 @@ function finish(spec: Spec, publicPaths: ReadonlySet<string>) {
       "API 키로는 판매 채널 연동 API만 부를 수 있습니다.",
     ),
     Conflict: error(
-      "업무 규칙이나 원장이 요청을 거절했습니다. RPC·저장소 연결 실패도 포함합니다. `error`에 이유를 적습니다.",
-      "투자성향 진단을 먼저 해 주세요.",
+      "업무 규칙이나 원장이 요청을 거절했습니다. RPC·저장소 연결 실패도 포함합니다. `error`에 이유를 적습니다. `code`와 `ledgerError`로 이유를 나눕니다.",
+      {
+        error: "원장이 요청을 거절했어요. 숙려기간이 아직 지나지 않았어요.",
+        code: "rejected",
+        ledgerError: "TooEarly",
+      },
     ),
     TooManyRequests: error(
       "같은 API 키로, 키가 없으면 같은 IP에서 1분에 120번을 넘게 요청했습니다.",

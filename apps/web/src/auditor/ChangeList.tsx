@@ -23,7 +23,7 @@ export function ChangeList({
   if (!changes.length)
     return (
       <p className={s.intro}>
-        {from}, {to} 두 버전의 내용이 같아요.
+        {from}, {to} 두 버전의 내용이 같습니다.
       </p>
     );
   return (

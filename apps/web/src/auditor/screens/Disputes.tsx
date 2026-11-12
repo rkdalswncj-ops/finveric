@@ -39,12 +39,12 @@ import {
   Heading,
   Notice,
 } from "../../../../../packages/ui/src/components.tsx";
+import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import local from "../auditor.module.css";
 import { LedgerGate, LedgerLine } from "../components.tsx";
 import {
   customerPath,
-  dateTime,
   gradeLabel,
   koreanError,
   productName,
@@ -68,9 +68,9 @@ const OUTCOME_TONES: Record<VerifyOutcome, string> = {
   missing: "neutral",
 };
 const OUTCOME_TEXT: Record<VerifyOutcome, string> = {
-  match: "대조한 모든 항목이 원장 기록과 같아요.",
-  mismatch: "일부 항목이 원장 기록과 달라요. 확인 필요 항목을 보세요.",
-  missing: "지정한 원장에 이 판매 ID의 청약 기록이 없어요.",
+  match: "대조한 모든 항목이 원장 기록과 같습니다.",
+  mismatch: "일부 항목이 원장 기록과 다릅니다. 확인 필요 항목을 보세요.",
+  missing: "지정한 원장에 이 판매 ID의 청약 기록이 없습니다.",
 };
 const CUSTOMER_REF = /^0x[0-9a-fA-F]{64}$/;
 
@@ -91,8 +91,8 @@ export function Disputes({
   return (
     <div className={s.page}>
       <Heading
-        title="판매 기록을 원장과 대조해요"
-        description="판매 ID로 단계별 원장 기록과 제출 자료를 대조하거나, 고객 가명 ID로 모든 진단 회차와 판매 건을 확인해요."
+        title="판매 기록을 원장과 대조하세요"
+        description="판매 ID로 단계별 원장 기록과 제출 자료를 대조하거나, 고객 가명 ID로 모든 진단 회차와 판매 건을 확인합니다."
       />
       <LedgerLine ledger={ledger} />
       <nav aria-label="조회 방법" className={s.actions}>
@@ -170,7 +170,7 @@ function SaleLookup({
     else setOriginal(undefined);
     setFiles((current) => ({ ...current, [kind]: undefined }));
     if (file.size > 2_000_000) {
-      setError("2MB 이하 JSON 파일을 선택해 주세요.");
+      setError("2MB 이하 JSON 파일을 선택하세요.");
       return;
     }
     try {
@@ -181,12 +181,12 @@ function SaleLookup({
       )
         throw new Error(
           kind === "receipt"
-            ? "원장 v5의 가입 증명서 파일(finveric-receipt-v5)을 선택해 주세요."
-            : "원장 v5의 원본 묶음 파일(finveric-original-v5)을 선택해 주세요.",
+            ? "원장 v5의 가입 증명서 파일(finveric-receipt-v5)을 선택하세요."
+            : "원장 v5의 원본 묶음 파일(finveric-original-v5)을 선택하세요.",
         );
       const other = kind === "receipt" ? original : receipt;
       if (other && other.saleId !== parsed.saleId)
-        throw new Error("같은 판매 건의 증명서와 원본을 선택해 주세요.");
+        throw new Error("같은 판매 건의 증명서와 원본을 선택하세요.");
       if (kind === "receipt") setReceipt(parsed);
       else setOriginal(parsed);
       setId((current) => current.trim() || parsed.saleId);
@@ -195,7 +195,7 @@ function SaleLookup({
       setError(
         koreanError(
           e,
-          "파일을 읽을 수 없어요. 내려받은 JSON 파일을 선택해 주세요.",
+          "파일을 읽을 수 없습니다. 내려받은 JSON 파일을 선택하세요.",
         ),
       );
     }
@@ -210,7 +210,7 @@ function SaleLookup({
       const snapshot = await ledger.reload();
       if (!snapshot)
         throw new Error(
-          "원장 기록을 불러오지 못했어요. 지정 RPC 연결을 확인해 주세요.",
+          "원장 기록을 불러오지 못했습니다. 지정 RPC 연결을 확인하세요.",
         );
       let evidence = source === "file" ? receipt : undefined;
       let witness = source === "file" ? original : undefined;
@@ -226,8 +226,8 @@ function SaleLookup({
           const config = await api<ConfigDto>("/config").catch(() => undefined);
           setTokenRequired(!!config?.requiresToken);
           sellerError = config?.requiresToken
-            ? "판매사 제출 자료를 받으려면 접근 코드를 입력해 주세요. 원장 기록만 대조했어요."
-            : "판매사 제출 자료를 불러오지 못했어요. 원장 기록만 대조했어요.";
+            ? "판매사 제출 자료를 받으려면 접근 코드를 입력하세요. 원장 기록만 대조했습니다."
+            : "판매사 제출 자료를 불러오지 못했습니다. 원장 기록만 대조했습니다.";
         }
       }
       const ledgerOnly = await verifySale(
@@ -256,7 +256,7 @@ function SaleLookup({
       setError(
         koreanError(
           e,
-          "원장 기록을 대조하지 못했어요. 잠시 후 다시 시도해 주세요.",
+          "원장 기록을 대조하지 못했습니다. 잠시 후 다시 시도하세요.",
         ),
       );
     } finally {
@@ -300,10 +300,10 @@ function SaleLookup({
           >
             <option value="">
               {!ledger.snapshot
-                ? "원장을 읽고 있어요"
+                ? "원장을 읽고 있습니다"
                 : sales.length
-                  ? "판매 건을 선택해 주세요"
-                  : "원장에 판매 건이 없어요"}
+                  ? "판매 건을 선택하세요"
+                  : "원장에 판매 건이 없습니다"}
             </option>
             {sales.map((sale) => (
               <option key={sale.saleId} value={sale.saleId}>
@@ -330,23 +330,23 @@ function SaleLookup({
               setId(e.target.value);
               setResult(undefined);
             }}
-            placeholder="판매 ID(10진수)를 입력해 주세요"
+            placeholder="판매 ID(10진수)를 입력하세요"
           />
         </label>
         <fieldset className={s.sources}>
           <legend>함께 대조할 자료</legend>
           {(
             [
-              ["ledger", "원장만", "판매사 자료 없이 원장 기록만 대조해요."],
+              ["ledger", "원장만", "판매사 자료 없이 원장 기록만 대조합니다."],
               [
                 "seller",
                 "판매사 제출 자료 불러오기",
-                "이 판매 건의 증명서와 원본을 판매사 API에서 GET으로 받아요.",
+                "이 판매 건의 증명서와 원본을 판매사 API에서 GET으로 받습니다.",
               ],
               [
                 "file",
                 "파일 선택",
-                "증명서나 원본 파일을 이 브라우저에서 읽어요.",
+                "증명서나 원본 파일을 이 브라우저에서 읽습니다.",
               ],
             ] as const
           ).map(([value, label, hint]) => (
@@ -446,8 +446,8 @@ function SaleLookup({
             <h2>대조 결과</h2>
             <p className={s.intro}>
               {loading
-                ? "지정 RPC에서 원장을 읽고 판매 건을 대조하고 있어요."
-                : "판매 건을 고르거나 판매 ID를 입력하고 원장과 대조하기를 눌러 주세요. 원본 묶음이 있으면 모든 회차의 답변으로 판정을 다시 계산해요."}
+                ? "지정 RPC에서 원장을 읽고 판매 건을 대조하고 있습니다."
+                : "판매 건을 고르거나 판매 ID를 입력하고 원장과 대조하기를 누르세요. 원본 묶음이 있으면 모든 회차의 답변으로 판정을 다시 계산합니다."}
             </p>
           </>
         )}
@@ -515,7 +515,7 @@ function SaleResult({
             </Badge>
             <small>
               판매 기록, 상품 버전, 진단 기준·회차와 증명, 필수 확인, 숙려를
-              원장으로 대조했어요.
+              원장으로 대조했습니다.
             </small>
           </div>
           <div>
@@ -529,10 +529,10 @@ function SaleResult({
             </Badge>
             <small>
               {!hasEvidence
-                ? "증명서나 원본을 넣으면 원장 기록과 대조해요."
+                ? "증명서나 원본을 넣으면 원장 기록과 대조합니다."
                 : result.source === "seller"
-                  ? "판매사 API에서 받은 증명서와 원본을 원장 기록과 대조했어요."
-                  : `선택한 파일을 원장 기록과 대조했어요. ${fileNames}`}
+                  ? "판매사 API에서 받은 증명서와 원본을 원장 기록과 대조했습니다."
+                  : `선택한 파일을 원장 기록과 대조했습니다. ${fileNames}`}
             </small>
           </div>
         </div>
@@ -544,10 +544,10 @@ function SaleResult({
           if (outcome === "missing") return null;
           const needs =
             name === CHECK_NAMES.original
-              ? "원본 묶음을 넣으면 모든 회차의 답변·임의값으로 커밋먼트와 판정을 다시 계산해요."
+              ? "원본 묶음을 넣으면 모든 회차의 답변·임의값으로 커밋먼트와 판정을 다시 계산합니다."
               : name === CHECK_NAMES.receipt
-                ? "증명서를 넣으면 증명서의 판매 ID, 상품 버전, 회차, 금액, 거래를 원장과 대조해요."
-                : "이 항목은 확인하지 않았어요.";
+                ? "증명서를 넣으면 증명서의 판매 ID, 상품 버전, 회차, 금액, 거래를 원장과 대조합니다."
+                : "이 항목은 확인하지 않았습니다.";
           return (
             <div className={s.checkResult} key={name}>
               <FileText className={s.neutralIcon} />
@@ -649,7 +649,9 @@ function SaleResult({
               ))}
             </ul>
           ) : (
-            <p className={s.small}>이 판매 건에 해당하는 위험 신호가 없어요.</p>
+            <p className={s.small}>
+              이 판매 건에 해당하는 위험 신호가 없습니다.
+            </p>
           )}
         </>
       )}
@@ -665,7 +667,7 @@ function SaleResult({
           ["RPC", <code>{deployment?.rpcUrl}</code>],
           ["원장 컨트랙트", <code>{deployment?.ledger}</code>],
           ["Verifier", <code>{deployment?.verifier}</code>],
-          ["대조 시각", new Date(primary.verifiedAt).toLocaleString("ko-KR")],
+          ["대조 시각", dateTime(primary.verifiedAt)],
         ]}
       />
       {primary.references.length > 0 && (
@@ -783,7 +785,7 @@ function DiagnosisTable({
         </table>
       </div>
       {diagnoses.length === 0 && (
-        <p className={s.small}>원장에 진단 기록이 없어요.</p>
+        <p className={s.small}>원장에 진단 기록이 없습니다.</p>
       )}
     </>
   );
@@ -812,7 +814,7 @@ function CustomerLookup({
   const submit = (ref: string) => {
     const next = ref.trim();
     if (!CUSTOMER_REF.test(next)) {
-      setError("고객 가명 ID는 0x로 시작하는 64자리 16진수예요.");
+      setError("고객 가명 ID는 0x로 시작하는 64자리 16진수입니다.");
       return;
     }
     setError("");
@@ -840,10 +842,10 @@ function CustomerLookup({
           >
             <option value="">
               {!snapshot
-                ? "원장을 읽고 있어요"
+                ? "원장을 읽고 있습니다"
                 : known.length
-                  ? "고객 가명 ID를 선택해 주세요"
-                  : "원장에 고객 기록이 없어요"}
+                  ? "고객 가명 ID를 선택하세요"
+                  : "원장에 고객 기록이 없습니다"}
             </option>
             {known.map((ref) => (
               <option key={ref} value={ref}>
@@ -873,8 +875,8 @@ function CustomerLookup({
           <ShieldCheck size={17} />
         </Button>
         <p className={s.small}>
-          원장에는 고객 번호와 개인정보가 없어요. 실제 고객과의 연결 정보는
-          판매사가 분쟁 절차에 따라 내요.
+          원장에는 고객 번호와 개인정보가 없습니다. 실제 고객과의 연결 정보는
+          판매사가 분쟁 절차에 따라 제출합니다.
         </p>
       </form>
       <section className={`${s.panel} ${s.pad}`}>
@@ -886,8 +888,8 @@ function CustomerLookup({
               <>
                 <h2>고객 기록</h2>
                 <p className={s.intro}>
-                  고객 가명 ID를 고르거나 입력해 주세요. 그 고객의 모든 진단
-                  회차와 판매 건을 원장에서 보여 줘요.
+                  고객 가명 ID를 고르거나 입력하세요. 그 고객의 모든 진단 회차와
+                  판매 건을 원장에서 보여 줍니다.
                 </p>
               </>
             )
@@ -994,7 +996,7 @@ function CustomerRecord({
           </div>
           {sales.length === 0 && (
             <p className={s.small}>
-              청약 기록이 없어요. 가입을 중단해도 진단 회차는 원장에 남아요.
+              청약 기록이 없습니다. 가입을 중단해도 진단 회차는 원장에 남습니다.
             </p>
           )}
           <h3 className={s.subhead}>위험 신호</h3>
@@ -1011,13 +1013,13 @@ function CustomerRecord({
               ))}
             </ul>
           ) : (
-            <p className={s.small}>이 고객의 위험 신호가 없어요.</p>
+            <p className={s.small}>이 고객의 위험 신호가 없습니다.</p>
           )}
         </>
       )}
       {!found && (
         <p className={s.intro}>
-          이 고객 가명 ID의 진단·판매 기록이 지정한 원장에 없어요.
+          이 고객 가명 ID의 진단·판매 기록이 지정한 원장에 없습니다.
         </p>
       )}
     </>

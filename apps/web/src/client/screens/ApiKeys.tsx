@@ -7,7 +7,7 @@ import {
   type IssuedApiKeyDto,
 } from "../../../../../packages/core/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
-import { api } from "../../../../../packages/ui/src/api.ts";
+import { api, type LoadState } from "../../../../../packages/ui/src/api.ts";
 import { Badge, Heading } from "../../../../../packages/ui/src/components.tsx";
 import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import { API_DOCS_HREF } from "../../../../../packages/ui/src/links.ts";
@@ -23,12 +23,12 @@ const s = { ...ui, ...local };
  */
 export function ApiKeys({
   keys,
-  loaded,
+  load,
   busy,
   run,
 }: {
   keys: ApiKeyDto[];
-  loaded: boolean;
+  load: LoadState;
   busy: boolean;
   run: Run;
 }) {
@@ -152,8 +152,13 @@ export function ApiKeys({
           <h2 id="key-list-title" className={s.listTitle}>
             발급한 키
           </h2>
-          {!loaded ? (
+          {load === "loading" ? (
             <p className={s.tableNote}>키 목록을 불러오고 있습니다.</p>
+          ) : load === "failed" && !keys.length ? (
+            <p className={s.tableNote}>
+              키 목록을 불러오지 못했습니다. 연결을 확인하고 화면을 새로
+              고치세요.
+            </p>
           ) : keys.length ? (
             <div className={s.tableWrap}>
               <table>

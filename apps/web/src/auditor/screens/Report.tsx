@@ -18,6 +18,7 @@ import {
   Heading,
   Notice,
 } from "../../../../../packages/ui/src/components.tsx";
+import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import local from "../auditor.module.css";
 import { LedgerLine } from "../components.tsx";
@@ -76,7 +77,7 @@ export function Report({
       const snapshot = await ledger.reload();
       if (!snapshot)
         throw new Error(
-          "원장 기록을 불러오지 못했어요. 지정 RPC 연결을 확인해 주세요.",
+          "원장 기록을 불러오지 못했습니다. 지정 RPC 연결을 확인하세요.",
         );
       const scope: ReportScope =
         kind === "sale" ? { kind, saleId: saleId.trim() } : { kind };
@@ -87,7 +88,7 @@ export function Report({
       );
     } catch (e) {
       setError(
-        koreanError(e, "보고서를 만들지 못했어요. 잠시 후 다시 시도해 주세요."),
+        koreanError(e, "보고서를 만들지 못했습니다. 잠시 후 다시 시도하세요."),
       );
     } finally {
       setLoading(false);
@@ -99,8 +100,8 @@ export function Report({
   return (
     <div className={s.page}>
       <Heading
-        title="대조 결과를 보고서로 내려받아요"
-        description="이 브라우저가 지정 RPC에서 원장을 읽고 판매 건마다 독립 검증을 실행해요. 판매사 API를 쓰지 않아요."
+        title="대조 결과를 보고서로 내려받으세요"
+        description="이 브라우저가 지정 RPC에서 원장을 읽고 판매 건마다 독립 검증을 실행합니다. 판매사 API를 쓰지 않습니다."
       />
       <LedgerLine ledger={ledger} />
       <div className={s.verifyGrid}>
@@ -127,7 +128,7 @@ export function Report({
                 <small>
                   {ledger.snapshot
                     ? `원장의 가입 확정 ${confirmed}건`
-                    : "원장을 읽으면 건수를 보여 줘요."}
+                    : "원장을 읽으면 건수를 보여 줍니다."}
                 </small>
               </span>
             </label>
@@ -141,7 +142,7 @@ export function Report({
               />
               <span>
                 판매 건 하나
-                <small>청약·숙려 중이거나 철회한 건도 고를 수 있어요.</small>
+                <small>청약·숙려 중이거나 철회한 건도 고를 수 있습니다.</small>
               </span>
             </label>
           </fieldset>
@@ -153,7 +154,7 @@ export function Report({
                 disabled={loading || sales.length === 0}
                 onChange={(e) => setSaleId(e.target.value)}
               >
-                <option value="">판매 건을 선택해 주세요</option>
+                <option value="">판매 건을 선택하세요</option>
                 {saleId && !sales.some((sale) => sale.saleId === saleId) && (
                   <option value={saleId}>
                     {short(saleId)} · 원장에서 확인 전
@@ -191,14 +192,14 @@ export function Report({
             )}
           </Button>
           <p className={s.small}>
-            원본 파일 없이 원장 기록만 대조해요. 제출 자료와 대조하려면 분쟁
+            원본 파일 없이 원장 기록만 대조합니다. 제출 자료와 대조하려면 분쟁
             조회를 쓰세요.
           </p>
         </form>
         <section className={`${s.panel} ${s.pad}`} aria-live="polite">
-          {error && (
+          {(error || (!ledger.snapshot && ledger.error)) && (
             <div role="alert">
-              <Notice tone="danger">{error}</Notice>
+              <Notice tone="danger">{error || ledger.error}</Notice>
             </div>
           )}
           {report ? (
@@ -218,8 +219,8 @@ export function Report({
               <h2>보고서 미리보기</h2>
               <p className={s.intro}>
                 {busy
-                  ? "판매 건마다 원장 기록을 대조하고 있어요."
-                  : "범위를 고르고 보고서 만들기를 눌러 주세요. 만든 보고서는 JSON과 CSV로 내려받을 수 있어요."}
+                  ? "판매 건마다 원장 기록을 대조하고 있습니다."
+                  : "범위를 고르고 보고서 만들기를 누르세요. 만든 보고서는 JSON과 CSV로 내려받을 수 있습니다."}
               </p>
             </>
           )}
@@ -255,9 +256,10 @@ function ReportView({
         </div>
       </div>
       <Notice>
-        이 보고서는 이 브라우저가 만들었어요. 지정 RPC({source.rpcUrl})에서 원장{" "}
-        {short(source.ledger, 10, 8)}의 이벤트를 블록 {source.latestBlock}까지
-        읽고 판매 건마다 verifySale을 실행했어요. 판매사 API는 쓰지 않았어요.
+        이 보고서는 이 브라우저가 만들었습니다. 지정 RPC({source.rpcUrl})에서
+        원장 {short(source.ledger, 10, 8)}의 이벤트를 블록 {source.latestBlock}
+        까지 읽고 판매 건마다 verifySale을 실행했습니다. 판매사 API는 쓰지
+        않았습니다.
       </Notice>
       <Facts
         rows={[
@@ -291,7 +293,7 @@ function ReportView({
                 `${SIGNAL_LABELS[kind]} ${summary.signals[SIGNAL_LABELS[kind]] ?? 0}`,
             ).join(" · "),
           ],
-          ["만든 시각", new Date(report.generatedAt).toLocaleString("ko-KR")],
+          ["만든 시각", dateTime(report.generatedAt)],
         ]}
       />
       <div className={`${s.tableWrap} ${s.section}`}>
@@ -352,7 +354,7 @@ function ReportView({
           </tbody>
         </table>
         {report.sales.length === 0 && (
-          <p className={s.small}>범위 안에 판매 건이 없어요.</p>
+          <p className={s.small}>범위 안에 판매 건이 없습니다.</p>
         )}
       </div>
     </>

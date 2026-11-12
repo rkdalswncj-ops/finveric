@@ -69,81 +69,97 @@ const isInt = (value: unknown, min: number, max: number) =>
   Number.isInteger(value) &&
   (value as number) >= min &&
   (value as number) <= max;
-const isText = (value: unknown, max = 500) =>
-  typeof value === "string" && value.trim().length > 0 && value.length <= max;
 
-/** 진단 기준 원문을 검사한다. 오류 문장 목록을 돌려준다. 문제가 없으면 빈 배열이다. */
+/** 글자 항목의 문제. 비었으면 "empty", 너무 길면 "long", 괜찮으면 undefined다. */
+const textProblem = (value: unknown, max = 500) =>
+  typeof value !== "string" || value.trim().length === 0
+    ? "empty"
+    : value.length > max
+      ? "long"
+      : undefined;
+
+/**
+ * 진단 기준 원문을 검사한다. 오류 문장 목록을 돌려준다. 문제가 없으면 빈 배열이다.
+ * 문장은 판매사 콘솔의 편집기와 API 오류에 쓴다(합니다체). 무엇이 문제인지 항목마다 적는다.
+ */
 export function validateRule(doc: RuleDocument): string[] {
   const errors: string[] = [];
-  if (!doc || typeof doc !== "object") return ["진단 기준 원문이 없어요."];
+  if (!doc || typeof doc !== "object") return ["진단 기준 원문이 없습니다."];
   if (doc.format !== "finveric-rule-v5")
-    errors.push("형식은 finveric-rule-v5여야 해요.");
+    errors.push("형식은 finveric-rule-v5여야 합니다.");
   if (!isInt(doc.version, 1, 2 ** 32 - 1))
-    errors.push("버전은 1 이상의 정수여야 해요.");
-  if (!isText(doc.name, 100))
-    errors.push("기준 이름을 100자 안으로 써 주세요.");
+    errors.push("버전은 1 이상의 정수여야 합니다.");
+  const name = textProblem(doc.name, 100);
+  if (name === "empty") errors.push("기준 이름을 쓰세요.");
+  if (name === "long") errors.push("기준 이름을 100자 안으로 줄이세요.");
   if (
     !Array.isArray(doc.questions) ||
     doc.questions.length < 1 ||
     doc.questions.length > MAX_QUESTIONS
   ) {
-    errors.push(`문항은 1~${MAX_QUESTIONS}개여야 해요.`);
+    errors.push(`문항은 1~${MAX_QUESTIONS}개여야 합니다.`);
   } else {
     doc.questions.forEach((question, q) => {
       const label = `${q + 1}번 문항`;
       if (!question || typeof question !== "object") {
-        errors.push(`${label}이 비어 있어요.`);
+        errors.push(`${label}이 비어 있습니다.`);
         return;
       }
       if (!CATEGORIES.includes(question.category))
-        errors.push(`${label}의 범주를 6개 범주 중에서 골라 주세요.`);
-      if (!isText(question.title)) errors.push(`${label}의 질문을 써 주세요.`);
+        errors.push(`${label}의 범주를 6개 범주 중에서 고르세요.`);
+      const title = textProblem(question.title);
+      if (title === "empty") errors.push(`${label}의 질문을 쓰세요.`);
+      if (title === "long")
+        errors.push(`${label}의 질문을 500자 안으로 줄이세요.`);
       if (
         !Array.isArray(question.choices) ||
         question.choices.length < 1 ||
         question.choices.length > MAX_CHOICES
       ) {
-        errors.push(`${label}의 선택지는 1~${MAX_CHOICES}개여야 해요.`);
+        errors.push(`${label}의 선택지는 1~${MAX_CHOICES}개여야 합니다.`);
         return;
       }
       question.choices.forEach((choice, o) => {
         const where = `${label} ${o + 1}번 선택지`;
         if (!choice || typeof choice !== "object") {
-          errors.push(`${where}가 비어 있어요.`);
+          errors.push(`${where}가 비어 있습니다.`);
           return;
         }
-        if (!isText(choice.text)) errors.push(`${where}의 문구를 써 주세요.`);
+        const text = textProblem(choice.text);
+        if (text === "empty") errors.push(`${where}의 문구를 쓰세요.`);
+        if (text === "long")
+          errors.push(`${where}의 문구를 500자 안으로 줄이세요.`);
         if (!isInt(choice.score, 0, MAX_SCORE))
-          errors.push(`${where}의 점수는 0~${MAX_SCORE} 정수여야 해요.`);
+          errors.push(`${where}의 점수는 0~${MAX_SCORE} 정수여야 합니다.`);
         if (choice.cap !== undefined && !isInt(choice.cap, 1, 6))
-          errors.push(`${where}의 추출 조건은 1~6등급이어야 해요.`);
+          errors.push(`${where}의 추출 조건은 1~6등급이어야 합니다.`);
         if (choice.elderly !== undefined && typeof choice.elderly !== "boolean")
-          errors.push(`${where}의 고령 표시는 참·거짓이어야 해요.`);
+          errors.push(`${where}의 고령 표시는 참·거짓이어야 합니다.`);
       });
     });
     for (const category of CATEGORIES)
       if (!doc.questions.some((question) => question?.category === category))
-        errors.push(`"${category}" 범주의 문항이 필요해요.`);
+        errors.push(`"${category}" 범주의 문항을 넣으세요.`);
   }
   if (
     !Array.isArray(doc.thresholds) ||
     doc.thresholds.length !== 4 ||
     !doc.thresholds.every((value) => isInt(value, 0, 255))
   )
-    errors.push("등급 구간은 0~255 정수 4개여야 해요.");
+    errors.push("등급 구간은 0~255 정수 4개여야 합니다.");
   else if (
     doc.thresholds.some((value, k) => k > 0 && value < doc.thresholds[k - 1])
   )
-    errors.push("등급 구간 점수는 단계가 오를수록 같거나 커야 해요.");
+    errors.push("등급 구간 점수는 단계가 오를수록 같거나 커야 합니다.");
   if (
     !Array.isArray(doc.matrix) ||
     doc.matrix.length !== 5 ||
     !doc.matrix.every((value) => isInt(value, 1, 6))
   )
-    errors.push("적합성 기준은 투자성향 5단계마다 1~6등급이어야 해요.");
+    errors.push("적합성 기준은 투자성향 5단계마다 1~6등급이어야 합니다.");
   else if (doc.matrix.some((value, k) => k > 0 && value > doc.matrix[k - 1]))
     errors.push(
-      "적합성 기준은 투자성향이 오를수록 같거나 더 위험한 등급이어야 해요.",
+      "적합성 기준은 투자성향이 오를수록 같거나 더 위험한 등급이어야 합니다.",
     );
   return errors;
 }

@@ -9,16 +9,11 @@ import {
 } from "../../../../../packages/core/src/index.ts";
 import type { LedgerSnapshot } from "../../../../../packages/core/src/ledger.ts";
 import { Badge, Heading } from "../../../../../packages/ui/src/components.tsx";
+import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import local from "../auditor.module.css";
 import { LedgerGate, LedgerLine } from "../components.tsx";
-import {
-  customerPath,
-  dateTime,
-  productName,
-  salePath,
-  short,
-} from "../format.ts";
+import { customerPath, productName, salePath, short } from "../format.ts";
 import type { Ledger } from "../useLedger.ts";
 
 const s = { ...ui, ...local };
@@ -45,8 +40,8 @@ export function Signals({ ledger }: { ledger: Ledger }) {
   return (
     <div className={s.page}>
       <Heading
-        title="위험 신호를 원장 이벤트로 계산해요"
-        description="판매사 콘솔과 같은 기준으로 원장의 진단·청약·확정 이벤트만 써서 계산해요."
+        title="위험 신호를 원장 이벤트로 확인하세요"
+        description="판매사 콘솔과 같은 기준으로 원장의 진단·청약·확정 이벤트만 써서 계산합니다."
       />
       <LedgerLine ledger={ledger} />
       <LedgerGate ledger={ledger}>
@@ -110,7 +105,7 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
         <p className={s.panelNote}>
           {kind
             ? `${SIGNAL_LABELS[kind]}: ${CONDITIONS[kind]}`
-            : "신호 5종 전체. 판매 ID나 고객 가명 ID를 열면 분쟁 조회로 이동해요."}
+            : "신호 5종 전체. 판매 ID나 고객 가명 ID를 열면 분쟁 조회로 이동합니다."}
         </p>
         <div className={s.tableWrap}>
           <table>
@@ -169,8 +164,8 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
         {shown.length === 0 && (
           <p className={s.panelNote}>
             {kind
-              ? `${SIGNAL_LABELS[kind]} 신호가 없어요.`
-              : "원장 이벤트에서 계산한 위험 신호가 없어요."}
+              ? `${SIGNAL_LABELS[kind]} 신호가 없습니다.`
+              : "원장 이벤트에서 계산한 위험 신호가 없습니다."}
           </p>
         )}
       </section>

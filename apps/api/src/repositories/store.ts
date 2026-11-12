@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
+import { CodedError } from "../errors.ts";
 
 /**
  * 판매 기록 저장소.
@@ -56,7 +57,10 @@ export class FileStore implements SaleStore {
     try {
       accessSync(dirname(this.file), constants.R_OK | constants.W_OK);
     } catch {
-      throw new Error("판매 기록 파일에 접근하지 못했습니다.");
+      throw new CodedError(
+        "판매 기록 파일에 접근하지 못했습니다.",
+        "unavailable",
+      );
     }
   }
 }
@@ -105,7 +109,10 @@ export class RedisStore implements SaleStore {
     };
     // Upstash 오류 본문에는 저장소 주소가 들어갈 수 있다. 우리가 쓴 문장만 내보낸다.
     if (!response.ok || body.error)
-      throw new Error("판매 기록 저장소에 연결하지 못했습니다.");
+      throw new CodedError(
+        "판매 기록 저장소에 연결하지 못했습니다.",
+        "unavailable",
+      );
     return body.result;
   }
   async read() {
@@ -114,7 +121,10 @@ export class RedisStore implements SaleStore {
   }
   async ping() {
     if ((await this.command(["PING"])) !== "PONG")
-      throw new Error("판매 기록 저장소가 응답하지 않습니다.");
+      throw new CodedError(
+        "판매 기록 저장소가 응답하지 않습니다.",
+        "unavailable",
+      );
   }
   async write(data: string) {
     if (!this.owner)
@@ -129,8 +139,9 @@ export class RedisStore implements SaleStore {
       data,
     ]);
     if (Number(written) !== 1)
-      throw new Error(
+      throw new CodedError(
         "판매 기록 잠금이 만료되었습니다. 처리 기록을 확인한 뒤 다시 요청하세요.",
+        "unavailable",
       );
   }
   async lock<T>(operation: () => Promise<T>) {

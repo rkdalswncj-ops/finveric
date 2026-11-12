@@ -10,6 +10,7 @@ import {
 import {
   isProtectedSale,
   isSuitable,
+  RISK_GRADE_NAMES,
   type Deployment,
 } from "../../../../../packages/core/src/index.ts";
 import type {
@@ -24,9 +25,10 @@ import type {
   SubscribeRequest,
 } from "../../../../../packages/core/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
-import { api } from "../../../../../packages/ui/src/api.ts";
+import { api, type LoadState } from "../../../../../packages/ui/src/api.ts";
 import {
   Badge,
+  ConfirmDialog,
   Empty,
   Facts,
   Notice,
@@ -46,12 +48,7 @@ import {
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import local from "./channel.module.css";
 import type { Run } from "../App.tsx";
-import {
-  ActionBar,
-  ConfirmDialog,
-  PrimaryAction,
-  StepHeader,
-} from "../flow.tsx";
+import { ActionBar, PrimaryAction, StepHeader } from "../flow.tsx";
 import { channel, recordPath, verifyPath } from "../links.ts";
 
 const s = { ...ui, ...local };
@@ -111,6 +108,13 @@ function useNow(active: boolean) {
   }, [active]);
   return now;
 }
+/** 문장 안에 쓰는 권유 가능 위험등급. limit은 권유할 수 있는 가장 위험한 등급이다. 예: "6등급", "2~6등급". */
+const limitPhrase = (limit: number) =>
+  limit >= 6 ? "6등급" : `${limit}~6등급`;
+/** 문장 안에 쓰는 위험등급. 예: "1등급(매우 높은 위험)". */
+const gradePhrase = (grade: number) =>
+  `${grade}등급(${RISK_GRADE_NAMES[grade] ?? "위험등급 확인 필요"})`;
+
 const clock = (seconds: number) =>
   `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 
@@ -132,7 +136,7 @@ type Step = {
  * 단계마다 머리글(이전, 단계, 진행 막대), 제목, 내용, 아래 주요 동작 하나를 둔다.
  */
 export function Enrollment({
-  loaded,
+  load,
   sale,
   rules,
   products,
@@ -146,7 +150,7 @@ export function Enrollment({
   download,
   finish,
 }: {
-  loaded: boolean;
+  load: LoadState;
   sale?: Sale;
   rules: RuleEntryDto[];
   products: ProductEntryDto[];
@@ -254,13 +258,19 @@ export function Enrollment({
     return (
       <Empty
         title={
-          !loaded
+          load === "loading"
             ? "가입 정보를 불러오고 있어요"
-            : sale
-              ? "가입 상품을 확인하지 못했어요"
-              : "진행 중인 가입이 없어요"
+            : load === "failed" && !sale
+              ? "가입 정보를 불러오지 못했어요"
+              : sale
+                ? "가입 상품을 확인하지 못했어요"
+                : "진행 중인 가입이 없어요"
         }
-        text="상품을 고르면 투자성향 진단부터 시작해요."
+        text={
+          load === "failed" && !sale
+            ? "화면을 새로 고쳐 주세요."
+            : "상품을 고르면 투자성향 진단부터 시작해요."
+        }
       >
         <Button asChild>
           <Link to={channel.catalog}>상품 보러 가기</Link>
@@ -324,7 +334,7 @@ export function Enrollment({
   if (sale.status === "confirmed") {
     step = {
       stage: "증명서",
-      label: "가입 완료",
+      label: "증명서",
       title: "가입이 확정됐어요",
       badge: <Badge tone="success">가입 확정</Badge>,
       content: (
@@ -425,7 +435,8 @@ export function Enrollment({
       badge: <Badge>중단</Badge>,
       content: (
         <p className={s.intro}>
-          진단 기록은 남아 있어요. 다시 가입하면 다음 회차로 이어져요.
+          진단 기록은 남아요. 다시 가입할 때 최근 진단 결과로 이어 가거나 다시
+          진단할 수 있어요.
         </p>
       ),
       action: (
@@ -450,18 +461,22 @@ export function Enrollment({
       ),
       content: (
         <>
-          {ends ? (
+          {ends && cooling ? (
             <>
               <p className={s.intro}>
-                이 가입은 숙려 대상이에요. 숙려기간이 지나야 최종 확인할 수
-                있고, 그전에는 언제든 철회할 수 있어요.
+                숙려기간이 지나야 최종 확인할 수 있고, 최종 확인 전에는 언제든
+                철회할 수 있어요.
               </p>
               <div className={s.countdown} role="timer" aria-live="off">
-                <span>{cooling ? "최종 확인까지" : "숙려기간이 끝났어요"}</span>
+                <span>최종 확인까지</span>
                 <strong>{clock(coolingLeft)}</strong>
                 <small>{dateTime(ends)}부터 확인할 수 있어요</small>
               </div>
             </>
+          ) : ends ? (
+            <p className={s.intro}>
+              숙려기간이 끝났어요. 최종 확인 전에는 언제든 철회할 수 있어요.
+            </p>
           ) : (
             <p className={s.intro}>
               숙려 대상이 아니에요. 아래 내용을 확인하고 가입을 확정해 주세요.
@@ -472,7 +487,7 @@ export function Enrollment({
             <div>
               <strong>위험을 다시 알려 드려요</strong>
               <p>
-                {gradeName(document.riskGrade)} 상품이에요. 최대 손실:{" "}
+                {gradePhrase(document.riskGrade)} 상품이에요. 최대 손실:{" "}
                 {document.maxLoss}
               </p>
               <p>{document.cards[0]?.text}</p>
@@ -649,8 +664,8 @@ export function Enrollment({
           />
           {latest.attempt >= 3 && (
             <Notice>
-              {latest.attempt}번째 진단이에요. 청약 전에 판매사가 진단 이력을
-              확인하고 승인해요. 청약 단계에서 승인을 기다려요.
+              {latest.attempt}번째 진단이에요. 청약 전에 판매사 관리자가 진단
+              이력을 확인하고 승인해요. 청약 단계에서 승인을 기다려요.
             </Notice>
           )}
           <div className={s.secondary}>
@@ -702,9 +717,7 @@ export function Enrollment({
           content: (
             <>
               <Notice tone="warning">
-                {profileName(latest.profile)} 고객님께는{" "}
-                {limitRange(latest.limit)} 상품만 권유해요. 이 상품은{" "}
-                {gradeName(document.riskGrade)}이라 투자성향에 맞지 않아요.
+                {`${profileName(latest.profile)} 고객님께는 ${limitPhrase(latest.limit)} 상품만 권유해요. 이 상품은 ${gradePhrase(document.riskGrade)}이라 투자성향에 맞지 않아요.`}
               </Notice>
               <Facts
                 rows={[
@@ -781,15 +794,15 @@ export function Enrollment({
     step = {
       stage: "녹취",
       label: "녹취 동의",
-      title: "상담 내용을 녹취해요",
+      title: "가입 과정을 녹취해요",
       badge: <Badge tone="blue">녹취 대상</Badge>,
       back: () => update({ phase: "cards", card: lastCard }),
       content: (
         <>
           <p className={s.intro}>
             {document.complex
-              ? "고난도 금융투자상품은 가입 과정을 녹취해요."
-              : "고령 고객이나 투자성향에 맞지 않는 고객에게 파생결합증권을 팔 때는 가입 과정을 녹취해요."}{" "}
+              ? "고난도 금융투자상품이라 녹취해요."
+              : "고령 고객이나 투자성향에 맞지 않는 고객이 파생결합증권에 가입하면 녹취해요."}{" "}
             녹취에 동의하지 않으면 가입할 수 없어요. 녹취 파일은 판매사가
             보관하고, 가입 기록에는 파일의 지문만 남아요.
           </p>
@@ -827,7 +840,7 @@ export function Enrollment({
                 <div className={`${s.approval} ${s.approvalDone}`}>
                   <CircleCheck size={22} />
                   <div>
-                    <strong>판매사 승인을 받았어요</strong>
+                    <strong>관리자 승인을 받았어요</strong>
                     <p>이제 청약할 수 있어요.</p>
                   </div>
                 </div>
@@ -835,7 +848,7 @@ export function Enrollment({
                 <div className={s.approval}>
                   <LoaderCircle size={22} className={s.spin} />
                   <div>
-                    <strong>판매사가 진단 이력을 확인하고 있어요</strong>
+                    <strong>판매사 관리자가 진단 이력을 확인하고 있어요</strong>
                     <p>
                       {sale.latestAttempt}번째 진단이라 판매사 관리자 승인 뒤에
                       청약할 수 있어요. 승인되면 이 화면이 바로 바뀌어요. 다른
@@ -855,7 +868,7 @@ export function Enrollment({
                 "투자성향",
                 `${profileName(latest.profile)} · ${latest.attempt}회차`,
               ],
-              ["적합성", suitable ? "적합" : "부적합 · 추가 위험 확인"],
+              ["적합성", suitable ? "적합" : "부적합 · 본인 판단으로 가입"],
               ["핵심 설명 확인", `${explanationSeconds}초`],
               ["녹취", protectedSale ? "동의" : "대상 아님"],
               [
@@ -922,9 +935,10 @@ export function Enrollment({
       <ConfirmDialog
         open={confirm === "stop"}
         title="가입을 중단할까요?"
-        text="중단하면 이 가입 신청은 끝나요. 진단 기록은 남고, 다시 가입하면 다음 회차로 이어져요."
+        text="중단하면 이 가입 신청은 끝나요. 진단 기록은 남아요. 다시 가입할 때 최근 진단 결과로 이어 가거나 다시 진단할 수 있어요."
         confirmLabel="중단하기"
         cancelLabel="계속 가입하기"
+        size="large"
         onCancel={() => setConfirm(undefined)}
         onConfirm={() => {
           setConfirm(undefined);
@@ -937,6 +951,7 @@ export function Enrollment({
         text="철회하면 이 상품에 가입하지 않아요. 철회 기록도 함께 보관돼요."
         confirmLabel="철회하기"
         cancelLabel="돌아가기"
+        size="large"
         onCancel={() => setConfirm(undefined)}
         onConfirm={() => {
           setConfirm(undefined);

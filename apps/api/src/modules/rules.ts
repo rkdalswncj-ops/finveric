@@ -7,6 +7,7 @@ import {
   type RuleDocument,
 } from "../../../../packages/core/src/index.ts";
 import type { RuleEntry } from "../../../../packages/core/src/api.ts";
+import { CodedError } from "../errors.ts";
 import type { FundService } from "../service.ts";
 import type { StoredRule } from "../repositories/sales.ts";
 import { readRule, readRuleCount } from "../gateways/ledger.ts";
@@ -45,12 +46,16 @@ export async function latestRule(svc: FundService): Promise<StoredRule> {
   if (count === 0) throw new Error("진단 기준을 먼저 등록하세요.");
   const rule = svc.repository.rules().find((entry) => entry.version === count);
   if (!rule)
-    throw new Error(
-      "원장의 최신 진단 기준 원문을 판매 기록에서 찾을 수 없어요.",
+    throw new CodedError(
+      "원장의 최신 진단 기준 원문을 판매 기록에서 찾을 수 없습니다.",
+      "unavailable",
     );
   const chain = await readRule(svc, rule.hash);
   if (!chain.registered || chain.version !== count)
-    throw new Error("최신 진단 기준이 원장 기록과 달라요.");
+    throw new CodedError(
+      "최신 진단 기준이 원장 기록과 다릅니다.",
+      "unavailable",
+    );
   return rule;
 }
 
@@ -66,11 +71,11 @@ export async function registerRule(
   const doc: RuleDocument = { ...document, version };
   const errors = validateRule(doc);
   if (errors.length)
-    throw new Error(`진단 기준을 확인해 주세요. ${errors.join(" ")}`);
+    throw new Error(`진단 기준을 확인하세요. ${errors.join(" ")}`);
   const hash = ruleHash(doc);
   if ((await readRule(svc, hash)).registered)
     throw new Error(
-      "이미 등록한 진단 기준이에요. 내용을 바꿔 새 버전을 만드세요.",
+      "이미 등록한 진단 기준입니다. 내용을 바꿔 새 버전을 만드세요.",
     );
   const stored: StoredRule = { document: doc, hash, version };
   svc.repository.addRule(stored);

@@ -4,6 +4,7 @@ import type {
   ProductEntryDto,
   RuleEntryDto,
 } from "../../../../../packages/core/src/api.ts";
+import type { LoadState } from "../../../../../packages/ui/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
   Badge,
@@ -32,7 +33,7 @@ const s = { ...ui, ...client, ...local };
 
 /** 판매사 콘솔의 첫 화면. 진행 중인 판매 건, 승인 대기, 위험 신호, 적용 기준을 요약한다. */
 export function Dashboard({
-  loaded,
+  load,
   rules,
   products,
   sales,
@@ -41,7 +42,7 @@ export function Dashboard({
   register,
   open,
 }: {
-  loaded: boolean;
+  load: LoadState;
   rules: RuleEntryDto[];
   products: ProductEntryDto[];
   sales: Sale[];
@@ -88,7 +89,7 @@ export function Dashboard({
         title="판매 현황을 확인하세요"
         description="진행 중인 판매 건, 관리자 승인 대기, 위험 신호를 확인하세요. 모든 판정은 원장에 등록한 기준으로 기록합니다."
       />
-      {loaded && !rule && !selling.length && (
+      {load === "ready" && !rule && !selling.length && (
         <RegisterNotice busy={busy} register={register} />
       )}
       <div className={`${s.stats} ${s.dashboardStats}`}>
@@ -158,9 +159,11 @@ export function Dashboard({
           </table>
           {recent.length === 0 && (
             <p className={s.empty}>
-              {loaded
+              {load === "ready"
                 ? "아직 판매 건이 없습니다."
-                : "판매 건을 불러오고 있습니다."}
+                : load === "failed"
+                  ? "판매 건을 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
+                  : "판매 건을 불러오고 있습니다."}
             </p>
           )}
         </section>

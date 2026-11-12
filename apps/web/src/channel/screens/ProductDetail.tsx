@@ -5,6 +5,7 @@ import {
   type Product,
 } from "../../../../../packages/core/src/index.ts";
 import type { ProductEntryDto } from "../../../../../packages/core/src/api.ts";
+import type { LoadState } from "../../../../../packages/ui/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
   Facts,
@@ -31,14 +32,14 @@ const s = { ...ui, ...local };
  * 아래 주요 동작으로 이 상품의 가입에 바로 들어간다. 다른 상품의 청약 전 가입이 있으면 중단할지 먼저 묻는다.
  */
 export function ProductDetail({
-  loaded,
+  load,
   product,
   products,
   activeDraft,
   busy,
   start,
 }: {
-  loaded: boolean;
+  load: LoadState;
   product?: Product;
   products: ProductEntryDto[];
   activeDraft?: Sale;
@@ -49,8 +50,18 @@ export function ProductDetail({
   if (!product)
     return (
       <div className={s.empty}>
-        <h1>{loaded ? "상품을 찾을 수 없어요" : "상품을 불러오고 있어요"}</h1>
-        <p>상품 목록에서 다시 골라 주세요.</p>
+        <h1>
+          {load === "ready"
+            ? "상품을 찾을 수 없어요"
+            : load === "failed"
+              ? "상품을 불러오지 못했어요"
+              : "상품을 불러오고 있어요"}
+        </h1>
+        <p>
+          {load === "failed"
+            ? "화면을 새로 고쳐 주세요."
+            : "상품 목록에서 다시 골라 주세요."}
+        </p>
         <Button asChild>
           <Link to={channel.catalog}>상품 목록 보기</Link>
         </Button>
@@ -89,7 +100,7 @@ export function ProductDetail({
       />
       {document.complex && (
         <Notice>
-          고난도 금융투자상품이에요. 청약 과정을 녹취하고, 청약 뒤 숙려기간이
+          고난도 금융투자상품이에요. 가입 과정을 녹취하고, 청약 뒤 숙려기간이
           지나야 최종 확인할 수 있어요.
         </Notice>
       )}

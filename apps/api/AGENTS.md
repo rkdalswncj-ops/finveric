@@ -24,6 +24,7 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
 | `src/docs/operations.ts`      | 경로별 operationId, 분류(태그), 요약, 설명, 성공 응답, 요청 예시                                                                  |
 | `src/docs/page.ts`            | `/api/docs` 화면. HTML·CSS·JS를 한 문자열로 둔다                                                                                  |
 | `src/service.ts`              | `FundService`: 실행 맥락, 시작 검사. 업무 메서드는 모듈로 넘긴다                                                                  |
+| `src/errors.ts`               | `CodedError`: 오류 응답에 `code`(`pending`·`unavailable`·`rejected`)를 싣는 오류. 모든 계층이 던질 수 있다                        |
 | `src/modules/rules.ts`        | 소비자보호 담당: 진단 기준 버전 등록과 조회, 최신 기준                                                                            |
 | `src/modules/products.ts`     | 소비자보호 담당: 상품 설명서 버전 등록과 조회, 시연 기준·상품 일괄 등록                                                           |
 | `src/modules/customers.ts`    | 판매 채널: 고객 가명 ID, 진단 회차(증명 생성 → 판매사 키로 기록)                                                                  |
@@ -88,6 +89,12 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
 ## 오류와 비밀 값
 
 - 응답 오류는 우리가 쓴 한국어 문장만 내보낸다. RPC와 Redis 오류에는 주소와 토큰이 들어갈 수 있다. 오류 처리기는 한글로 시작하고 `http`가 없는 문장만 그대로 내보낸다. `API 키는…`처럼 영문으로 시작하는 문장은 일반 오류 문장으로 바뀐다.
+- 오류 응답에는 이유를 기계가 읽는 `code`를 함께 넣을 수 있다. `{ error, code?, ledgerError? }`다(`ErrorResponse`). 연동 앱은 `code`로 고객용 문장을 고른다. 문장은 판매사 콘솔이 그대로 보여 준다.
+  - `pending`: 앞선 원장 거래의 영수증이 아직 없다(미확정 거래, 영수증 대기).
+  - `unavailable`: RPC·저장소 연결 실패, 처리를 끝내지 못함. 우리가 쓰지 않은 오류 문장을 바꿀 때도 이 값이다.
+  - `rejected`: 원장이 거절했다(`LedgerRejection`). 원장 오류 이름을 알면 `ledgerError`(예: `TooEarly`)를 넣는다.
+  - 업무 규칙 오류(예: 진단 전 청약)에는 `code`를 넣지 않는다.
+- `code`를 넣으려면 `CodedError`(`src/errors.ts`)를 던진다. 오류 처리기(`app.ts`)가 응답에 옮긴다. 값을 더하면 `packages/core/src/api.ts`의 `ERROR_CODES`와 `src/docs/openapi.ts`의 설명을 함께 고친다.
 - 업무 오류는 409다. Fastify와 플러그인이 정한 4xx(잘못된 JSON 400, 본문 초과 413, 본문 형식 415, 요청 한도 429)는 상태 코드를 유지한다. 없는 경로는 404다.
 - 공개 조회와 로그에 답변·총점·임의값·고객 번호·개인키·승인 서명을 넣지 않는다. 고객은 가명 ID로만 표시한다.
 - 고객 가명 ID 비밀값은 `CUSTOMER_REF_SECRET`이다. 없으면 판매사 키에서 만든다. 비밀값을 바꾸면 같은 고객의 회차가 이어지지 않는다.

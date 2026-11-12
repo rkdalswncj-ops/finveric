@@ -23,12 +23,15 @@ import type {
   TraceDto,
 } from "../../../../packages/core/src/api.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
-import { api } from "../../../../packages/ui/src/api.ts";
+import { api, type LoadState } from "../../../../packages/ui/src/api.ts";
 import {
   AccessCodeForm,
   Empty,
 } from "../../../../packages/ui/src/components.tsx";
-import { useDeployment } from "../../../../packages/ui/src/deployment.ts";
+import {
+  DEPLOYMENT_ERROR,
+  useDeployment,
+} from "../../../../packages/ui/src/deployment.ts";
 import { networkName } from "../../../../packages/ui/src/format.ts";
 import {
   API_DOCS_HREF,
@@ -111,7 +114,7 @@ export function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const [error, setError] = useState("");
-  const deployment = useDeployment(setError);
+  const deployment = useDeployment(setError, DEPLOYMENT_ERROR.institution);
   const [config, setConfig] = useState<ConfigDto>();
   const configRef = useRef<ConfigDto>(undefined);
   const [rules, setRules] = useState<RuleEntryDto[]>([]);
@@ -120,7 +123,7 @@ export function App() {
   const [traces, setTraces] = useState<TraceDto[]>([]);
   const [customer, setCustomer] = useState<CustomerDto>();
   const [apiKeys, setApiKeys] = useState<ApiKeyDto[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [load, setLoad] = useState<LoadState>("loading");
   const [selected, setSelected] = useState(
     sessionStorage.getItem("finveric-sale") ?? "",
   );
@@ -150,12 +153,16 @@ export function App() {
     setTraces(newTraces);
     setCustomer(newCustomer);
     setApiKeys(newKeys);
-    setLoaded(true);
+    setLoad("ready");
   }, []);
   /** 화면을 막지 않고 다시 읽는다. */
   const refresh = useCallback(() => reload().catch(() => undefined), [reload]);
   useEffect(() => {
-    reload().catch((e: Error) => setError(e.message));
+    reload().catch((e: Error) => {
+      setError(e.message);
+      // 처음 읽기에 실패하면 빈 표가 "불러오고 있습니다"에 머물지 않게 한다.
+      setLoad((current) => (current === "loading" ? "failed" : current));
+    });
   }, [reload]);
   // 고객은 다른 탭(증권사 앱 예시)에서 가입한다. 이 탭으로 돌아오면 판매 건을 다시 읽는다.
   useEffect(() => {
@@ -228,7 +235,7 @@ export function App() {
     >
       {config?.requiresToken && (
         <AccessCodeForm
-          connect={() => void run("접속 중", reload)}
+          connect={() => void run("연결하고 있습니다", reload)}
           busy={!!busy}
         />
       )}
@@ -237,7 +244,7 @@ export function App() {
           path="/"
           element={
             <Dashboard
-              loaded={loaded}
+              load={load}
               rules={rules}
               products={products}
               sales={sales}
@@ -252,7 +259,7 @@ export function App() {
           path="/rules"
           element={
             <Rules
-              loaded={loaded}
+              load={load}
               rules={rules}
               products={products}
               busy={!!busy}
@@ -265,7 +272,7 @@ export function App() {
           path="/products"
           element={
             <Products
-              loaded={loaded}
+              load={load}
               rules={rules}
               products={products}
               busy={!!busy}
@@ -278,7 +285,7 @@ export function App() {
           path="/review"
           element={
             <Review
-              loaded={loaded}
+              load={load}
               sales={sales}
               products={products}
               customer={customer}
@@ -293,6 +300,7 @@ export function App() {
           path="/signals"
           element={
             <Signals
+              load={load}
               sales={sales}
               products={products}
               customer={customer}
@@ -304,6 +312,7 @@ export function App() {
           path="/chain"
           element={
             <Chain
+              load={load}
               traces={traces}
               sales={sales}
               products={products}
@@ -316,7 +325,7 @@ export function App() {
         <Route
           path="/keys"
           element={
-            <ApiKeys keys={apiKeys} loaded={loaded} busy={!!busy} run={run} />
+            <ApiKeys keys={apiKeys} load={load} busy={!!busy} run={run} />
           }
         />
         <Route path="/channel/*" element={<ChannelRedirect />} />

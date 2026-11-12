@@ -22,6 +22,8 @@
 ## 코드
 
 - 화면마다 `screens/` 아래 파일 하나를 둔다.
+- 진단 기준·상품 편집기는 처음 입력하거나 "원장에 등록"을 누른 뒤부터 검사 오류를 보여 준다. 바꾼 내용이 있으면 "편집 취소" 전에 `ConfirmDialog`(`packages/ui`)로 묻는다. 바뀐 것이 없으면 바로 닫는다.
+- 처음 읽기에 실패하면 빈 표는 "불러오지 못했습니다"를 보여 준다(`LoadState`의 `failed`).
 - API 키 화면은 키 원문을 발급 직후 한 번만 보여 준다. 원문을 상태 밖(sessionStorage, 주소, 로그)에 두지 않는다. 화면을 떠나면 원문은 사라진다.
 - 콘솔 화면만 쓰는 표시 요소는 `components.tsx`, 위험 신호 입력은 `signals.ts`, 처리 기록 이름·상태는 `traces.ts`에 둔다.
 - 증권사 앱 예시와 함께 쓰는 판매 건·상품·기준 표시 계산은 `packages/ui/src/sales.ts`에 둔다. 상태 배지와 핵심 설명 카드는 `packages/ui/src/sale-components.tsx`에 둔다. 다른 페이지 폴더에서 import하지 않는다.

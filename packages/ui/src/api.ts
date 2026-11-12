@@ -1,22 +1,70 @@
+import type { LedgerError } from "../../core/src/index.ts";
+import type { ErrorCode, ErrorResponse } from "../../core/src/api.ts";
+
 export function token() {
   return sessionStorage.getItem("finveric-token") ?? "";
 }
+
+/** 서버에 닿지 못했거나 응답을 읽지 못했을 때의 문장. 판매사 콘솔·감독기관·진입 화면용(합니다체)이다. */
+export const OFFLINE_MESSAGE =
+  "서버에 연결하지 못했습니다. 연결을 확인하고 화면을 새로 고치세요.";
+
+/**
+ * API 오류. `message`는 화면에 보여 줄 한국어 문장이다.
+ * `code`는 API 응답의 `code`이거나, 서버에 닿지 못했거나 응답이 JSON이 아니면 `offline`이다.
+ * 고객 화면은 `code`로 고객용 문장을 고른다.
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly code?: ErrorCode | "offline",
+    readonly ledgerError?: LedgerError,
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+/** 화면 자료를 읽는 상태. 처음 읽기에 실패하면 `failed`다. 다시 읽어 성공하면 `ready`가 된다. */
+export type LoadState = "loading" | "ready" | "failed";
+
+/** 판매사 API를 부른다. 응답을 해석하는 곳은 여기 하나다. 실패하면 `ApiError`를 던진다. */
 export async function api<T>(path: string, body?: unknown): Promise<T> {
-  const response = await fetch(
-    `${import.meta.env.VITE_API_URL ?? ""}/api${path}`,
-    {
+  let response: Response;
+  try {
+    response = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/api${path}`, {
       method: body === undefined ? "GET" : "POST",
       headers: {
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         ...(token() ? { Authorization: `Bearer ${token()}` } : {}),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    },
-  );
-  const value = await response.json();
-  if (!response.ok) throw new Error(value.error ?? "요청을 완료하지 못했어요.");
+    });
+  } catch {
+    throw new ApiError(OFFLINE_MESSAGE, "offline");
+  }
+  let value: unknown;
+  try {
+    value = await response.json();
+  } catch {
+    // 프록시가 돌려준 502처럼 본문이 비었거나 JSON이 아니다.
+    throw new ApiError(OFFLINE_MESSAGE, "offline", undefined, response.status);
+  }
+  if (!response.ok) {
+    const failure = (value ?? {}) as Partial<ErrorResponse>;
+    throw new ApiError(
+      typeof failure.error === "string" && failure.error
+        ? failure.error
+        : "요청을 완료하지 못했습니다.",
+      failure.code,
+      failure.ledgerError,
+      response.status,
+    );
+  }
   return value as T;
 }
+
 export function saveFile(value: unknown, name: string) {
   const url = URL.createObjectURL(
     new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }),

@@ -11,13 +11,13 @@ import {
   Heading,
   Stat,
 } from "../../../../../packages/ui/src/components.tsx";
+import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import local from "../auditor.module.css";
 import { LedgerGate, LedgerLine } from "../components.tsx";
 import {
   customerPath,
   customerRefs,
-  dateTime,
   gradeLabel,
   percent,
   productName,
@@ -122,8 +122,8 @@ export function Dashboard({
   return (
     <div className={s.page}>
       <Heading
-        title="원장 기록을 한눈에 확인해요"
-        description="지정 RPC에서 읽은 원장 v5 이벤트로 집계해요. 판매사 API를 쓰지 않아요."
+        title="원장 기록을 한눈에 확인하세요"
+        description="지정 RPC에서 읽은 원장 v5 이벤트로 집계합니다. 판매사 API를 쓰지 않습니다."
       />
       <LedgerLine ledger={ledger} />
       <LedgerGate ledger={ledger}>
@@ -221,7 +221,7 @@ function Summary({
             <h2 id="ratios">판매 절차 지표</h2>
           </div>
           <p className={s.panelNote}>
-            원장의 진단·청약·확정 이벤트로 계산해요.
+            원장의 진단·청약·확정 이벤트로 계산합니다.
           </p>
           {ratios.map((ratio) => (
             <div key={ratio.label} className={s.ratio}>
@@ -312,7 +312,7 @@ function Summary({
             </tbody>
           </table>
           {byProduct.length === 0 && (
-            <p className={s.panelNote}>원장에 등록한 상품이 없어요.</p>
+            <p className={s.panelNote}>원장에 등록한 상품이 없습니다.</p>
           )}
         </section>
         <section className={`${s.panel} ${s.tableWrap}`}>
@@ -402,7 +402,7 @@ function Summary({
           </tbody>
         </table>
         {events.length === 0 && (
-          <p className={s.panelNote}>아직 원장 이벤트가 없어요.</p>
+          <p className={s.panelNote}>아직 원장 이벤트가 없습니다.</p>
         )}
       </section>
     </>

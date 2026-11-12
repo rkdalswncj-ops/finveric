@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import type { Hex, TransactionReceipt } from "viem";
 import type { Role, Trace } from "../../../../packages/core/src/index.ts";
+import { CodedError } from "../errors.ts";
 import type { FundService } from "../service.ts";
 import type { StoredSale } from "../repositories/sales.ts";
 import {
@@ -47,8 +48,9 @@ export async function ensureNoPending(svc: FundService) {
   if (!svc.repository.hasPendingTransaction()) return;
   await reconcile(svc);
   if (svc.repository.hasPendingTransaction())
-    throw new Error(
+    throw new CodedError(
       "미확정 거래가 있습니다. 영수증을 확인한 뒤 다시 요청하세요.",
+      "pending",
     );
 }
 
@@ -106,7 +108,10 @@ export async function send(
     ) {
       trace.status = "failed";
       svc.repository.save();
-      throw new Error("성공 영수증에서 이번 요청의 이벤트를 찾을 수 없습니다.");
+      throw new CodedError(
+        "성공 영수증에서 이번 요청의 이벤트를 찾을 수 없습니다.",
+        "unavailable",
+      );
     }
     trace.event = options.event;
     trace.status = "confirmed";
@@ -126,12 +131,16 @@ export async function send(
     }
     svc.repository.save();
     if (trace.status === "pending")
-      throw new Error(
+      throw new CodedError(
         "거래 영수증이 아직 없습니다. 온체인 처리 화면에서 해시를 확인하세요.",
+        "pending",
       );
     throw error instanceof Error && /^[가-힣]/.test(error.message)
       ? error
-      : new Error("처리를 완료하지 못했습니다. 온체인 처리 기록을 확인하세요.");
+      : new CodedError(
+          "처리를 완료하지 못했습니다. 온체인 처리 기록을 확인하세요.",
+          "unavailable",
+        );
   }
 }
 

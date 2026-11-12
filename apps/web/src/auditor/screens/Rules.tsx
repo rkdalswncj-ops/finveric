@@ -14,12 +14,13 @@ import {
   Heading,
   Notice,
 } from "../../../../../packages/ui/src/components.tsx";
+import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import local from "../auditor.module.css";
 import { ChangeList } from "../ChangeList.tsx";
 import { LedgerGate, LedgerLine } from "../components.tsx";
 import { diffRules } from "../diff.ts";
-import { dateTime, gradeLabel, profileLabel, short } from "../format.ts";
+import { gradeLabel, profileLabel, short } from "../format.ts";
 import type { Ledger } from "../useLedger.ts";
 
 const s = { ...ui, ...local };
@@ -29,8 +30,8 @@ export function Rules({ ledger }: { ledger: Ledger }) {
   return (
     <div className={s.page}>
       <Heading
-        title="진단 기준 버전을 대조해요"
-        description="원장에 등록한 원문으로 기준 해시를 다시 계산해 원장 값과 대조해요. 버전 사이에 바뀐 문항, 점수, 추출 조건, 등급 구간을 보여 줘요."
+        title="진단 기준 버전을 대조하세요"
+        description="원장에 등록한 원문으로 기준 해시를 다시 계산해 원장 값과 대조합니다. 버전 사이에 바뀐 문항, 점수, 추출 조건, 등급 구간을 보여 줍니다."
       />
       <LedgerLine ledger={ledger} />
       <LedgerGate ledger={ledger}>
@@ -50,8 +51,8 @@ function RuleAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
   if (!selected)
     return (
       <div className={`${s.panel} ${s.empty}`}>
-        <h2>등록한 진단 기준이 없어요</h2>
-        <p>판매사가 진단 기준을 원장에 등록하면 여기에 버전이 나와요.</p>
+        <h2>등록한 진단 기준이 없습니다</h2>
+        <p>판매사가 진단 기준을 원장에 등록하면 여기에 버전이 나옵니다.</p>
       </div>
     );
   const used = (rule: LedgerRule) =>
@@ -181,7 +182,7 @@ function RuleDetail({
               document ? (
                 <code>{ruleHash(document)}</code>
               ) : (
-                "원문이 정렬한 JSON이 아니거나 검사를 통과하지 못했어요."
+                "원문이 정렬한 JSON이 아니거나 검사를 통과하지 못했습니다."
               ),
             ],
             [
@@ -195,8 +196,8 @@ function RuleDetail({
         />
         {!rule.hashMatches && (
           <Notice tone="warning">
-            이 버전의 등록 원문으로 다시 계산한 기준 해시가 원장 값과 달라요. 이
-            기준으로 기록한 진단은 분쟁 조회에서 불일치로 나와요.
+            이 버전의 등록 원문으로 다시 계산한 기준 해시가 원장 값과 다릅니다.
+            이 기준으로 기록한 진단은 분쟁 조회에서 불일치로 나옵니다.
           </Notice>
         )}
         <details>
@@ -225,9 +226,9 @@ function RuleDetail({
           )}
         </div>
         {!document ? (
-          <p className={s.intro}>원문을 읽을 수 없어 비교하지 못해요.</p>
+          <p className={s.intro}>원문을 읽을 수 없어 비교하지 못합니다.</p>
         ) : !previous ? (
-          <p className={s.intro}>비교할 다른 버전이 없어요.</p>
+          <p className={s.intro}>비교할 다른 버전이 없습니다.</p>
         ) : (
           <ChangeList
             changes={
@@ -276,7 +277,7 @@ function RuleDocumentView({ document }: { document: RuleDocument }) {
         </div>
         <p className={s.panelNote}>
           문항 {document.questions.length}개 · 합계 최고 {top}점. 추출 조건은
-          등급표보다 우선해요.
+          등급표보다 우선합니다.
         </p>
         <table>
           <thead>
@@ -321,8 +322,8 @@ function RuleDocumentView({ document }: { document: RuleDocument }) {
           <h2>등급 구간과 적합성 기준</h2>
         </div>
         <p className={s.panelNote}>
-          투자성향은 넘은 구간 수로 정해요. 권유 가능 최고 위험등급은 적합성
-          기준과 고른 선택지의 추출 조건 중 가장 보수적인 값이에요.
+          투자성향은 넘은 구간 수로 정합니다. 권유 가능 최고 위험등급은 적합성
+          기준과 고른 선택지의 추출 조건 중 가장 보수적인 값입니다.
         </p>
         <table>
           <thead>

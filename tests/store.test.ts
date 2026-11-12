@@ -104,6 +104,8 @@ test("저장소 오류에 연결 주소나 토큰을 노출하지 않는다", as
   });
   await assert.rejects(failing.read(), (error: Error) => {
     assert.equal(error.message, "판매 기록 저장소에 연결하지 못했습니다.");
+    // 오류 응답의 code. 연동 앱은 이 값으로 "잠시 후 다시 시도" 안내를 고른다.
+    assert.equal((error as Error & { code?: string }).code, "unavailable");
     return true;
   });
 });

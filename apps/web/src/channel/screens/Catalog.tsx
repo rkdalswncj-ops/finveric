@@ -14,6 +14,7 @@ import {
   type ProductType,
 } from "../../../../../packages/core/src/index.ts";
 import type { ProductEntryDto } from "../../../../../packages/core/src/api.ts";
+import type { LoadState } from "../../../../../packages/ui/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import { Badge, Heading } from "../../../../../packages/ui/src/components.tsx";
 import ui from "../../../../../packages/ui/src/ui.module.css";
@@ -40,13 +41,13 @@ const ICONS: Record<ProductType, [typeof TrendingUp, string]> = {
  * 카드의 "가입하기"는 그 상품의 가입에 바로 들어간다. "자세히 보기"는 상품 상세로 간다.
  */
 export function Catalog({
-  loaded,
+  load,
   products,
   activeDraft,
   busy,
   start,
 }: {
-  loaded: boolean;
+  load: LoadState;
   products: ProductEntryDto[];
   activeDraft?: Sale;
   busy: string;
@@ -88,7 +89,7 @@ export function Catalog({
           <Search size={18} />
           <input
             aria-label="상품명 또는 발행사·운용사 검색"
-            placeholder="상품명·발행사 검색"
+            placeholder="상품명·발행사·운용사"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -163,11 +164,29 @@ export function Catalog({
       </div>
       {filtered.length === 0 && (
         <div className={s.empty}>
-          {!loaded
-            ? "상품을 불러오고 있어요."
-            : selling.length
-              ? "검색 결과가 없어요. 상품 유형이나 검색어를 바꿔 보세요."
-              : "지금 가입할 수 있는 상품이 없어요. 상품이 등록되면 여기에 보여요."}
+          {load === "failed" && !selling.length ? (
+            <p>상품을 불러오지 못했어요. 화면을 새로 고쳐 주세요.</p>
+          ) : load === "loading" ? (
+            <p>상품을 불러오고 있어요.</p>
+          ) : !selling.length ? (
+            <p>
+              지금 가입할 수 있는 상품이 없어요. 상품이 등록되면 여기에 보여요.
+            </p>
+          ) : query.trim() ? (
+            <>
+              <p>{`'${query.trim()}' 검색 결과가 없어요.`}</p>
+              <Button variant="outline" onClick={() => setQuery("")}>
+                검색 지우기
+              </Button>
+            </>
+          ) : (
+            <>
+              <p>{type} 상품이 없어요.</p>
+              <Button variant="outline" onClick={() => setType("")}>
+                전체 상품 보기
+              </Button>
+            </>
+          )}
         </div>
       )}
       <div className={s.catalogNote}>

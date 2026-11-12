@@ -179,7 +179,7 @@ export async function buildReport(
     format: REPORT_FORMAT,
     generatedAt: new Date().toISOString(),
     generatedBy:
-      "FINVERIC 감독기관 화면. 이 브라우저가 지정 RPC에서 원장을 읽고 검증했어요.",
+      "FINVERIC 감독기관 화면. 이 브라우저가 지정 RPC에서 원장을 읽고 검증했습니다.",
     source: {
       chainId: deployment.chainId,
       rpcUrl: deployment.rpcUrl,

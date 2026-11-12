@@ -14,6 +14,7 @@ import type {
   ProductEntry,
   RegisterResponse,
 } from "../../../../packages/core/src/api.ts";
+import { CodedError } from "../errors.ts";
 import type { FundService } from "../service.ts";
 import type { StoredProduct } from "../repositories/sales.ts";
 import {
@@ -83,7 +84,10 @@ export function storedProduct(svc: FundService, id: Hex, version: number) {
         product.version === version,
     );
   if (!entry)
-    throw new Error("원장의 상품 설명서 원문을 판매 기록에서 찾을 수 없어요.");
+    throw new CodedError(
+      "원장의 상품 설명서 원문을 판매 기록에서 찾을 수 없습니다.",
+      "unavailable",
+    );
   return entry.product;
 }
 
@@ -100,7 +104,7 @@ export async function registerProduct(
   const doc: ProductDocument = { ...document, version };
   const errors = validateProduct(doc);
   if (errors.length)
-    throw new Error(`상품 설명서를 확인해 주세요. ${errors.join(" ")}`);
+    throw new Error(`상품 설명서를 확인하세요. ${errors.join(" ")}`);
   const product = defineProduct(doc);
   const stored: StoredProduct = { product };
   svc.repository.addProduct(stored);

@@ -1,9 +1,10 @@
-// 증권사 앱 예시의 단계 화면 부품: 단계 머리글, 아래 동작 막대, 확인 창.
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+// 증권사 앱 예시의 단계 화면 부품: 단계 머리글, 아래 동작 막대, 가입 시작. 확인 창은 packages/ui의 ConfirmDialog다.
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { ChevronLeft, LoaderCircle } from "lucide-react";
 import type { ProductEntryDto } from "../../../../packages/core/src/api.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
+import { ConfirmDialog } from "../../../../packages/ui/src/components.tsx";
 import {
   productName,
   saleProduct,
@@ -135,61 +136,6 @@ export function ActionBar({
   );
 }
 
-/** 되돌릴 수 없는 동작(가입 중단, 청약 철회) 전에 묻는 창. 안전한 선택이 주요 버튼이다. */
-export function ConfirmDialog({
-  open,
-  title,
-  text,
-  confirmLabel,
-  cancelLabel,
-  onConfirm,
-  onCancel,
-}: {
-  open: boolean;
-  title: string;
-  text: string;
-  confirmLabel: string;
-  cancelLabel: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const safe = useRef<HTMLButtonElement>(null);
-  const titleId = useId();
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (open && !dialog.open) {
-      dialog.showModal();
-      // 처음 초점은 안전한 선택(계속하기)에 둔다.
-      safe.current?.focus();
-    }
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
-  return (
-    <dialog
-      ref={ref}
-      className={s.dialog}
-      aria-labelledby={titleId}
-      onCancel={(e) => {
-        e.preventDefault();
-        onCancel();
-      }}
-    >
-      <h2 id={titleId}>{title}</h2>
-      <p>{text}</p>
-      <div className={s.dialogActions}>
-        <Button variant="outline" size="large" onClick={onConfirm}>
-          {confirmLabel}
-        </Button>
-        <Button ref={safe} size="large" onClick={onCancel}>
-          {cancelLabel}
-        </Button>
-      </div>
-    </dialog>
-  );
-}
-
 /**
  * 상품 카드·상세에서 그 상품의 가입에 바로 들어간다.
  * 다른 상품의 청약 전 가입이 있으면 중단할지 먼저 묻는다. 그 밖에는 묻지 않는다.
@@ -214,6 +160,7 @@ export function useStartEnrollment(
       text={`${productName(draftProduct?.document)} 가입을 중단하고 이 상품으로 새로 시작해요. 진단 기록은 남아요.`}
       confirmLabel="중단하고 시작하기"
       cancelLabel="그대로 두기"
+      size="large"
       onCancel={() => setPending(undefined)}
       onConfirm={() => {
         const id = pending;

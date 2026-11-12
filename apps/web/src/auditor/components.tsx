@@ -4,6 +4,7 @@ import { LoaderCircle, RefreshCw } from "lucide-react";
 import type { LedgerSnapshot } from "../../../../packages/core/src/ledger.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
 import { Notice } from "../../../../packages/ui/src/components.tsx";
+import { dateTime } from "../../../../packages/ui/src/format.ts";
 import ui from "../../../../packages/ui/src/ui.module.css";
 import local from "./auditor.module.css";
 import type { Ledger } from "./useLedger.ts";
@@ -16,10 +17,12 @@ export function LedgerLine({ ledger }: { ledger: Ledger }) {
     <div className={s.ledgerLine}>
       <span role="status" aria-live="polite">
         {ledger.loading
-          ? "지정 RPC에서 원장을 읽고 있어요."
+          ? "지정 RPC에서 원장을 읽고 있습니다."
           : ledger.snapshot
-            ? `블록 ${ledger.snapshot.latestBlock.toString()}까지 읽었어요 · ${ledger.loadedAt?.toLocaleTimeString("ko-KR") ?? ""}`
-            : "원장을 아직 읽지 않았어요."}
+            ? `블록 ${ledger.snapshot.latestBlock.toString()}까지 읽었습니다 · ${dateTime(ledger.loadedAt)}`
+            : ledger.error
+              ? "원장을 읽지 못했습니다."
+              : "원장을 아직 읽지 않았습니다."}
       </span>
       <Button
         variant="outline"
@@ -60,8 +63,8 @@ export function LedgerGate({
           <LoaderCircle className={s.spin} size={22} />
           <p>
             {ledger.configured
-              ? "지정 RPC에서 원장 이벤트를 읽고 있어요."
-              : "검증 설정을 불러오고 있어요."}
+              ? "지정 RPC에서 원장 이벤트를 읽고 있습니다."
+              : "검증 설정을 불러오고 있습니다."}
           </p>
         </div>
       ) : null}

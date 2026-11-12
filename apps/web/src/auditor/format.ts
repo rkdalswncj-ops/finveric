@@ -20,15 +20,6 @@ export const short = (value: string, head = 6, tail = 4) =>
     ? value
     : `${value.slice(0, head)}…${value.slice(-tail)}`;
 
-/** 블록 시각(초)을 한국 시간 표기로 바꾼다. */
-export const dateTime = (seconds?: number) =>
-  seconds
-    ? new Date(seconds * 1000).toLocaleString("ko-KR", {
-        dateStyle: "short",
-        timeStyle: "medium",
-      })
-    : "—";
-
 export const profileLabel = (profile: number) =>
   PROFILE_NAMES[profile] ?? `${profile}단계`;
 export const gradeLabel = (grade: number) =>

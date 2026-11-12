@@ -65,32 +65,39 @@ export const isProtectedSale = (
 ) =>
   product.complex || (product.derivative && (diagnosis.elderly || !suitable));
 
-const isText = (value: unknown, max: number) =>
-  typeof value === "string" && value.trim().length > 0 && value.length <= max;
+/** 글자 항목의 문제. 비었으면 "empty", 너무 길면 "long", 괜찮으면 undefined다. */
+const textProblem = (value: unknown, max: number) =>
+  typeof value !== "string" || value.trim().length === 0
+    ? "empty"
+    : value.length > max
+      ? "long"
+      : undefined;
 
-/** 설명서를 검사한다. 오류 문장 목록을 돌려준다. 문제가 없으면 빈 배열이다. */
+/**
+ * 설명서를 검사한다. 오류 문장 목록을 돌려준다. 문제가 없으면 빈 배열이다.
+ * 문장은 판매사 콘솔의 편집기와 API 오류에 쓴다(합니다체). 무엇이 문제인지 항목마다 적는다.
+ */
 export function validateProduct(doc: ProductDocument): string[] {
   const errors: string[] = [];
-  if (!doc || typeof doc !== "object") return ["상품 설명서가 없어요."];
+  if (!doc || typeof doc !== "object") return ["상품 설명서가 없습니다."];
   if (doc.format !== "finveric-product-v5")
-    errors.push("형식은 finveric-product-v5여야 해요.");
-  if (
-    typeof doc.code !== "string" ||
-    !/^[A-Z0-9][A-Z0-9-]{1,39}$/.test(doc.code)
-  )
-    errors.push("상품 코드는 영문 대문자·숫자·하이픈 2~40자여야 해요.");
+    errors.push("형식은 finveric-product-v5여야 합니다.");
+  if (typeof doc.code !== "string" || doc.code.trim() === "")
+    errors.push("상품 코드를 쓰세요.");
+  else if (!/^[A-Z0-9][A-Z0-9-]{1,39}$/.test(doc.code))
+    errors.push("상품 코드는 영문 대문자·숫자·하이픈 2~40자여야 합니다.");
   if (!Number.isInteger(doc.version) || doc.version < 1)
-    errors.push("버전은 1 이상의 정수여야 해요.");
+    errors.push("버전은 1 이상의 정수여야 합니다.");
   if (!PRODUCT_TYPES.includes(doc.type))
-    errors.push("상품 유형은 ELS, 펀드, ELB 중 하나여야 해요.");
+    errors.push("상품 유형은 ELS, 펀드, ELB 중 하나여야 합니다.");
   if (
     !Number.isInteger(doc.riskGrade) ||
     doc.riskGrade < 1 ||
     doc.riskGrade > 6
   )
-    errors.push("위험등급은 1~6등급이어야 해요.");
+    errors.push("위험등급은 1~6등급이어야 합니다.");
   if (typeof doc.complex !== "boolean" || typeof doc.derivative !== "boolean")
-    errors.push("고난도·파생결합증권 여부를 정해 주세요.");
+    errors.push("고난도·파생결합증권 여부를 정하세요.");
   for (const [key, label] of [
     ["name", "상품명을"],
     ["issuer", "발행사·운용사를"],
@@ -99,18 +106,27 @@ export function validateProduct(doc: ProductDocument): string[] {
     ["maxLoss", "최대 손실을"],
     ["fee", "수수료를"],
     ["summary", "상품 요약을"],
-  ] as const)
-    if (!isText(doc[key], 500)) errors.push(`${label} 500자 안으로 써 주세요.`);
-  if (
-    !Array.isArray(doc.cards) ||
-    doc.cards.length !== PRODUCT_CARD_COUNT ||
-    !doc.cards.every(
-      (card) => card && isText(card.title, 100) && isText(card.text, 1000),
-    )
-  )
-    errors.push(
-      `핵심 설명 카드는 ${PRODUCT_CARD_COUNT}장이어야 해요. 첫 장에 부적합 고객 유형과 손실 사례를 써 주세요.`,
-    );
+  ] as const) {
+    const problem = textProblem(doc[key], 500);
+    if (problem === "empty") errors.push(`${label} 쓰세요.`);
+    if (problem === "long") errors.push(`${label} 500자 안으로 줄이세요.`);
+  }
+  if (!Array.isArray(doc.cards) || doc.cards.length !== PRODUCT_CARD_COUNT)
+    errors.push(`핵심 설명 카드는 ${PRODUCT_CARD_COUNT}장이어야 합니다.`);
+  else
+    doc.cards.forEach((card, index) => {
+      const where = `${index + 1}번 카드`;
+      const title = textProblem(card?.title, 100);
+      const text = textProblem(card?.text, 1000);
+      if (title === "empty" && text === "empty")
+        errors.push(`${where}의 제목과 내용을 쓰세요.`);
+      else if (title === "empty") errors.push(`${where}의 제목을 쓰세요.`);
+      else if (text === "empty") errors.push(`${where}의 내용을 쓰세요.`);
+      if (title === "long")
+        errors.push(`${where}의 제목을 100자 안으로 줄이세요.`);
+      if (text === "long")
+        errors.push(`${where}의 내용을 1000자 안으로 줄이세요.`);
+    });
   return errors;
 }
 

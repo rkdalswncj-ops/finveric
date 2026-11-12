@@ -7,6 +7,7 @@ import {
   type LedgerSnapshot,
 } from "../../../../packages/core/src/ledger.ts";
 import { requireDeployment } from "../../../../packages/core/src/verify.ts";
+import { DEPLOYMENT_ERROR } from "../../../../packages/ui/src/deployment.ts";
 import { koreanError } from "./format.ts";
 
 export type Ledger = {
@@ -24,8 +25,12 @@ export type Ledger = {
 /**
  * 배포 설정의 RPC로 원장을 읽는다. 먼저 체인 ID와 원장·Verifier 코드가 배포 설정과 같은지 확인한다.
  * 모든 화면이 같은 결과를 쓴다. 분쟁 조회와 보고서는 대조 직전에 다시 읽는다.
+ * `configFailed`이면 검증 설정을 읽지 못한 것이다. 화면이 "불러오고 있습니다"에 머물지 않게 오류로 둔다.
  */
-export function useLedger(deployment?: Deployment): Ledger {
+export function useLedger(
+  deployment?: Deployment,
+  configFailed = false,
+): Ledger {
   const [snapshot, setSnapshot] = useState<LedgerSnapshot>();
   const [loadedAt, setLoadedAt] = useState<Date>();
   const [loading, setLoading] = useState(false);
@@ -50,7 +55,7 @@ export function useLedger(deployment?: Deployment): Ledger {
         setError(
           koreanError(
             e,
-            "원장 기록을 불러오지 못했어요. 지정 RPC 연결을 확인하고 다시 읽어 주세요.",
+            "원장 기록을 불러오지 못했습니다. 지정 RPC 연결을 확인하고 원장 다시 읽기를 누르세요.",
           ),
         );
       return undefined;
@@ -66,7 +71,7 @@ export function useLedger(deployment?: Deployment): Ledger {
     snapshot,
     loadedAt,
     loading,
-    error,
+    error: !deployment && configFailed ? DEPLOYMENT_ERROR.institution : error,
     reload,
   };
 }

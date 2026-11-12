@@ -416,8 +416,25 @@ export type ExportResponse = {
   original: OriginalBundle;
 };
 
-/** 오류 응답. `error`는 우리가 쓴 한국어 문장이다. */
-export type ErrorResponse = { error: string };
+/**
+ * 오류 응답의 `code`. 연동 앱이 이유마다 다른 안내를 고를 때 쓴다.
+ * - `pending`: 앞선 원장 거래의 영수증을 아직 받지 못했다. 잠시 뒤 다시 요청한다.
+ * - `unavailable`: RPC·저장소 연결이 실패했거나 처리를 끝내지 못했다.
+ * - `rejected`: 원장이 요청을 거절했다. 이유는 `ledgerError`에 있다.
+ */
+export const ERROR_CODES = ["pending", "unavailable", "rejected"] as const;
+export type ErrorCode = (typeof ERROR_CODES)[number];
+
+/**
+ * 오류 응답. `error`는 우리가 쓴 한국어 문장이다.
+ * `code`는 이유를 기계가 읽는 값이다. 업무 규칙 오류(예: 진단 전 청약)에는 없다.
+ * `ledgerError`는 `code`가 `rejected`이고 원장 오류 이름을 알 때만 있다.
+ */
+export type ErrorResponse = {
+  error: string;
+  code?: ErrorCode;
+  ledgerError?: LedgerError;
+};
 
 // ── 응답 스키마(문서 전용) ────────────────────────────────────
 // OpenAPI 문서(`/api/openapi.json`)와 응답 대조 검사에만 쓴다. Fastify 경로의 `schema.response`에 넣지 않는다.
@@ -484,8 +501,18 @@ export const errorResponseSchema = responseSchema<ErrorResponse>(
       type: "string",
       description: "원인과 다음 행동을 적은 한국어 문장",
     },
+    code: {
+      enum: ERROR_CODES,
+      description:
+        "이유를 나타내는 값. `pending`: 앞선 원장 거래의 영수증을 아직 받지 못했습니다. `unavailable`: RPC·저장소 연결이 실패했거나 처리를 끝내지 못했습니다. `rejected`: 원장이 요청을 거절했습니다. 업무 규칙 오류에는 없습니다.",
+    },
+    ledgerError: {
+      enum: Object.keys(LEDGER_ERRORS),
+      description:
+        "원장 오류 이름(예: `TooEarly`). `code`가 `rejected`이고 이름을 알 때만 있습니다.",
+    },
   },
-  {},
+  { code: true, ledgerError: true },
 );
 
 const healthCheckSchema = responseSchema<HealthCheck>(

@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Route, Routes, useLocation, useNavigate } from "react-router";
+import {
+  LEDGER_ERRORS,
+  type LedgerError,
+} from "../../../../packages/core/src/index.ts";
 import type {
   ConfigDto,
   CustomerDto,
@@ -12,7 +16,12 @@ import type {
   SaleDto,
 } from "../../../../packages/core/src/api.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
-import { api, saveFile } from "../../../../packages/ui/src/api.ts";
+import {
+  api,
+  ApiError,
+  saveFile,
+  type LoadState,
+} from "../../../../packages/ui/src/api.ts";
 import {
   AccessCodeForm,
   Empty,
@@ -35,6 +44,41 @@ import { Records } from "./screens/Records.tsx";
 /** 진행 중인 가입 신청 번호. 탭마다 따로 보관한다. */
 const DRAFT_KEY = "finveric-draft";
 
+/** 원장 거절 이유 중 고객에게 다르게 알리는 것. 나머지는 원장 오류 문구(LEDGER_ERRORS)를 그대로 쓴다. */
+const CUSTOMER_REJECTIONS: Partial<Record<LedgerError, string>> = {
+  TooEarly:
+    "숙려기간이 아직 끝나지 않았어요. 남은 시간이 지나면 다시 눌러 주세요.",
+};
+const UNAVAILABLE =
+  "지금은 처리하지 못했어요. 잠시 후 다시 시도해 주세요. 계속 안 되면 판매사에 문의해 주세요.";
+
+/**
+ * 오류를 고객에게 보여 줄 문장으로 바꾼다. API 응답의 `code`로 고른다.
+ * 원장·거래·영수증 같은 말과 판매사 콘솔에서만 할 수 있는 안내를 고객에게 보이지 않는다.
+ * `code`가 없는 업무 규칙 오류는 API 문장을 그대로 쓴다.
+ */
+function customerMessage(error: unknown) {
+  if (!(error instanceof ApiError))
+    return error instanceof Error && /^[가-힣]/.test(error.message)
+      ? error.message
+      : UNAVAILABLE;
+  switch (error.code) {
+    case "offline":
+      return "서버에 연결하지 못했어요. 연결을 확인하고 화면을 새로 고쳐 주세요.";
+    case "pending":
+      return "가입 요청을 보냈어요. 처리를 확인하는 데 시간이 걸리고 있어요. 잠시 후 다시 시도해 주세요.";
+    case "unavailable":
+      return UNAVAILABLE;
+    case "rejected":
+      return error.ledgerError
+        ? (CUSTOMER_REJECTIONS[error.ledgerError] ??
+            LEDGER_ERRORS[error.ledgerError])
+        : UNAVAILABLE;
+    default:
+      return error.message;
+  }
+}
+
 /** 화면이 부르는 처리. 실패하면 오류를 보여 주고 undefined를 돌려준다. */
 export type Run = <T>(
   name: string,
@@ -56,7 +100,7 @@ export function App() {
   const [products, setProducts] = useState<ProductEntryDto[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [customer, setCustomer] = useState<CustomerDto>();
-  const [loaded, setLoaded] = useState(false);
+  const [load, setLoad] = useState<LoadState>("loading");
   const [draftId, setDraftId] = useState(
     sessionStorage.getItem(DRAFT_KEY) ?? "",
   );
@@ -81,12 +125,16 @@ export function App() {
     setProducts(newProducts);
     setSales(newSales);
     setCustomer(newCustomer);
-    setLoaded(true);
+    setLoad("ready");
   }, []);
   /** 화면을 막지 않고 다시 읽는다. 승인 대기·숙려 화면이 쓴다. */
   const refresh = useCallback(() => reload().catch(() => undefined), [reload]);
   useEffect(() => {
-    reload().catch((e: Error) => setError(e.message));
+    reload().catch((e: unknown) => {
+      setError(customerMessage(e));
+      // 처음 읽기에 실패하면 빈 화면이 "불러오고 있어요"에 머물지 않게 한다.
+      setLoad((current) => (current === "loading" ? "failed" : current));
+    });
   }, [reload]);
   // 관리자 승인은 판매사 콘솔(다른 탭)에서 한다. 이 탭으로 돌아오면 다시 읽는다.
   useEffect(() => {
@@ -110,7 +158,7 @@ export function App() {
       await reload();
       return result;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "처리를 완료하지 못했어요.");
+      setError(customerMessage(e));
       await refresh();
       return undefined;
     } finally {
@@ -213,7 +261,7 @@ export function App() {
           path={channel.catalog}
           element={
             <Catalog
-              loaded={loaded}
+              load={load}
               products={products}
               activeDraft={activeDraft}
               busy={busy}
@@ -225,7 +273,7 @@ export function App() {
           path={channel.fund}
           element={
             <ProductDetail
-              loaded={loaded}
+              load={load}
               product={findProduct(products, params.get("product") ?? "")}
               products={products}
               activeDraft={activeDraft}
@@ -239,7 +287,7 @@ export function App() {
           element={
             <Enrollment
               key={draft?.id ?? "empty"}
-              loaded={loaded}
+              load={load}
               sale={draft}
               rules={rules}
               products={products}
@@ -259,7 +307,7 @@ export function App() {
           path={channel.records}
           element={
             <Records
-              loaded={loaded}
+              load={load}
               sales={sales}
               products={products}
               customer={customer}

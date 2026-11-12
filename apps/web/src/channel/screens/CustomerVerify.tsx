@@ -71,6 +71,9 @@ export function CustomerVerify({
     if (kind === "receipt") setReceipt(undefined);
     else setOriginal(undefined);
     if (!file) return;
+    // 파일을 고른 버튼의 이름. 다른 파일을 골랐을 때 어디서 받은 파일을 골라야 하는지 알려 준다.
+    const source =
+      kind === "receipt" ? "'증명서 내려받기'" : "'가입 원본 내려받기'";
     try {
       if (file.size > 2_000_000)
         throw new Error("2MB 이하 파일을 골라 주세요.");
@@ -81,8 +84,8 @@ export function CustomerVerify({
       )
         throw new Error(
           kind === "receipt"
-            ? "가입 증명서 파일을 골라 주세요."
-            : "가입 원본 파일을 골라 주세요.",
+            ? `고른 파일은 가입 증명서가 아니에요. ${source}로 받은 파일을 골라 주세요.`
+            : `고른 파일은 가입 원본이 아니에요. ${source}로 받은 파일을 골라 주세요.`,
         );
       if (kind === "receipt") {
         setReceipt(parsed);
@@ -95,7 +98,7 @@ export function CustomerVerify({
       setError(
         e instanceof Error && /^[가-힣0-9]/.test(e.message)
           ? e.message
-          : "파일을 읽을 수 없어요. 내려받은 JSON 파일을 골라 주세요.",
+          : `파일을 읽을 수 없어요. ${source}로 받은 파일을 골라 주세요.`,
       );
     }
   };
@@ -151,6 +154,7 @@ export function CustomerVerify({
       >
         <label className={s.field}>
           증명서 번호
+          <small>증명서에 적힌 숫자 번호예요.</small>
           <input
             type="text"
             inputMode="numeric"
@@ -160,7 +164,6 @@ export function CustomerVerify({
               setId(e.target.value);
               setResult(undefined);
             }}
-            placeholder="증명서에 적힌 번호를 넣어 주세요"
           />
         </label>
         <label className={s.field}>

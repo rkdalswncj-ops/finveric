@@ -9,6 +9,7 @@ import type {
   CustomerDto,
   ProductEntryDto,
 } from "../../../../../packages/core/src/api.ts";
+import type { LoadState } from "../../../../../packages/ui/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import { Badge, Heading } from "../../../../../packages/ui/src/components.tsx";
 import { short } from "../../../../../packages/ui/src/format.ts";
@@ -26,11 +27,13 @@ const s = { ...ui, ...client, ...local };
 
 /** 원장 기록(진단 회차, 청약·확정)으로 계산한 위험 신호 5종. 감독기관 화면과 같은 계산이다. */
 export function Signals({
+  load,
   sales,
   products,
   customer,
   open,
 }: {
+  load: LoadState;
   sales: Sale[];
   products: ProductEntryDto[];
   customer?: CustomerDto;
@@ -131,9 +134,23 @@ export function Signals({
             </tbody>
           </table>
         </div>
-        {shown.length === 0 && (
-          <p className={s.empty}>표시할 위험 신호가 없습니다.</p>
-        )}
+        {shown.length === 0 &&
+          (load === "ready" && kind ? (
+            <div className={s.empty}>
+              <p>{SIGNAL_LABELS[kind]} 신호가 없습니다.</p>
+              <Button variant="outline" onClick={() => setKind("")}>
+                전체 보기
+              </Button>
+            </div>
+          ) : (
+            <p className={s.empty}>
+              {load === "ready"
+                ? "표시할 위험 신호가 없습니다."
+                : load === "failed"
+                  ? "위험 신호를 계산할 자료를 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
+                  : "위험 신호를 계산할 자료를 불러오고 있습니다."}
+            </p>
+          ))}
       </div>
     </>
   );

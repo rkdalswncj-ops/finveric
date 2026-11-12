@@ -48,6 +48,7 @@ import {
 import type {
   CustomerDto,
   DiagnosisDto,
+  ErrorResponse,
   SaleDto,
 } from "../packages/core/src/api.ts";
 
@@ -196,11 +197,13 @@ test(
       assert.equal(response.statusCode, 200, response.body);
       return response.json() as T;
     };
-    const reject = async (path: string, status: number, body?: object) => {
+    const rejectBody = async (path: string, status: number, body?: object) => {
       const response = await call(path, body);
       assert.equal(response.statusCode, status, response.body);
-      return response.json().error as string;
+      return response.json() as ErrorResponse;
     };
+    const reject = async (path: string, status: number, body?: object) =>
+      (await rejectBody(path, status, body)).error;
     const blockNumber = () => client.getBlockNumber({ cacheTime: 0 });
     const diagnose = (answers: number[]) =>
       request<DiagnosisDto>(`/customers/${CUSTOMER}/diagnose`, { answers });
@@ -665,10 +668,15 @@ test(
       "숙려기간 전 최종 확인은 원장이 TooEarly로 거절하고 지난 뒤 확정한다",
       async () => {
         const before = await blockNumber();
-        assert.match(
-          await reject(`/sales/${saleId}/action/confirm`, 409, {}),
-          /숙려기간/,
+        const tooEarly = await rejectBody(
+          `/sales/${saleId}/action/confirm`,
+          409,
+          {},
         );
+        assert.match(tooEarly.error, /숙려기간/);
+        // 연동 앱은 문장 대신 code와 원장 오류 이름으로 고객 안내를 고른다.
+        assert.equal(tooEarly.code, "rejected");
+        assert.equal(tooEarly.ledgerError, "TooEarly");
         assert.equal(await blockNumber(), before);
         const traces = await request("/traces");
         assert.equal(

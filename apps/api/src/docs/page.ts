@@ -518,7 +518,7 @@ const SCRIPT = String.raw`
     var button = h("button", { type: "button", class: "copy", "aria-label": label + " 복사" }, "복사");
     button.addEventListener("click", function () {
       var done = function () {
-        button.textContent = "복사함";
+        button.textContent = "복사했습니다";
         live.textContent = label + "를 복사했습니다.";
         setTimeout(function () { button.textContent = "복사"; }, 1500);
       };
@@ -648,7 +648,7 @@ export const DOCS_PAGE = `<!doctype html>
 <style>${STYLE}</style>
 </head>
 <body>
-<a class="skip" href="#main">본문으로 건너뛰기</a>
+<a class="skip" href="#main">본문으로 이동</a>
 <div class="layout">
   <aside class="nav" aria-label="API 목차">
     <a class="brand" href="#main"><strong>FINVERIC</strong><span>API 문서</span></a>

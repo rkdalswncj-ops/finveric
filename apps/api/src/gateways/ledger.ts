@@ -17,6 +17,7 @@ import {
   type LedgerError,
   type Role,
 } from "../../../../packages/core/src/index.ts";
+import { CodedError } from "../errors.ts";
 import type { FundService } from "../service.ts";
 
 /** 원장 연동에 필요한 실행 맥락: 역할 키, 배포 설정, RPC 클라이언트. */
@@ -97,11 +98,13 @@ export async function readBlockTime(chain: Chain) {
   return Number((await chain.client.getBlock()).timestamp);
 }
 
-/** 원장이 거절한 호출. 오류 이름은 원장의 사용자 정의 오류다. */
-export class LedgerRejection extends Error {
+/** 원장이 거절한 호출. 오류 이름은 원장의 사용자 정의 오류다. 응답의 `code`는 `rejected`다. */
+export class LedgerRejection extends CodedError {
   constructor(readonly error?: LedgerError) {
     super(
       `원장이 요청을 거절했어요. ${error ? LEDGER_ERRORS[error] : "필수 기록과 현재 단계를 확인하세요."}`,
+      "rejected",
+      error,
     );
   }
 }

@@ -4,8 +4,12 @@ import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import { timingSafeEqual } from "node:crypto";
 import { json } from "../../../packages/core/src/index.ts";
-import { API_KEY_PREFIX } from "../../../packages/core/src/api.ts";
+import {
+  API_KEY_PREFIX,
+  type ErrorResponse,
+} from "../../../packages/core/src/api.ts";
 import { openApiOptions } from "./docs/openapi.ts";
+import { CodedError } from "./errors.ts";
 import { CHANNEL_TAG, tagOf } from "./docs/operations.ts";
 import { FundService } from "./service.ts";
 import { customerRoutes } from "./routes/customers.ts";
@@ -138,11 +142,21 @@ export async function createApp(service = new FundService()) {
     const message =
       error instanceof Error ? error.message : "처리를 완료하지 못했습니다.";
     // Errors from RPC providers may contain credential-bearing URLs. Only return our authored messages.
-    const safe =
-      /^[가-힣]/.test(message) && !message.includes("http")
-        ? message
-        : "서버 연결과 온체인 처리 기록을 확인하세요.";
-    reply.code(409).send({ error: safe });
+    const authored = /^[가-힣]/.test(message) && !message.includes("http");
+    // 우리가 쓰지 않은 오류는 RPC·저장소 실패로 본다(`unavailable`). 업무 규칙 오류에는 code가 없다.
+    const body: ErrorResponse = !authored
+      ? {
+          error: "서버 연결과 온체인 처리 기록을 확인하세요.",
+          code: "unavailable",
+        }
+      : error instanceof CodedError
+        ? {
+            error: message,
+            code: error.code,
+            ...(error.ledgerError ? { ledgerError: error.ledgerError } : {}),
+          }
+        : { error: message };
+    reply.code(409).send(body);
   });
   app.setNotFoundHandler((_req, reply) =>
     reply.code(404).send({ error: "없는 API 경로입니다." }),
