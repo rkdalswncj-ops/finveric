@@ -16,7 +16,11 @@ import {
 import { dateTime, short } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import local from "./operations.module.css";
-import { productName, saleProduct, type Sale } from "../sales.ts";
+import {
+  productName,
+  saleProduct,
+  type Sale,
+} from "../../../../../packages/ui/src/sales.ts";
 import {
   ledgerRejection,
   receiptEvents,

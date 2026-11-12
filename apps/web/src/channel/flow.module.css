@@ -1,0 +1,133 @@
+/* 단계 화면 부품: 단계 머리글, 아래 동작 막대, 확인 창 */
+.stepHeader {
+  position: sticky;
+  top: 56px;
+  z-index: 5;
+  margin: 0 -24px;
+  padding: 4px 24px 0;
+  background: var(--card);
+}
+.stepNav {
+  display: grid;
+  grid-template-columns: minmax(72px, auto) 1fr minmax(72px, auto);
+  align-items: center;
+  min-height: 44px;
+}
+.stepNav > :last-child {
+  justify-self: end;
+}
+.navButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  margin-left: -8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--foreground);
+  font-size: var(--type-detail);
+  font-weight: 600;
+}
+.navButton:hover {
+  background: var(--muted);
+}
+.stop {
+  margin: 0 -8px 0 0;
+  color: var(--muted-foreground);
+}
+.stepLabel {
+  text-align: center;
+  white-space: nowrap;
+  color: var(--primary);
+  font-size: var(--type-ui);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+.progress span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--primary);
+  transition: width 0.25s ease-out;
+}
+.caption {
+  margin: 12px 0 0;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: var(--type-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 아래 동작 막대. 넓은 화면에서는 본문 끝에 둔다. */
+.actionSpacer {
+  display: none;
+}
+.actionBar {
+  display: grid;
+  gap: 4px;
+  margin-top: 28px;
+}
+.actionBar > a,
+.actionBar > button {
+  width: 100%;
+}
+.actionStatus {
+  min-height: 18px;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: var(--type-caption);
+  text-align: center;
+}
+/* 좁은 화면에서는 탭 막대 바로 위에 고정한다. 본문 끝에 같은 높이의 자리를 둔다. */
+@media (max-width: 640px) {
+  .actionSpacer {
+    display: block;
+    height: 96px;
+  }
+  .actionBar {
+    position: fixed;
+    right: 0;
+    bottom: calc(62px + env(safe-area-inset-bottom));
+    left: 0;
+    z-index: 9;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 12px 24px 4px;
+    background: var(--card);
+    box-shadow: 0 -8px 16px -12px rgb(25 31 40 / 0.18);
+  }
+}
+/* 확인 창 */
+.dialog {
+  width: min(400px, calc(100vw - 32px));
+  margin: auto;
+  padding: 24px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--card);
+  color: var(--foreground);
+}
+.dialog::backdrop {
+  background: rgb(25 31 40 / 0.45);
+}
+.dialog h2 {
+  font-size: var(--type-title);
+}
+.dialog p {
+  margin: 8px 0 20px;
+  color: var(--muted-foreground);
+  font-size: var(--type-detail);
+}
+.dialogActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}

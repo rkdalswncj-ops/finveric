@@ -1,0 +1,139 @@
+/* 증권사 앱 예시의 틀: 예시 표시 줄, 앱 머리글, 최대 480px 한 열, 아래 탭 막대 */
+.page {
+  min-height: 100dvh;
+  background: var(--muted);
+}
+/* 앱 밖의 표시. 이 화면이 실제 증권사 앱이 아니라 API 연동 예시임을 알린다. */
+.example {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-height: 36px;
+  padding: 6px 16px;
+  color: var(--muted-foreground);
+  font-size: var(--type-caption);
+  font-weight: 600;
+}
+.app {
+  max-width: 480px;
+  min-height: calc(100dvh - 36px);
+  margin: 0 auto;
+  background: var(--card);
+  border-inline: 1px solid var(--border);
+}
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 56px;
+  padding: 0 24px;
+  background: var(--card);
+  font-size: var(--type-heading);
+}
+.header strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.logo {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: var(--type-detail);
+  font-weight: 800;
+}
+.back {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-left: -12px;
+  border-radius: 8px;
+  color: var(--foreground);
+}
+.back:hover {
+  background: var(--muted);
+}
+.main {
+  padding: 12px 24px calc(104px + env(safe-area-inset-bottom));
+}
+.main h1 {
+  font-size: var(--type-title-lg);
+}
+.tabs {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-width: 480px;
+  margin: 0 auto;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  border-inline: 1px solid var(--border);
+}
+.tab,
+.tabActive {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 62px;
+  padding: 8px 4px;
+  color: var(--muted-foreground);
+  font-size: var(--type-caption);
+  font-weight: 600;
+  text-decoration: none;
+}
+.tabActive {
+  color: var(--primary);
+  font-weight: 700;
+}
+.tab:focus-visible,
+.tabActive:focus-visible {
+  outline-offset: -3px;
+}
+/* 오류 알림. 머리글 아래에 띄운다. */
+.toast {
+  position: fixed;
+  top: 100px;
+  right: 0;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(448px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 8px 24px rgb(25 31 40 / 0.16);
+}
+.toast > div {
+  flex: 1;
+  margin: 0;
+}
+@media (max-width: 480px) {
+  .app,
+  .tabs {
+    border-inline: 0;
+  }
+}

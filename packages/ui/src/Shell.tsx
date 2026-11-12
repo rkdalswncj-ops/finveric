@@ -20,23 +20,22 @@ const brand = (
   </>
 );
 
-/** 앱 안 경로(path) 또는 다른 앱으로 가는 주소(href). */
-export type NavItem = {
-  label: string;
-  icon: LucideIcon;
-  path?: string;
-  href?: string;
-};
+/** 앱 안의 메뉴 항목. */
+export type NavItem = { label: string; icon: LucideIcon; path: string };
 export type NavGroup = { label: string; caption?: string; items: NavItem[] };
+/** 다른 페이지로 가는 링크. 사이드바 아래쪽에 두고 새 탭으로 연다. */
+export type ExternalItem = { label: string; icon: LucideIcon; href: string };
 
 /**
  * client·auditor 앱이 함께 쓰는 사이드 메뉴, 상단 막대, 상태 표시.
  * entryHref를 주면 브랜드와 "처음 화면" 항목이 라우터 밖의 진입 화면으로 간다(같은 탭).
+ * links는 "처음 화면" 아래에 작은 링크로 둔다. 새 탭으로 연다.
  */
 export function Shell({
   home,
   entryHref,
   groups,
+  links,
   area,
   title,
   badge,
@@ -50,10 +49,11 @@ export function Shell({
   home: string;
   entryHref?: string;
   groups: NavGroup[];
+  links?: ExternalItem[];
   area: string;
   title: string;
   badge: { tone: string; text: string };
-  foot: { title: string; text: string };
+  foot?: { title: string; text: string };
   error?: string;
   dismissError?: () => void;
   notice?: string;
@@ -88,47 +88,50 @@ export function Shell({
                   <span className={s.navCaption}>{group.caption}</span>
                 )}
               </div>
-              {group.items.map((item) =>
-                item.href ? (
-                  <a
-                    key={item.href}
-                    className={s.navItem}
-                    href={item.href}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <item.icon size={18} />
-                    {item.label}
-                    <ExternalLink size={13} aria-label="새 탭에서 열기" />
-                  </a>
-                ) : (
-                  <NavLink
-                    key={item.path}
-                    end
-                    to={item.path ?? home}
-                    className={({ isActive }) =>
-                      `${s.navItem} ${isActive ? s.active : ""}`
-                    }
-                  >
-                    <item.icon size={18} />
-                    {item.label}
-                  </NavLink>
-                ),
-              )}
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.path}
+                  end
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `${s.navItem} ${isActive ? s.active : ""}`
+                  }
+                >
+                  <item.icon size={18} />
+                  {item.label}
+                </NavLink>
+              ))}
             </div>
           ))}
         </nav>
-        <div className={s.sidebarEnd}>
+        <div
+          className={`${s.sidebarEnd} ${links?.length ? s.sidebarLinks : ""}`}
+        >
           {entryHref && (
             <a className={s.entryLink} href={entryHref}>
               <House size={16} />
               처음 화면
             </a>
           )}
-          <div className={s.sidebarFoot}>
-            <strong>{foot.title}</strong>
-            <p>{foot.text}</p>
-          </div>
+          {links?.map((link) => (
+            <a
+              key={link.href}
+              className={s.entryLink}
+              href={link.href}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <link.icon size={16} />
+              {link.label}
+              <ExternalLink size={13} aria-label="새 탭에서 열기" />
+            </a>
+          ))}
+          {foot && (
+            <div className={s.sidebarFoot}>
+              <strong>{foot.title}</strong>
+              <p>{foot.text}</p>
+            </div>
+          )}
         </div>
       </aside>
       <div className={s.workspace}>

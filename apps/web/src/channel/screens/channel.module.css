@@ -1,0 +1,352 @@
+/* 증권사 앱 예시의 화면. 본문은 최대 480px 한 열이다(frame.module.css). */
+.stack {
+  display: grid;
+  gap: 16px;
+}
+/* 상품 찾기 */
+.tools {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.tools button {
+  min-height: 44px;
+}
+.search {
+  position: relative;
+}
+.search svg {
+  position: absolute;
+  left: 13px;
+  top: 13px;
+  color: var(--muted-foreground);
+}
+.search input {
+  padding-left: 40px !important;
+  width: 100%;
+  border-color: var(--border) !important;
+}
+.catalog {
+  display: grid;
+  gap: 12px;
+}
+.fundCard {
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+}
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.symbol {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--primary-surface);
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+}
+.symbolFund {
+  background: var(--product-fund-surface);
+  color: var(--product-fund);
+}
+.symbolElb {
+  background: var(--product-elb-surface);
+  color: var(--product-elb);
+}
+.fundCard h2 {
+  font-size: var(--type-heading);
+  margin: 4px 0 8px;
+}
+.strategy {
+  font-size: var(--type-ui);
+  color: var(--muted-foreground);
+  line-height: 1.7;
+}
+.parties {
+  display: grid;
+  gap: 7px;
+  padding: 16px 0;
+  margin: 16px 0 0;
+  border-top: 1px solid var(--border);
+  font-size: var(--type-ui);
+}
+.parties > div {
+  display: flex;
+  gap: 15px;
+}
+.parties dt {
+  width: 64px;
+  flex: none;
+  color: var(--muted-foreground);
+}
+.parties dd {
+  font-weight: 500;
+  min-width: 0;
+}
+.cardActions {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 8px;
+  margin-top: auto;
+}
+.catalogNote {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 16px;
+  color: var(--muted-foreground);
+  font-size: var(--type-caption);
+}
+.help {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  background: var(--muted);
+  border-radius: 16px;
+  padding: 20px;
+  margin-top: 24px;
+}
+.help > svg {
+  color: var(--primary);
+}
+.help > div {
+  flex: 1;
+  min-width: 0;
+}
+.help h3 {
+  font-size: var(--type-body);
+  margin-bottom: 4px;
+}
+.help p {
+  font-size: var(--type-ui);
+  color: var(--muted-foreground);
+}
+.help > a {
+  width: 100%;
+}
+/* 상품 설명 최상단: 부적합 고객 유형과 손실 사례 */
+.firstCard,
+.explainCard {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border-radius: 12px;
+  padding: 18px;
+  margin: 16px 0;
+}
+.firstCard {
+  background: var(--warning-surface);
+  color: var(--warning);
+}
+.explainCard {
+  background: var(--muted);
+}
+.firstCard svg {
+  margin-top: 4px;
+}
+.firstCard strong {
+  font-size: var(--type-detail);
+}
+.firstCard p,
+.explainCard p {
+  font-size: var(--type-detail);
+  margin-top: 6px;
+  color: var(--foreground);
+}
+.firstCard > p,
+.explainCard > p {
+  margin: 0;
+  font-size: var(--type-body-lg);
+  line-height: 1.7;
+}
+/* 가입 단계: 머리글(flow.module.css) 아래 제목, 내용, 보조 동작 */
+.stepHead {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin: 16px 0;
+}
+.stepTitle {
+  font-size: var(--type-title-lg);
+  letter-spacing: -0.02em;
+}
+/* 단계가 바뀌면 화면이 제목으로 초점을 옮긴다. 누르는 요소가 아니므로 테두리를 그리지 않는다. */
+.stepTitle:focus {
+  outline: none;
+}
+.secondary {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+.secondary > * {
+  width: 100%;
+}
+.approval {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--primary-surface);
+  color: var(--primary);
+}
+.approval svg {
+  flex: none;
+}
+.approval strong {
+  display: block;
+  color: var(--foreground);
+  font-size: var(--type-body);
+}
+.approval p {
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: var(--type-ui);
+}
+.approvalDone {
+  background: var(--success-surface);
+  color: var(--success);
+}
+.flowFoot {
+  font-size: var(--type-ui);
+}
+.badges {
+  display: flex;
+  gap: 6px;
+}
+.choices {
+  display: grid;
+  gap: 10px;
+  border: 0;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  border: 1px solid var(--border);
+  padding: 15px;
+  border-radius: 12px;
+  font-size: var(--type-body);
+  cursor: pointer;
+  margin: 6px 0;
+}
+.choice:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--primary-surface);
+}
+.certificate {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px 18px;
+  margin: 8px 0 12px;
+}
+.certificateHead {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 700;
+  padding: 14px 0 6px;
+  color: var(--success);
+}
+.countdown {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  background: var(--primary-surface);
+  border-radius: 12px;
+  padding: 18px;
+  margin: 4px 0 8px;
+  color: var(--primary);
+}
+.countdown span {
+  font-size: var(--type-ui);
+}
+.countdown strong {
+  font-size: var(--type-display);
+  line-height: var(--type-line-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.countdown small {
+  font-size: var(--type-caption);
+  color: var(--muted-foreground);
+}
+.attempts {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+}
+.attempts li {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.attempts small {
+  margin-left: auto;
+  color: var(--muted-foreground);
+}
+/* 내 가입 기록 */
+.recordList {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.recordList a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 72px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--foreground);
+  text-decoration: none;
+}
+.recordList a:hover {
+  border-color: var(--primary);
+}
+.recordList a > span {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.recordList a > svg {
+  color: var(--muted-foreground);
+}
+.recordList strong {
+  font-size: var(--type-detail);
+  line-height: 1.4;
+}
+.recordMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+}
+.recordMeta small {
+  color: var(--muted-foreground);
+  font-size: var(--type-caption);
+}
+.recordTitle {
+  margin: 10px 0 8px;
+}

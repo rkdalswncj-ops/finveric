@@ -9,12 +9,14 @@ import {
   Badge,
   Facts,
   Heading,
+  Stat,
 } from "../../../../../packages/ui/src/components.tsx";
 import { dateTime, short } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
-import { RegisterNotice, StatusBadge } from "../components.tsx";
+import { StatusBadge } from "../../../../../packages/ui/src/sale-components.tsx";
+import { RegisterNotice } from "../components.tsx";
 import {
   activeRule,
   awaitingApproval,
@@ -22,9 +24,9 @@ import {
   nowSeconds,
   productName,
   saleProduct,
-  saleSignals,
   type Sale,
-} from "../sales.ts";
+} from "../../../../../packages/ui/src/sales.ts";
+import { saleSignals } from "../signals.ts";
 
 const s = { ...ui, ...client, ...local };
 
@@ -89,13 +91,9 @@ export function Dashboard({
       {loaded && !rule && !selling.length && (
         <RegisterNotice busy={busy} register={register} />
       )}
-      <div className={s.stats}>
+      <div className={`${s.stats} ${s.dashboardStats}`}>
         {stats.map((stat) => (
-          <Link key={stat.label} className={s.stat} to={stat.to}>
-            <span>{stat.label}</span>
-            <strong>{stat.value}</strong>
-            <small>{stat.note}</small>
-          </Link>
+          <Stat key={stat.label} {...stat} />
         ))}
       </div>
       <div className={s.detailGrid}>

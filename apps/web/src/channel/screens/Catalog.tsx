@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import {
   ArrowRight,
   Landmark,
+  LoaderCircle,
   Search,
   ShieldCheck,
   TrendingUp,
@@ -16,14 +17,16 @@ import type { ProductEntryDto } from "../../../../../packages/core/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import { Badge, Heading } from "../../../../../packages/ui/src/components.tsx";
 import ui from "../../../../../packages/ui/src/ui.module.css";
-import local from "./channel.module.css";
-import { channel, fundPath } from "../links.ts";
 import {
   gradeName,
   issuerLabel,
   latestProducts,
   productName,
-} from "../sales.ts";
+  type Sale,
+} from "../../../../../packages/ui/src/sales.ts";
+import local from "./channel.module.css";
+import { useStartEnrollment } from "../flow.tsx";
+import { channel, fundPath } from "../links.ts";
 
 const s = { ...ui, ...local };
 const ICONS: Record<ProductType, [typeof TrendingUp, string]> = {
@@ -32,14 +35,25 @@ const ICONS: Record<ProductType, [typeof TrendingUp, string]> = {
   ELB: [Umbrella, s.symbolElb],
 };
 
-/** 판매 채널의 상품 목록. 원장에 등록한 최신 버전만 판다. */
+/**
+ * 상품 목록. 원장에 등록한 최신 버전만 판다.
+ * 카드의 "가입하기"는 그 상품의 가입에 바로 들어간다. "자세히 보기"는 상품 상세로 간다.
+ */
 export function Catalog({
   loaded,
   products,
+  activeDraft,
+  busy,
+  start,
 }: {
   loaded: boolean;
   products: ProductEntryDto[];
+  activeDraft?: Sale;
+  busy: string;
+  start: (productId: string, replace?: boolean) => unknown;
 }) {
+  const enroll = useStartEnrollment(products, activeDraft, start);
+  const [starting, setStarting] = useState("");
   const [type, setType] = useState<ProductType | "">("");
   const [query, setQuery] = useState("");
   // 위험등급이 높은 상품부터 보여 준다. 1등급 상품이 맨 앞에 온다.
@@ -118,14 +132,31 @@ export function Catalog({
                   <dd>{document.maxLoss}</dd>
                 </div>
               </dl>
-              <Button asChild>
-                <Link
-                  to={fundPath(product.id)}
-                  aria-label={`${document.name} 살펴보기`}
+              <div className={s.cardActions}>
+                <Button variant="outline" asChild>
+                  <Link
+                    to={fundPath(product.id)}
+                    aria-label={`${document.name} 자세히 보기`}
+                  >
+                    자세히 보기
+                  </Link>
+                </Button>
+                <Button
+                  disabled={!!busy}
+                  aria-busy={(!!busy && starting === product.id) || undefined}
+                  aria-label={`${document.name} 가입하기`}
+                  onClick={() => {
+                    setStarting(product.id);
+                    enroll.request(product.id);
+                  }}
                 >
-                  상품 살펴보기 <ArrowRight size={16} />
-                </Link>
-              </Button>
+                  {busy && starting === product.id ? (
+                    <LoaderCircle size={16} className={s.spin} />
+                  ) : null}
+                  {enroll.same(product.id) ? "가입 이어 하기" : "가입하기"}
+                  <ArrowRight size={16} />
+                </Button>
+              </div>
             </article>
           );
         })}
@@ -140,7 +171,7 @@ export function Catalog({
         </div>
       )}
       <div className={s.catalogNote}>
-        <span>원장에 등록한 최신 설명서로 보여 드려요.</span>
+        <span>판매사가 등록한 최신 설명서로 보여 드려요.</span>
         <span>가입할 수 있는 상품 {selling.length}개</span>
       </div>
       <div className={s.help}>
@@ -158,6 +189,7 @@ export function Catalog({
           </Link>
         </Button>
       </div>
+      {enroll.dialog}
     </>
   );
 }

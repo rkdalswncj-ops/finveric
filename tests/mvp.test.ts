@@ -24,6 +24,7 @@ import { foundryBinary } from "../scripts/foundry.mjs";
 import { FundService } from "../apps/api/src/service.ts";
 import { RedisStore } from "../apps/api/src/repositories/store.ts";
 import { fakeUpstash } from "./fake-upstash.ts";
+import { responseChecker } from "./openapi-check.ts";
 import { createApp } from "../apps/api/src/app.ts";
 import { prove } from "../apps/api/src/gateways/proofs.ts";
 import { verifySale } from "../packages/core/src/verify.ts";
@@ -171,12 +172,25 @@ test(
     await service.initialize();
     const app = await createApp(service);
     t.after(() => app.close());
-    const call = (path: string, body?: object) =>
-      app.inject({
-        method: body === undefined ? "GET" : "POST",
+    // 모든 응답을 API 문서(/api/openapi.json)의 응답 스키마와 대조한다.
+    const documented = responseChecker(
+      (await app.inject({ url: "/api/openapi.json" })).json(),
+    );
+    const call = async (path: string, body?: object) => {
+      const method = body === undefined ? "GET" : "POST";
+      const response = await app.inject({
+        method,
         url: "/api" + path,
         ...(body === undefined ? {} : { payload: body }),
       });
+      documented.check(
+        method,
+        "/api" + path,
+        response.statusCode,
+        response.json(),
+      );
+      return response;
+    };
     const request = async <T = any>(path: string, body?: object) => {
       const response = await call(path, body);
       assert.equal(response.statusCode, 200, response.body);
@@ -852,6 +866,24 @@ test(
     );
 
     await t.test(
+      "판매 채널 연동 경로의 실제 응답이 API 문서의 응답 스키마와 같다",
+      async () => {
+        await request<SaleDto>(`/sales/${saleId}`);
+        const spec = (await app.inject({ url: "/api/openapi.json" })).json();
+        const channel = Object.values<Record<string, any>>(spec.paths)
+          .flatMap((item) => Object.values<any>(item))
+          .filter((op) => op.tags[0] === "판매 채널 연동")
+          .map((op) => `${op.operationId} 200`);
+        assert.ok(channel.length >= 12, channel.join(", "));
+        const missing = channel.filter((key) => !documented.covered.has(key));
+        assert.deepEqual(missing, [], "대조하지 않은 판매 채널 연동 응답");
+        // 오류 응답도 문서의 형식과 같다.
+        for (const key of ["diagnoseCustomer 400", "subscribeSale 409"])
+          assert.ok(documented.covered.has(key), key);
+      },
+    );
+
+    await t.test(
       "여러 서버 인스턴스가 같은 저장소를 써도 기록을 잃지 않는다",
       async () => {
         const upstash = fakeUpstash();
@@ -902,6 +934,7 @@ test(
         const healthy = await app.inject({ url: "/api/health" });
         assert.equal(healthy.statusCode, 200, healthy.body);
         const body = healthy.json();
+        documented.check("GET", "/api/health", 200, body);
         assert.equal(body.ok, true);
         for (const name of ["rpc", "ledger", "store"])
           assert.equal(body.checks[name].ok, true, name);
@@ -914,6 +947,7 @@ test(
         try {
           const failed = await brokenApp.inject({ url: "/api/health" });
           assert.equal(failed.statusCode, 503, failed.body);
+          documented.check("GET", "/api/health", 503, failed.json());
           assert.equal(failed.json().checks.rpc.ok, false);
           assert.equal(failed.json().checks.store.ok, true);
           assert.doesNotMatch(failed.body, /127\.0\.0\.1:1|http/);

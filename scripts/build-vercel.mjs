@@ -55,13 +55,14 @@ if (deployment.ledgerVersion !== 5)
   fail("판매 기록 원장 v5 배포 설정이 필요합니다.");
 
 // 웹 빌드(apps/web/dist)를 그대로 사이트 루트에 둔다.
-// 진입 화면은 /, 판매사 콘솔은 /client/, 감독기관·고객 검증은 /auditor/다.
+// 진입 화면은 /, 판매사 콘솔은 /client/, 감독기관은 /auditor/, 증권사 앱 예시는 /channel/이다.
 // 검증 설정은 모든 페이지가 함께 쓰도록 사이트 루트에 둔다.
 const web = "apps/web/dist";
 for (const page of [
   `${web}/index.html`,
   `${web}/client/index.html`,
   `${web}/auditor/index.html`,
+  `${web}/channel/index.html`,
 ])
   if (!existsSync(page))
     fail(`${page}가 없습니다. npm run build를 먼저 실행하세요.`);
@@ -125,6 +126,7 @@ writeFileSync(
         { handle: "filesystem" },
         { src: "^/client(?:/.*)?$", dest: "/client/index.html" },
         { src: "^/auditor(?:/.*)?$", dest: "/auditor/index.html" },
+        { src: "^/channel(?:/.*)?$", dest: "/channel/index.html" },
       ],
     },
     null,

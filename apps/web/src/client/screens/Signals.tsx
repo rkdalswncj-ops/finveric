@@ -15,7 +15,12 @@ import { short } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
-import { productName, saleProduct, saleSignals, type Sale } from "../sales.ts";
+import {
+  productName,
+  saleProduct,
+  type Sale,
+} from "../../../../../packages/ui/src/sales.ts";
+import { saleSignals } from "../signals.ts";
 
 const s = { ...ui, ...client, ...local };
 

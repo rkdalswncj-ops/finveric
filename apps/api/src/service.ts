@@ -37,6 +37,7 @@ import * as demo from "./modules/demo.ts";
 import * as enrollment from "./modules/enrollment.ts";
 import * as monitoring from "./modules/health.ts";
 import * as products from "./modules/products.ts";
+import * as keys from "./modules/keys.ts";
 import * as records from "./modules/records.ts";
 import * as review from "./modules/review.ts";
 import * as rules from "./modules/rules.ts";
@@ -221,5 +222,31 @@ export class FundService {
   }
   receipt(id: string) {
     return records.receipt(this, id);
+  }
+
+  // API 키(판매사 콘솔에서 발급, 증권사 앱 서버가 사용)
+  apiKeys() {
+    return keys.listApiKeys(this);
+  }
+  issueApiKey(name: string) {
+    return keys.issueApiKey(this, name);
+  }
+  revokeApiKey(id: string) {
+    return keys.revokeApiKey(this, id);
+  }
+  /**
+   * 키 원문을 확인한다. 사용 중인 키면 ID와 마지막 사용 기록이 필요한지 돌려준다.
+   * 공유 저장소에서는 다른 인스턴스가 발급·폐기한 결과를 먼저 읽는다.
+   */
+  async authenticateApiKey(key: string) {
+    const found = await this.view(async () => keys.findApiKey(this, key));
+    if (!found) return undefined;
+    if (keys.needsTouch(found))
+      await this.exclusive(async () => keys.touchApiKey(this, found.id));
+    return { id: found.id };
+  }
+  /** 요청 한도를 키별로 세려고 메모리의 키만 찾는다. 저장소는 읽지 않는다. */
+  knownApiKeyId(key: string) {
+    return keys.findApiKey(this, key)?.id;
   }
 }

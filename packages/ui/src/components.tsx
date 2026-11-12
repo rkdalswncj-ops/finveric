@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { AlertTriangle } from "lucide-react";
+import { Link } from "react-router";
+import { AlertTriangle, FileText } from "lucide-react";
 import { Button } from "./button.tsx";
 import s from "./ui.module.css";
 
@@ -43,6 +44,54 @@ export function Heading({
       </div>
       {children}
     </div>
+  );
+}
+/** 빈 목록·없는 화면 안내. */
+export function Empty({
+  title,
+  text,
+  children,
+}: {
+  title: string;
+  text: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className={s.empty}>
+      <FileText size={30} />
+      <h2>{title}</h2>
+      <p>{text}</p>
+      {children}
+    </div>
+  );
+}
+/**
+ * 요약 수치 카드. `.stats` 묶음 안에 둔다. `to`가 있으면 그 화면으로 가는 링크다.
+ */
+export function Stat({
+  label,
+  value,
+  note,
+  to,
+}: {
+  label: string;
+  value: ReactNode;
+  note: ReactNode;
+  to?: string;
+}) {
+  const body = (
+    <>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{note}</small>
+    </>
+  );
+  return to ? (
+    <Link className={s.stat} to={to}>
+      {body}
+    </Link>
+  ) : (
+    <div className={s.stat}>{body}</div>
   );
 }
 export function Facts({ rows }: { rows: [string, ReactNode][] }) {

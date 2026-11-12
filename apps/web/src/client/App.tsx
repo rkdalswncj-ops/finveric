@@ -2,22 +2,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Route, Routes, useLocation, useNavigate } from "react-router";
 import {
   Activity,
-  BadgeCheck,
-  BriefcaseBusiness,
-  FileText,
+  BookOpen,
+  KeyRound,
   Landmark,
   Layers,
   LayoutDashboard,
-  LayoutGrid,
   ListChecks,
   Siren,
+  Smartphone,
 } from "lucide-react";
 import type {
+  ApiKeyDto,
   ConfigDto,
   CustomerDto,
-  ExportKind,
-  ExportResponse,
-  OpenSaleRequest,
   ProductEntryDto,
   RegisterDto,
   RuleEntryDto,
@@ -26,29 +23,36 @@ import type {
   TraceDto,
 } from "../../../../packages/core/src/api.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
-import { api, saveFile } from "../../../../packages/ui/src/api.ts";
-import { AccessCodeForm } from "../../../../packages/ui/src/components.tsx";
+import { api } from "../../../../packages/ui/src/api.ts";
+import {
+  AccessCodeForm,
+  Empty,
+} from "../../../../packages/ui/src/components.tsx";
 import { useDeployment } from "../../../../packages/ui/src/deployment.ts";
 import { networkName } from "../../../../packages/ui/src/format.ts";
-import { Shell, type NavGroup } from "../../../../packages/ui/src/Shell.tsx";
-import { Empty } from "./components.tsx";
-import { channel, fundPath } from "./links.ts";
-import { findProduct, type Sale } from "./sales.ts";
-import { Catalog } from "./screens/Catalog.tsx";
+import {
+  API_DOCS_HREF,
+  CHANNEL_APP_HREF,
+} from "../../../../packages/ui/src/links.ts";
+import type { Sale } from "../../../../packages/ui/src/sales.ts";
+import {
+  Shell,
+  type ExternalItem,
+  type NavGroup,
+} from "../../../../packages/ui/src/Shell.tsx";
+import { ApiKeys } from "./screens/ApiKeys.tsx";
 import { Chain } from "./screens/Chain.tsx";
-import { CustomerVerify } from "./screens/CustomerVerify.tsx";
 import { Dashboard } from "./screens/Dashboard.tsx";
-import { Enrollment } from "./screens/Enrollment.tsx";
-import { ProductDetail } from "./screens/ProductDetail.tsx";
 import { Products } from "./screens/Products.tsx";
-import { Records } from "./screens/Records.tsx";
 import { Review } from "./screens/Review.tsx";
 import { Rules } from "./screens/Rules.tsx";
 import { Signals } from "./screens/Signals.tsx";
 
 const OPERATIONS = "판매사 업무";
-const CHANNEL = "판매 채널";
-/** 판매사 소비자보호 담당이 쓰는 B2B 화면. 판매 채널은 증권사 앱의 고객 화면이다. */
+/**
+ * 판매사 소비자보호 담당이 쓰는 B2B 화면.
+ * 고객 화면은 증권사 앱 예시(/channel/)에 있다. 새 탭으로 연다.
+ */
 const groups: NavGroup[] = [
   {
     label: OPERATIONS,
@@ -59,27 +63,42 @@ const groups: NavGroup[] = [
       { path: "/review", label: "판매·검토", icon: Layers },
       { path: "/signals", label: "위험 신호", icon: Siren },
       { path: "/chain", label: "온체인 처리", icon: Activity },
-    ],
-  },
-  {
-    label: CHANNEL,
-    caption: "증권사 앱에서 고객이 보는 화면",
-    items: [
-      { path: channel.catalog, label: "상품 찾기", icon: LayoutGrid },
-      { path: channel.enroll, label: "가입하기", icon: BriefcaseBusiness },
-      { path: channel.records, label: "내 가입 기록", icon: FileText },
-      { path: channel.verify, label: "가입 기록 확인", icon: BadgeCheck },
+      { path: "/keys", label: "API 키", icon: KeyRound },
     ],
   },
 ];
-const isChannel = (pathname: string) =>
-  pathname === channel.catalog || pathname.startsWith(`${channel.catalog}/`);
+/** 사이드바 아래쪽의 새 탭 링크. */
+const links: ExternalItem[] = [
+  { href: CHANNEL_APP_HREF, label: "증권사 앱 예시", icon: Smartphone },
+  { href: API_DOCS_HREF, label: "API 문서", icon: BookOpen },
+];
 function pageTitle(pathname: string) {
-  if (pathname === channel.fund) return "상품 상세";
   for (const group of groups)
     for (const item of group.items)
       if (item.path === pathname) return item.label;
   return "대시보드";
+}
+
+/**
+ * 이전 주소(/client/channel/*)를 증권사 앱 예시(/channel/*)로 보낸다. 쿼리를 그대로 넘긴다.
+ * 공유한 링크와 이전 화면 캡처의 주소가 쓴다.
+ */
+function ChannelRedirect() {
+  const { pathname, search, hash } = useLocation();
+  const target = `/channel${pathname.slice("/channel".length) || "/"}${search}${hash}`;
+  useEffect(() => {
+    window.location.replace(target);
+  }, [target]);
+  return (
+    <Empty
+      title="증권사 앱 예시로 이동합니다"
+      text="고객 화면은 증권사 앱 예시로 옮겼습니다."
+    >
+      <Button asChild>
+        <a href={target}>증권사 앱 예시 열기</a>
+      </Button>
+    </Empty>
+  );
 }
 
 /** 화면이 부르는 처리. 실패하면 오류를 보여 주고 undefined를 돌려준다. */
@@ -100,16 +119,13 @@ export function App() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [traces, setTraces] = useState<TraceDto[]>([]);
   const [customer, setCustomer] = useState<CustomerDto>();
+  const [apiKeys, setApiKeys] = useState<ApiKeyDto[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState(
     sessionStorage.getItem("finveric-sale") ?? "",
   );
-  const [draftId, setDraftId] = useState(
-    sessionStorage.getItem("finveric-draft") ?? "",
-  );
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
-  const params = new URLSearchParams(location.search);
 
   const reload = useCallback(async () => {
     const current = configRef.current ?? (await api<ConfigDto>("/config"));
@@ -117,7 +133,7 @@ export function App() {
       configRef.current = current;
       setConfig(current);
     }
-    const [newRules, newProducts, newSales, newTraces, newCustomer] =
+    const [newRules, newProducts, newSales, newTraces, newCustomer, newKeys] =
       await Promise.all([
         api<RuleEntryDto[]>("/rules"),
         api<ProductEntryDto[]>("/products"),
@@ -126,19 +142,33 @@ export function App() {
         api<CustomerDto>(
           `/customers/${encodeURIComponent(current.demoCustomer.number)}`,
         ),
+        api<ApiKeyDto[]>("/keys"),
       ]);
     setRules(newRules);
     setProducts(newProducts);
     setSales(newSales);
     setTraces(newTraces);
     setCustomer(newCustomer);
+    setApiKeys(newKeys);
     setLoaded(true);
   }, []);
-  /** 화면을 막지 않고 다시 읽는다. 승인 대기·숙려 화면이 쓴다. */
+  /** 화면을 막지 않고 다시 읽는다. */
   const refresh = useCallback(() => reload().catch(() => undefined), [reload]);
   useEffect(() => {
     reload().catch((e: Error) => setError(e.message));
   }, [reload]);
+  // 고객은 다른 탭(증권사 앱 예시)에서 가입한다. 이 탭으로 돌아오면 판매 건을 다시 읽는다.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [refresh]);
   // 오래 걸리는 처리(증명 생성, 거래 영수증) 중에도 처리 기록을 갱신한다.
   useEffect(() => {
     if (!busy) return;
@@ -156,7 +186,7 @@ export function App() {
       await reload();
       return result;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "처리를 완료하지 못했어요.");
+      setError(e instanceof Error ? e.message : "처리를 완료하지 못했습니다.");
       await refresh();
       return undefined;
     } finally {
@@ -172,75 +202,24 @@ export function App() {
     select(id);
     navigate("/review");
   };
-  const setDraft = (id: string) => {
-    setDraftId(id);
-    if (id) sessionStorage.setItem("finveric-draft", id);
-    else sessionStorage.removeItem("finveric-draft");
-  };
   const register = () =>
     run("기본 진단 기준과 예시 상품을 원장에 등록하고 있습니다", () =>
       api<RegisterDto>("/register", {}),
     );
-  const draft = sales.find((sale) => sale.id === draftId);
-  const activeDraft =
-    draft && (draft.status === "draft" || draft.status === "subscribed")
-      ? draft
-      : undefined;
-  const start = (productId: string) =>
-    run("가입 신청을 준비하고 있어요", async () => {
-      if (activeDraft) {
-        if (activeDraft.productId.toLowerCase() !== productId.toLowerCase())
-          throw new Error(
-            "작성 중인 가입을 마치거나 중단한 뒤 새로 시작해 주세요.",
-          );
-      } else {
-        if (!config) throw new Error("설정을 불러온 뒤 다시 시도해 주세요.");
-        const sale = await api<SaleDto>("/sales", {
-          productId: productId as `0x${string}`,
-          customerNo: config.demoCustomer.number,
-        } satisfies OpenSaleRequest);
-        setDraft(sale.id);
-      }
-      navigate(channel.enroll);
-    });
   const action = (id: string, name: SaleAction, label: string) =>
     run(label, () => api<SaleDto>(`/sales/${id}/action/${name}`, {}));
-  const abandon = () =>
-    activeDraft?.status === "draft" &&
-    run("가입을 중단하고 있어요", async () => {
-      await api<SaleDto>(`/sales/${activeDraft.id}/action/abandon`, {});
-      setDraft("");
-      navigate(fundPath(activeDraft.productId));
-    });
-  /** 내 가입 기록에서 숙려 중인 청약을 가입하기 화면으로 다시 연다. */
-  const resume = (id: string) => {
-    setDraft(id);
-    navigate(channel.enroll);
-  };
-  const download = (id: string, kind: ExportKind) =>
-    run("파일을 준비하고 있어요", async () => {
-      const value = await api<ExportResponse[ExportKind]>(
-        `/sales/${id}/export/${kind}`,
-      );
-      saveFile(value, `finveric-${kind}-${id.slice(0, 10)}.json`);
-    });
 
-  const channelPage = isChannel(location.pathname);
-  const requestedProduct = params.get("product") ?? "";
   return (
     <Shell
       home="/"
       entryHref="/"
       groups={groups}
-      area={channelPage ? `${CHANNEL} · 증권사 앱 화면` : OPERATIONS}
+      links={links}
+      area={OPERATIONS}
       title={pageTitle(location.pathname)}
       badge={{
         tone: deployment ? "success" : "warning",
         text: networkName(deployment),
-      }}
-      foot={{
-        title: "판매 기록 검증",
-        text: "진단, 설명, 청약, 확정을 단계마다 원장에 기록합니다.",
       }}
       error={error}
       dismissError={() => setError("")}
@@ -335,69 +314,12 @@ export function App() {
           }
         />
         <Route
-          path={channel.catalog}
-          element={<Catalog loaded={loaded} products={products} />}
-        />
-        <Route
-          path={channel.fund}
+          path="/keys"
           element={
-            <ProductDetail
-              loaded={loaded}
-              product={findProduct(products, requestedProduct)}
-              products={products}
-              activeDraft={activeDraft}
-              busy={!!busy}
-              start={start}
-            />
+            <ApiKeys keys={apiKeys} loaded={loaded} busy={!!busy} run={run} />
           }
         />
-        <Route
-          path={channel.enroll}
-          element={
-            <Enrollment
-              key={draft?.id ?? "empty"}
-              loaded={loaded}
-              sale={draft}
-              rules={rules}
-              products={products}
-              customer={customer}
-              deployment={config?.deployment}
-              busy={!!busy}
-              run={run}
-              action={action}
-              abandon={abandon}
-              refresh={refresh}
-              download={download}
-              finish={() => setDraft("")}
-            />
-          }
-        />
-        <Route
-          path={channel.records}
-          element={
-            <Records
-              loaded={loaded}
-              sales={sales}
-              products={products}
-              customer={customer}
-              selected={selected}
-              select={select}
-              busy={!!busy}
-              download={download}
-              resume={resume}
-            />
-          }
-        />
-        <Route
-          path={channel.verify}
-          element={
-            <CustomerVerify
-              key={params.get("sale") ?? ""}
-              deployment={deployment}
-              initialId={params.get("sale") ?? ""}
-            />
-          }
-        />
+        <Route path="/channel/*" element={<ChannelRedirect />} />
         <Route
           path="*"
           element={

@@ -1,17 +1,17 @@
 // 경로: 처리 기록과 고객 증빙 내려받기.
-import type { FastifyInstance } from "fastify";
+import type { FastifyPluginAsync } from "fastify";
 import {
   exportParamsSchema,
   type ExportParams,
 } from "../../../../packages/core/src/api.ts";
 import type { FundService } from "../service.ts";
 
-export function recordRoutes(app: FastifyInstance, service: FundService) {
-  app.get("/api/traces", async () =>
-    service.view(() => service.publicTraces()),
-  );
+export const recordRoutes: FastifyPluginAsync<{
+  service: FundService;
+}> = async (app, { service }) => {
+  app.get("/traces", async () => service.view(() => service.publicTraces()));
   app.get<{ Params: ExportParams }>(
-    "/api/sales/:id/export/:kind",
+    "/sales/:id/export/:kind",
     { schema: { params: exportParamsSchema } },
     async (req, reply) => {
       reply.header(
@@ -26,4 +26,4 @@ export function recordRoutes(app: FastifyInstance, service: FundService) {
       );
     },
   );
-}
+};

@@ -19,6 +19,9 @@
   --input: #6b7684;
   --primary: #2563eb;
   --primary-foreground: #ffffff;
+  --primary-hover: #1d4ed8;
+  /* 옅은 파랑 바탕: 선택한 행, 현재 메뉴, 파란 배지, 처리 중·대기 상자 */
+  --primary-surface: #edf3ff;
   --ring: #1d4ed8;
   --success: #116149;
   --success-surface: #eaf6ef;
@@ -26,9 +29,41 @@
   --warning-surface: #fff3d7;
   --destructive: #a32535;
   --destructive-surface: #fff1f1;
+  /* 상품 유형 기호(증권사 앱 예시의 상품 카드). ELS는 primary를 쓴다. */
+  --product-fund: #31785b;
+  --product-fund-surface: #ecf5f1;
+  --product-elb: #7566ad;
+  --product-elb-surface: #f0effa;
+  /* 끌어서 고른 글자와 스크롤 막대 */
+  --selection: #dce8ff;
+  --selection-foreground: #173e91;
+  --scrollbar: #b0b8c1;
+
+  /*
+   * 글자 크기. rem이라 브라우저 글자 크기 설정을 따른다(16px = 1rem).
+   * theme.css가 tailwindcss를 가져오므로 Tailwind 이름(--text-*, --font-*, --leading-*,
+   * --tracking-*)을 피해 --type-*를 쓴다. 새 크기를 만들지 말고 아래 단계에서 고른다.
+   */
+  --type-caption: 0.75rem; /* 12px. 최소 크기. 배지, 보조 설명, 표 메모, 코드·해시, 탭 이름 */
+  --type-ui: 0.8125rem; /* 13px. 콘솔의 표, 버튼, 메뉴, 패널 설명 */
+  --type-detail: 0.875rem; /* 14px. 제목 아래 설명, 고객 화면의 보조 문단 */
+  --type-body: 0.9375rem; /* 15px. 본문 기본값 */
+  --type-body-lg: 1rem; /* 16px. h3, 고객 설명 카드 본문, 640px 이하의 입력 */
+  --type-heading: 1.125rem; /* 18px. 패널·섹션 제목, 상품 카드 제목, 브랜드 */
+  --type-title: 1.25rem; /* 20px. h2, 결과 제목, 역할 카드 제목 */
+  --type-title-lg: 1.5rem; /* 24px. 고객 화면 h1, 단계 제목, 비율 수치 */
+  --type-page: 1.75rem; /* 28px. 콘솔 h1, 요약 수치 */
+  --type-display: 2rem; /* 32px. 진입 화면 제목, 숙려 남은 시간 */
+  /* 줄 높이. 단위 없이 써서 글자 크기를 따라가게 한다. */
+  --type-line-display: 1.2; /* 24px 이상의 큰 수치 */
+  --type-line-heading: 1.3; /* 제목 */
+  --type-line-body: 1.6; /* 본문 */
+  /* 해시, 주소, 시각. DESIGN.md의 identifier 글꼴 */
+  --type-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-family:
     "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  font-synthesis: none;
+  /* 한글 글꼴에는 기울임꼴이 없다. 가짜 기울임만 막고, 굵기 합성은 대체 글꼴을 위해 둔다. */
+  font-synthesis-style: none;
 }
 * {
   box-sizing: border-box;
@@ -37,8 +72,8 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: var(--type-body);
+  line-height: var(--type-line-body);
   word-break: keep-all;
 }
 button,
@@ -69,25 +104,28 @@ dl,
 dd {
   margin: 0;
 }
+/* 제목 자간은 24px 이상에서 -0.02em, 그보다 작으면 -0.01em이다. */
 h1,
 h2,
 h3 {
-  line-height: 1.4;
-  letter-spacing: -0.03em;
+  line-height: var(--type-line-heading);
+  letter-spacing: -0.01em;
   font-weight: 700;
-}
-h1 {
-  font-size: 28px;
   text-wrap: balance;
 }
+h1 {
+  font-size: var(--type-page);
+  letter-spacing: -0.02em;
+}
 h2 {
-  font-size: 20px;
+  font-size: var(--type-title);
 }
 h3 {
-  font-size: 16px;
+  font-size: var(--type-body-lg);
 }
 p {
   max-width: 72ch;
+  text-wrap: pretty;
 }
 svg {
   flex-shrink: 0;
@@ -117,6 +155,14 @@ textarea {
   max-width: 100%;
   min-width: 0;
 }
+/* iOS Safari는 16px보다 작은 입력에 초점이 가면 화면을 확대한다. 좁은 화면에서는 입력 글자를 16px로 키운다. */
+@media (max-width: 640px) {
+  input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: var(--type-body-lg);
+  }
+}
 input::placeholder,
 textarea::placeholder {
   color: var(--input);
@@ -138,8 +184,8 @@ input[type="checkbox"] {
 }
 code,
 pre {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
+  font-family: var(--type-mono);
+  font-size: var(--type-caption);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
   word-break: break-all;
@@ -159,7 +205,7 @@ details {
 summary {
   cursor: pointer;
   color: var(--muted-foreground);
-  font-size: 13px;
+  font-size: var(--type-ui);
 }
 table {
   border-collapse: collapse;
@@ -171,14 +217,14 @@ caption {
   text-align: left;
   color: var(--muted-foreground);
   padding: 16px 0;
-  font-size: 13px;
+  font-size: var(--type-ui);
 }
 th,
 td {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--type-ui);
 }
 th {
   color: var(--muted-foreground);
@@ -186,11 +232,11 @@ th {
   font-weight: 500;
 }
 ::selection {
-  background: #dce8ff;
-  color: #173e91;
+  background: var(--selection);
+  color: var(--selection-foreground);
 }
 * {
-  scrollbar-color: #b0b8c1 var(--muted);
+  scrollbar-color: var(--scrollbar) var(--muted);
   scrollbar-width: thin;
 }
 .button {
@@ -203,7 +249,7 @@ th {
   border-radius: 8px;
   padding: 10px 16px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--type-ui);
   text-decoration: none;
   white-space: normal;
   text-align: center;
@@ -215,7 +261,7 @@ th {
   border-color: var(--primary);
 }
 .button.primary:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: var(--primary-hover);
 }
 .button.button-outline {
   background: var(--card);
@@ -233,7 +279,7 @@ th {
 .button.large {
   min-height: 56px;
   border-radius: 16px;
-  font-size: 15px;
+  font-size: var(--type-body);
 }
 @media (prefers-reduced-motion: reduce) {
   *,

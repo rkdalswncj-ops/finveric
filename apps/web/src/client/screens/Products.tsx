@@ -29,8 +29,8 @@ import ui from "../../../../../packages/ui/src/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
 import type { Run } from "../App.tsx";
+import { ExplanationCards } from "../../../../../packages/ui/src/sale-components.tsx";
 import {
-  ExplanationCards,
   ProductFacts,
   ProfileProducts,
   RegisterNotice,
@@ -40,7 +40,7 @@ import {
   gradeName,
   latestProducts,
   productName,
-} from "../sales.ts";
+} from "../../../../../packages/ui/src/sales.ts";
 
 const s = { ...ui, ...client, ...local };
 const GRADES = Object.keys(RISK_GRADE_NAMES).map(Number) as RiskGrade[];

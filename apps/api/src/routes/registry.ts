@@ -1,5 +1,5 @@
 // 경로: 진단 기준과 상품 설명서 버전 등록·조회, 시연 기준·상품 일괄 등록.
-import type { FastifyInstance } from "fastify";
+import type { FastifyPluginAsync } from "fastify";
 import {
   registerProductBodySchema,
   registerRuleBodySchema,
@@ -8,22 +8,24 @@ import {
 } from "../../../../packages/core/src/api.ts";
 import type { FundService } from "../service.ts";
 
-export function registryRoutes(app: FastifyInstance, service: FundService) {
-  app.get("/api/rules", async () => service.view(() => service.rules()));
+export const registryRoutes: FastifyPluginAsync<{
+  service: FundService;
+}> = async (app, { service }) => {
+  app.get("/rules", async () => service.view(() => service.rules()));
   app.post<{ Body: RegisterRuleRequest }>(
-    "/api/rules",
+    "/rules",
     { schema: { body: registerRuleBodySchema } },
     async (req) =>
       service.exclusive(() => service.registerRule(req.body.document)),
   );
-  app.get("/api/products", async () => service.view(() => service.products()));
+  app.get("/products", async () => service.view(() => service.products()));
   app.post<{ Body: RegisterProductRequest }>(
-    "/api/products",
+    "/products",
     { schema: { body: registerProductBodySchema } },
     async (req) =>
       service.exclusive(() => service.registerProduct(req.body.document)),
   );
-  app.post("/api/register", async () =>
+  app.post("/register", async () =>
     service.exclusive(() => service.register()),
   );
-}
+};

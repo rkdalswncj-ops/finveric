@@ -1,6 +1,4 @@
 // client 페이지의 여러 화면이 함께 쓰는 표시 요소.
-import type { ReactNode } from "react";
-import { FileText } from "lucide-react";
 import {
   isSuitable,
   PROFILE_NAMES,
@@ -9,53 +7,21 @@ import {
 } from "../../../../packages/core/src/index.ts";
 import type { DiagnosisDto } from "../../../../packages/core/src/api.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
-import {
-  Badge,
-  Facts,
-  Notice,
-} from "../../../../packages/ui/src/components.tsx";
+import { Facts, Notice } from "../../../../packages/ui/src/components.tsx";
 import { dateTime, short } from "../../../../packages/ui/src/format.ts";
-import ui from "../../../../packages/ui/src/ui.module.css";
-import local from "./client.module.css";
 import {
   gradeName,
   issuerLabel,
   limitRange,
   productName,
   profileName,
-  STATUS_LABELS,
-  STATUS_TONES,
-  statusKey,
   type ProductEntry,
-  type Sale,
-} from "./sales.ts";
+} from "../../../../packages/ui/src/sales.ts";
+import ui from "../../../../packages/ui/src/ui.module.css";
+import local from "./client.module.css";
 
 const s = { ...ui, ...local };
 const PROFILES = Object.keys(PROFILE_NAMES).map(Number);
-
-export function Empty({
-  title,
-  text,
-  children,
-}: {
-  title: string;
-  text: string;
-  children?: ReactNode;
-}) {
-  return (
-    <div className={s.empty}>
-      <FileText size={30} />
-      <h2>{title}</h2>
-      <p>{text}</p>
-      {children}
-    </div>
-  );
-}
-
-export function StatusBadge({ sale, now }: { sale: Sale; now: number }) {
-  const key = statusKey(sale, now);
-  return <Badge tone={STATUS_TONES[key]}>{STATUS_LABELS[key]}</Badge>;
-}
 
 /** 아무 기준·상품도 등록하지 않았을 때 보여 주는 기본 등록 안내. */
 export function RegisterNotice({
@@ -100,26 +66,6 @@ export function ProductFacts({ document }: { document: ProductDocument }) {
         ["수수료", document.fee],
       ]}
     />
-  );
-}
-
-/** 핵심 설명 카드 5장. 첫 장은 부적합 고객 유형과 손실 사례다. */
-export function ExplanationCards({
-  cards,
-}: {
-  cards: ProductDocument["cards"];
-}) {
-  return (
-    <ol className={s.cardList}>
-      {cards.map((card, index) => (
-        <li key={index}>
-          <strong>
-            {index + 1}. {card.title}
-          </strong>
-          <p>{card.text}</p>
-        </li>
-      ))}
-    </ol>
   );
 }
 

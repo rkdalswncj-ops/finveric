@@ -51,6 +51,18 @@ export type StoredSale = {
   traces: StoredTrace[];
 };
 
+/** 발급한 API 키. 키 원문은 저장하지 않고 SHA-256 해시만 둔다. */
+export type StoredApiKey = {
+  id: string;
+  name: string;
+  prefix: string;
+  hash: string;
+  scope: "channel";
+  createdAt: string;
+  lastUsedAt?: string;
+  revokedAt?: string;
+};
+
 /** 처리 기록 하나와 그 기록이 속한 판매 건. 등록·진단 기록은 판매 건이 없다. */
 export type TraceEntry = { trace: StoredTrace; sale?: StoredSale };
 
@@ -60,6 +72,7 @@ type Snapshot = {
   rules: StoredRule[];
   products: StoredProduct[];
   diagnoses: StoredDiagnosis[];
+  apiKeys: StoredApiKey[];
 };
 const empty = (): Snapshot => ({
   sales: [],
@@ -67,6 +80,7 @@ const empty = (): Snapshot => ({
   rules: [],
   products: [],
   diagnoses: [],
+  apiKeys: [],
 });
 
 export class SaleRepository {
@@ -138,6 +152,17 @@ export class SaleRepository {
   }
   removeDiagnosis(diagnosis: StoredDiagnosis) {
     this.data.diagnoses = this.data.diagnoses.filter((d) => d !== diagnosis);
+    this.save();
+  }
+
+  // ── API 키 ──────────────────────────────────────────────────
+
+  /** 발급한 API 키. 먼저 발급한 키가 앞에 온다. 필드를 바꾼 뒤에는 save()를 부른다. */
+  apiKeys(): readonly StoredApiKey[] {
+    return this.data.apiKeys;
+  }
+  addApiKey(key: StoredApiKey) {
+    this.data.apiKeys.push(key);
     this.save();
   }
 

@@ -4,16 +4,18 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-// 웹은 Vite 앱 하나에 페이지 세 개다. 배포와 같은 경로를 한 개발 서버가 제공한다.
+// 웹은 Vite 앱 하나에 페이지 네 개다. 배포와 같은 경로를 한 개발 서버가 제공한다.
 // - /         진입 화면(index.html)
-// - /client/  판매사 콘솔과 판매 채널(client/index.html)
-// - /auditor/ 감독기관 화면과 고객 검증 페이지(auditor/index.html)
+// - /client/  판매사 콘솔(client/index.html)
+// - /auditor/ 감독기관 화면(auditor/index.html)
+// - /channel/ 증권사 앱 예시. FINVERIC API로 만든 고객 화면(channel/index.html)
 // 페이지마다 번들을 따로 만든다. 판매사 콘솔 코드는 다른 페이지에 실리지 않는다.
 const page = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 const pages = {
   entry: page("./index.html"),
   client: page("./client/index.html"),
   auditor: page("./auditor/index.html"),
+  channel: page("./channel/index.html"),
 };
 /**
  * 공개 검증 설정(deployment*.json). scripts/deploy.ts와 scripts/dev.ts가 이곳에 쓴다.
@@ -24,7 +26,7 @@ const sharedPublic =
 
 /**
  * 개발 서버를 배포와 같은 경로로 맞춘다.
- * - /client/*, /auditor/*의 화면 요청은 그 페이지의 index.html로 보낸다(SPA 경로).
+ * - /client/*, /auditor/*, /channel/*의 화면 요청은 그 페이지의 index.html로 보낸다(SPA 경로).
  * - 검증 설정은 배포처럼 사이트 루트(/deployment.json)에서 제공한다.
  */
 function devServerPaths(): Plugin {
@@ -33,7 +35,7 @@ function devServerPaths(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const path = req.url?.split("?")[0] ?? "";
-        const app = path.match(/^\/(client|auditor)\/[^.]*$/)?.[1];
+        const app = path.match(/^\/(client|auditor|channel)(?:\/[^.]*)?$/)?.[1];
         if (app && req.headers.accept?.includes("text/html")) {
           req.url = `/${app}/index.html`;
           return next();

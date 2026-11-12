@@ -10,14 +10,14 @@
 }
 .lead {
   color: var(--muted-foreground);
-  font-size: 13px;
+  font-size: var(--type-ui);
   margin: 8px 0 4px;
 }
 .productList {
   list-style: none;
   padding: 0;
   margin: 4px 0 8px;
-  font-size: 12px;
+  font-size: var(--type-caption);
 }
 .productList li {
   display: flex;
@@ -35,7 +35,7 @@
 .choiceList small {
   margin-left: 8px;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: var(--type-caption);
 }
 .versionList {
   list-style: none;
@@ -55,18 +55,18 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px 14px;
-  font-size: 13px;
+  font-size: var(--type-ui);
 }
 .versionList button:hover {
   background: var(--muted);
 }
 .versionList .versionActive {
   border-color: var(--primary);
-  background: #edf3ff;
+  background: var(--primary-surface);
 }
 .versionList small {
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: var(--type-caption);
 }
 /* 편집기: 왼쪽 입력, 오른쪽 검사·미리보기 */
 .editorGrid {
@@ -89,7 +89,7 @@
   min-width: 0;
 }
 .questionEdit legend {
-  font-size: 13px;
+  font-size: var(--type-ui);
   font-weight: 700;
   padding: 0 6px;
 }
@@ -102,7 +102,7 @@
   align-items: flex-end;
   flex-wrap: wrap;
   margin-bottom: 12px;
-  font-size: 13px;
+  font-size: var(--type-ui);
 }
 .editRow label {
   display: grid;
@@ -142,7 +142,7 @@
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
-  font-size: 13px;
+  font-size: var(--type-ui);
 }
 .checks label {
   display: flex;
@@ -172,11 +172,11 @@
   align-items: center;
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--type-ui);
 }
 .timeline time {
-  font-family: ui-monospace, monospace;
-  font-size: 11px;
+  font-family: var(--type-mono);
+  font-size: var(--type-caption);
   color: var(--muted-foreground);
   flex: none;
   width: 120px;
@@ -211,11 +211,11 @@
   background: var(--muted);
 }
 .logList > .logSelected {
-  background: #edf3ff;
+  background: var(--primary-surface);
 }
 .logList time {
-  font-family: ui-monospace, monospace;
-  font-size: 11px;
+  font-family: var(--type-mono);
+  font-size: var(--type-caption);
   color: var(--muted-foreground);
 }
 .logList > button > div {
@@ -224,11 +224,11 @@
 }
 .logList strong {
   display: block;
-  font-size: 12px;
+  font-size: var(--type-caption);
   overflow-wrap: anywhere;
 }
 .logList small {
-  font-size: 11px;
+  font-size: var(--type-caption);
   color: var(--muted-foreground);
 }
 .logDetail {
@@ -236,7 +236,7 @@
   min-width: 0;
 }
 .logDetail h2 {
-  font-size: 18px;
+  font-size: var(--type-heading);
 }
 @media (max-width: 1150px) {
   .editorGrid {

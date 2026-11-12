@@ -100,10 +100,10 @@ try {
   run("tsx", ["watch", "--clear-screen=false", "apps/api/src/index.ts"], {
     env: { ...process.env, HOST: host },
   });
-  // 웹 한 서버가 진입 화면(/), 판매사 콘솔(/client/), 감독기관·고객 검증(/auditor/)을 제공한다.
+  // 웹 한 서버가 진입 화면(/), 판매사 콘솔(/client/), 감독기관(/auditor/), 증권사 앱 예시(/channel/)를 제공한다.
   run("npm", ["run", "dev", "-w", "@finveric/web"]);
   console.log(
-    "FINVERIC: http://127.0.0.1:5173/ (판매사 콘솔 /client/ · 감독기관 /auditor/) · Ctrl+C로 종료",
+    "FINVERIC: http://127.0.0.1:5173/ (판매사 콘솔 /client/ · 감독기관 /auditor/ · 증권사 앱 예시 /channel/) · Ctrl+C로 종료",
   );
 } catch (error) {
   stop();

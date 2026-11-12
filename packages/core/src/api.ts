@@ -3,14 +3,20 @@
 import type { Hex } from "viem";
 import {
   CATEGORIES,
+  LEDGER_ERRORS,
   PRODUCT_TYPES,
+  ROLES,
+  SALE_STATUSES,
   type ChainSale,
   type Deployment,
   type EvidenceReceipt,
   type LedgerError,
+  type MockRecording,
+  type OriginalAttempt,
   type OriginalBundle,
   type Product,
   type ProductDocument,
+  type Role,
   type RuleDocument,
   type Trace,
 } from "./index.ts";
@@ -234,7 +240,7 @@ export const subscribeBodySchema = {
 } as const satisfies ObjectSchema<SubscribeRequest>;
 
 /**
- * POST `/api/sales/:id/action/:action`. 본문은 없다.
+ * POST `/api/sales/:id/action/<동작>`. 동작마다 경로가 따로 있다. 경로 값은 `saleIdParamsSchema`, 본문은 없다.
  * approve: 승인자 서명(3회차 이상) · abandon: 초안 중단 · confirm·withdraw: 고객 키 · settle: 인프라 키.
  */
 export const SALE_ACTIONS = [
@@ -245,12 +251,6 @@ export const SALE_ACTIONS = [
   "settle",
 ] as const;
 export type SaleAction = (typeof SALE_ACTIONS)[number];
-export type SaleActionParams = SaleIdParams & { action: SaleAction };
-export const saleActionParamsSchema = {
-  type: "object",
-  required: ["id", "action"],
-  properties: { id: SALE_ID, action: { enum: SALE_ACTIONS } },
-} as const satisfies ObjectSchema<SaleActionParams>;
 
 /** POST `/api/demo/tamper`. 이미 기록한 회차를 다시 쓰는 거래를 시뮬레이션한다. 거래는 보내지 않는다. */
 export type TamperRequest = { customerNo: string; attempt: number };
@@ -415,3 +415,530 @@ export type ExportResponse = {
   receipt: EvidenceReceipt;
   original: OriginalBundle;
 };
+
+/** 오류 응답. `error`는 우리가 쓴 한국어 문장이다. */
+export type ErrorResponse = { error: string };
+
+// ── 응답 스키마(문서 전용) ────────────────────────────────────
+// OpenAPI 문서(`/api/openapi.json`)와 응답 대조 검사에만 쓴다. Fastify 경로의 `schema.response`에 넣지 않는다.
+// 넣으면 fast-json-stringify가 응답을 직렬화한다. 스키마에 없는 필드가 빠지고 bigint 변환(`json()`)을 거치지 않는다.
+// `description`은 연동 개발자가 읽는 문서 문구다. 합니다체로 쓴다.
+
+type OptionalKeys<T> = {
+  [Key in Keys<T>]-?: {} extends Pick<T, Key> ? Key : never;
+}[Keys<T>];
+/** 응답 DTO 하나의 JSON Schema. `title`이 OpenAPI 문서의 스키마 이름이다. */
+export type ResponseSchema = {
+  type: "object";
+  title: string;
+  description: string;
+  required: string[];
+  properties: Record<string, object>;
+};
+/**
+ * 응답 DTO의 스키마를 만든다. `properties`에는 DTO의 모든 필드를, `optional`에는 DTO의 선택 필드를 적는다.
+ * 필드가 빠지거나 남으면 타입 검사가 실패한다. `required`는 선택 필드를 뺀 나머지다.
+ */
+function responseSchema<T>(
+  title: string,
+  description: string,
+  properties: { [Key in Keys<T>]-?: object },
+  optional: { [Key in OptionalKeys<T>]-?: true },
+): ResponseSchema {
+  return {
+    type: "object",
+    title,
+    description,
+    required: Object.keys(properties).filter((key) => !(key in optional)),
+    properties,
+  };
+}
+
+const INTEGER = { type: "integer" } as const;
+const BOOLEAN = { type: "boolean" } as const;
+const STRING = { type: "string" } as const;
+const ADDRESS = { type: "string", pattern: "^0x[0-9a-fA-F]{40}$" } as const;
+const DECIMAL = {
+  type: "string",
+  pattern: "^[0-9]+$",
+  description: "원장의 uint256 값. 10진수 문자열입니다.",
+} as const;
+const UNIX_SECONDS = {
+  type: "integer",
+  minimum: 0,
+  description: "블록 시각(Unix 초)",
+} as const;
+const ISO_TIME = { type: "string", format: "date-time" } as const;
+const SALE_ID_VALUE = { ...SALE_ID, description: "판매 ID(10진수)" } as const;
+const CUSTOMER_REF = {
+  ...BYTES32,
+  description: "고객 가명 ID. 고객 번호와 판매사 비밀값으로 만듭니다.",
+} as const;
+const arrayOf = (items: object) => ({ type: "array", items }) as const;
+
+export const errorResponseSchema = responseSchema<ErrorResponse>(
+  "Error",
+  "오류 응답",
+  {
+    error: {
+      type: "string",
+      description: "원인과 다음 행동을 적은 한국어 문장",
+    },
+  },
+  {},
+);
+
+const healthCheckSchema = responseSchema<HealthCheck>(
+  "HealthCheck",
+  "의존성 하나의 점검 결과",
+  {
+    ok: BOOLEAN,
+    ms: { type: "number", minimum: 0, description: "점검에 걸린 시간(ms)" },
+    error: { type: "string", description: "실패 이유" },
+  },
+  { error: true },
+);
+export const healthResponseSchema = responseSchema<HealthResponse>(
+  "Health",
+  "RPC, 원장, 판매 기록 저장소 점검 결과",
+  {
+    ok: { type: "boolean", description: "세 점검이 모두 정상이면 true" },
+    network: { enum: ["local", "sepolia"] },
+    chainId: INTEGER,
+    ledger: ADDRESS,
+    checks: responseSchema<HealthResponse["checks"]>(
+      "HealthChecks",
+      "점검 항목별 결과",
+      {
+        rpc: healthCheckSchema,
+        ledger: healthCheckSchema,
+        store: healthCheckSchema,
+      },
+      {},
+    ),
+  },
+  {},
+);
+
+const deploymentSchema = responseSchema<Wire<Deployment>>(
+  "Deployment",
+  "공개 검증 설정. 감독기관과 고객은 이 원장 주소와 코드 지문으로 기록을 대조합니다.",
+  {
+    ledgerVersion: { const: 5 },
+    proofKeyHash: {
+      type: "string",
+      pattern: "^[0-9a-f]{64}$",
+      description: "증명 키(zkey)의 sha256",
+    },
+    chainId: { enum: [31337, 11155111] },
+    ledger: ADDRESS,
+    verifier: ADDRESS,
+    blockNumber: { ...DECIMAL, description: "원장을 배포한 블록 번호" },
+    rpcUrl: { type: "string", description: "공개 RPC 주소" },
+    coolingPeriod: {
+      type: "integer",
+      minimum: 0,
+      description: "녹취·숙려 대상의 최소 숙려 시간(초)",
+    },
+    roles: responseSchema<Deployment["roles"]>(
+      "Roles",
+      "역할별 계정 주소",
+      Object.fromEntries(ROLES.map((role) => [role, ADDRESS])) as Record<
+        Role,
+        object
+      >,
+      {},
+    ),
+    verifierCodeHash: BYTES32,
+    ledgerCodeHash: BYTES32,
+  },
+  {},
+);
+export const configResponseSchema = responseSchema<ConfigDto>(
+  "Config",
+  "검증 설정과 기본 고객",
+  {
+    deployment: deploymentSchema,
+    requiresToken: {
+      type: "boolean",
+      description: "true면 공개 경로를 뺀 모든 요청에 접근 코드가 필요합니다.",
+    },
+    demoCustomer: responseSchema<ConfigDto["demoCustomer"]>(
+      "DemoCustomer",
+      "기본 고객 번호와 가명 ID",
+      { number: CUSTOMER_NO, ref: CUSTOMER_REF },
+      {},
+    ),
+  },
+  {},
+);
+
+const ruleDocumentResponse = {
+  title: "RuleDocument",
+  description: "진단 기준 원문. 원장에는 정렬한 JSON 원문으로 등록합니다.",
+  ...ruleDocumentSchema,
+};
+const productDocumentResponse = {
+  title: "ProductDocument",
+  description:
+    "상품 설명서 원문. 지문(documentHash)은 정렬한 JSON 원문으로 계산합니다.",
+  ...productDocumentSchema,
+};
+export const ruleEntrySchema = responseSchema<RuleEntryDto>(
+  "RuleEntry",
+  "진단 기준 버전 하나",
+  {
+    document: ruleDocumentResponse,
+    hash: { ...BYTES32, description: "기준 해시" },
+    version: INTEGER,
+    registered: {
+      type: "boolean",
+      description: "false면 아직 원장에 등록하지 않은 기본 기준입니다.",
+    },
+    txHash: { ...BYTES32, description: "등록 거래 해시" },
+  },
+  { txHash: true },
+);
+const productSchema = responseSchema<Wire<Product>>(
+  "Product",
+  "상품 설명서 버전",
+  {
+    id: { ...BYTES32, description: "상품 ID. 상품 코드의 keccak256입니다." },
+    version: INTEGER,
+    document: productDocumentResponse,
+    documentHash: { ...BYTES32, description: "설명서 지문" },
+  },
+  {},
+);
+export const productEntrySchema = responseSchema<ProductEntryDto>(
+  "ProductEntry",
+  "상품 버전 하나",
+  {
+    product: productSchema,
+    registered: {
+      type: "boolean",
+      description: "false면 아직 원장에 등록하지 않은 기본 상품입니다.",
+    },
+    latest: {
+      type: "boolean",
+      description: "true면 청약에 쓰는 최신 버전입니다.",
+    },
+    txHash: { ...BYTES32, description: "등록 거래 해시" },
+  },
+  { txHash: true },
+);
+export const registerResponseSchema = responseSchema<RegisterDto>(
+  "Register",
+  "등록 뒤의 기준과 상품 목록",
+  { rules: arrayOf(ruleEntrySchema), products: arrayOf(productEntrySchema) },
+  {},
+);
+
+export const diagnosisSchema = responseSchema<DiagnosisDto>(
+  "Diagnosis",
+  "원장에 기록한 진단 회차. 답변, 임의값, 총점은 넣지 않습니다.",
+  {
+    attempt: { type: "integer", minimum: 1, description: "진단 회차" },
+    ruleHash: { ...BYTES32, description: "진단에 쓴 기준 해시" },
+    commitment: {
+      ...DECIMAL,
+      description:
+        "답변·임의값·원장·고객 가명 ID·회차·기준에 묶인 커밋먼트(10진수)",
+    },
+    profile: {
+      type: "integer",
+      minimum: 1,
+      maximum: 5,
+      description: "투자성향 등급",
+    },
+    limit: {
+      type: "integer",
+      minimum: 1,
+      maximum: 6,
+      description: "권유할 수 있는 가장 위험한 상품 위험등급(1이 가장 위험)",
+    },
+    elderly: { type: "boolean", description: "고령 투자자 여부" },
+    at: UNIX_SECONDS,
+    txHash: { ...BYTES32, description: "기록 거래 해시" },
+    block: { ...DECIMAL, description: "기록 블록 번호" },
+  },
+  { txHash: true, block: true },
+);
+export const customerSchema = responseSchema<CustomerDto>(
+  "Customer",
+  "고객 가명 ID와 모든 진단 회차",
+  {
+    number: { ...CUSTOMER_NO, description: "요청한 고객 번호" },
+    ref: CUSTOMER_REF,
+    diagnoses: arrayOf(diagnosisSchema),
+  },
+  {},
+);
+
+export const traceSchema = responseSchema<TraceDto>(
+  "Trace",
+  "처리 기록 하나. 증명 생성, 거래 제출, 영수증, 원장 거절을 남깁니다.",
+  {
+    id: STRING,
+    at: ISO_TIME,
+    source: {
+      type: "string",
+      description: "처리한 주체(예: seller, customer)",
+    },
+    action: { type: "string", description: "작업 이름(예: subscribe)" },
+    status: { enum: ["pending", "confirmed", "failed"] },
+    saleId: SALE_ID_VALUE,
+    customerRef: CUSTOMER_REF,
+    txHash: { ...BYTES32, description: "거래 해시" },
+    blockNumber: { ...DECIMAL, description: "블록 번호" },
+    event: { type: "string", description: "원장 이벤트 이름" },
+    detail: { description: "영수증, 원장 오류 이름 같은 세부 값" },
+  },
+  {
+    saleId: true,
+    customerRef: true,
+    txHash: true,
+    blockNumber: true,
+    event: true,
+    detail: true,
+  },
+);
+const chainSaleSchema = responseSchema<Wire<ChainSale>>(
+  "ChainSale",
+  "원장 getSale 결과. uint256 값은 10진수 문자열입니다.",
+  {
+    customerRef: { ...DECIMAL, description: "고객 가명 ID(10진수)" },
+    productId: BYTES32,
+    recordingHash: {
+      ...BYTES32,
+      description: "녹취록 지문. 녹취 대상이 아니면 0입니다.",
+    },
+    amount: { ...DECIMAL, description: "가입 금액(원)" },
+    productVersion: INTEGER,
+    attempt: { type: "integer", description: "청약에 쓴 진단 회차" },
+    explanationSeconds: { type: "integer", description: "설명 시간(초)" },
+    suitable: BOOLEAN,
+    protectedSale: { type: "boolean", description: "녹취·숙려 대상" },
+    higherRiskConfirmed: BOOLEAN,
+    approved: { type: "boolean", description: "관리자 승인 서명 확인" },
+    status: {
+      type: "integer",
+      minimum: 0,
+      maximum: SALE_STATUSES.length - 1,
+      description: SALE_STATUSES.map((s, i) => `${i}: ${s}`).join(", "),
+    },
+    subscribedAt: { ...DECIMAL, description: "청약 시각(Unix 초)" },
+    confirmedAt: { ...DECIMAL, description: "확정 시각(Unix 초)" },
+    withdrawnAt: { ...DECIMAL, description: "철회 시각(Unix 초)" },
+    settledAt: { ...DECIMAL, description: "결제 기록 시각(Unix 초)" },
+  },
+  {},
+);
+export const saleSchema = responseSchema<SaleDto>(
+  "Sale",
+  "판매 건. 고객 번호, 답변, 임의값, 서명 원문은 넣지 않습니다.",
+  {
+    id: SALE_ID_VALUE,
+    customerRef: CUSTOMER_REF,
+    productId: BYTES32,
+    productVersion: INTEGER,
+    amount: { type: "integer", description: "가입 금액(원)" },
+    createdAt: ISO_TIME,
+    status: {
+      enum: SALE_VIEW_STATUSES,
+      description: "draft·abandoned는 원장 밖의 신청, 나머지는 원장 상태",
+    },
+    latestAttempt: {
+      type: "integer",
+      minimum: 0,
+      description: "이 고객의 원장 최신 회차. 0이면 진단 전입니다.",
+    },
+    approvalRequired: {
+      type: "boolean",
+      description: "최신 회차가 3 이상이면 청약 전에 관리자 승인이 필요합니다.",
+    },
+    approvedAttempt: {
+      type: "integer",
+      description: "승인 서명을 만든 회차",
+    },
+    suitable: {
+      type: "boolean",
+      description:
+        "청약 전에는 최신 회차로 계산한 예상 값, 청약 뒤에는 원장 값",
+    },
+    protectedSale: { type: "boolean", description: "녹취·숙려 대상" },
+    coolingEndsAt: {
+      ...UNIX_SECONDS,
+      description:
+        "최종 확인이 가능한 시각(Unix 초). 녹취·숙려 대상만 있습니다.",
+    },
+    settled: { type: "boolean", description: "결제 기록 여부" },
+    chain: chainSaleSchema,
+    submissionPending: {
+      type: "boolean",
+      description: "제출했지만 영수증을 아직 확인하지 않은 거래가 있으면 true",
+    },
+    traces: arrayOf(traceSchema),
+  },
+  {
+    approvedAttempt: true,
+    suitable: true,
+    protectedSale: true,
+    coolingEndsAt: true,
+    chain: true,
+  },
+);
+
+export const tamperResponseSchema = responseSchema<TamperResponse>(
+  "TamperResult",
+  "기록한 회차를 다시 쓰는 거래의 시뮬레이션 결과. 거래는 보내지 않습니다.",
+  {
+    rejected: { type: "boolean", description: "원장이 거절했으면 true" },
+    error: { enum: Object.keys(LEDGER_ERRORS), description: "원장 오류 이름" },
+    reason: STRING,
+    customerRef: CUSTOMER_REF,
+    attempt: INTEGER,
+  },
+  { error: true },
+);
+
+export const receiptSchema = responseSchema<EvidenceReceipt>(
+  "EvidenceReceipt",
+  "고객 증명서. 가입 기록 확인과 감독기관 조회가 원장과 대조합니다.",
+  {
+    format: { const: "finveric-receipt-v5" },
+    saleId: SALE_ID_VALUE,
+    chainId: INTEGER,
+    ledger: ADDRESS,
+    customerRef: CUSTOMER_REF,
+    productId: BYTES32,
+    productVersion: INTEGER,
+    documentHash: BYTES32,
+    attempt: INTEGER,
+    ruleHash: BYTES32,
+    amount: { ...DECIMAL, description: "가입 금액(원)" },
+    subscribeTx: BYTES32,
+    confirmTx: {
+      ...BYTES32,
+      description: "확정 거래 해시. 확정 뒤에만 있습니다.",
+    },
+    issuedAt: ISO_TIME,
+  },
+  { confirmTx: true },
+);
+export const originalSchema = responseSchema<OriginalBundle>(
+  "OriginalBundle",
+  "고객과 판매사가 보관하는 원본 묶음. 청약 회차까지 모든 회차의 답변과 임의값을 담습니다.",
+  {
+    format: { const: "finveric-original-v5" },
+    saleId: SALE_ID_VALUE,
+    customerRef: CUSTOMER_REF,
+    attempts: arrayOf(
+      responseSchema<OriginalAttempt>(
+        "OriginalAttempt",
+        "진단 회차 하나의 원본",
+        {
+          attempt: INTEGER,
+          ruleHash: BYTES32,
+          answers: arrayOf({ type: "integer", minimum: 0 }),
+          salt: { type: "string", description: "커밋먼트 임의값" },
+        },
+        {},
+      ),
+    ),
+    productDocument: productDocumentResponse,
+    recording: responseSchema<MockRecording>(
+      "Recording",
+      "녹취록. 지문은 recordingHash입니다.",
+      { name: STRING, text: STRING },
+      {},
+    ),
+    explanationSeconds: INTEGER,
+  },
+  { recording: true },
+);
+
+// ── API 키 ──────────────────────────────────────────────────
+// 증권사 앱 서버가 `판매 채널 연동` API를 부를 때 쓰는 키. 판매사 콘솔에서 발급하고 폐기한다.
+
+/** API 키 원문의 접두어. 접근 코드와 구분한다. */
+export const API_KEY_PREFIX = "fvk_";
+/** 동시에 쓸 수 있는 API 키 수. 폐기한 키는 세지 않는다. */
+export const MAX_ACTIVE_API_KEYS = 20;
+/** API 키로 부를 수 있는 범위. 지금은 `판매 채널 연동` API 하나다. */
+export type ApiKeyScope = "channel";
+
+/** `POST /api/keys` 본문. 이름은 키를 쓰는 곳을 알아보는 용도다. */
+export type IssueApiKeyRequest = { name: string };
+export const issueApiKeyBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name"],
+  properties: {
+    name: { type: "string", minLength: 1, maxLength: 40, pattern: "\\S" },
+  },
+} as const satisfies ObjectSchema<IssueApiKeyRequest>;
+
+/** `/api/keys/:id/...`의 경로 값. */
+export type ApiKeyParams = { id: string };
+const API_KEY_ID = { type: "string", pattern: "^key_[0-9a-f]{12}$" } as const;
+export const apiKeyParamsSchema = {
+  type: "object",
+  required: ["id"],
+  properties: { id: API_KEY_ID },
+} as const satisfies ObjectSchema<ApiKeyParams>;
+
+/** 발급한 API 키. 키 원문과 해시는 담지 않는다. */
+export type ApiKeyDto = {
+  id: string;
+  name: string;
+  /** 키 앞부분(접두어 포함 12자). 목록에서 키를 알아본다. */
+  prefix: string;
+  scope: ApiKeyScope;
+  createdAt: string;
+  /** 마지막으로 인증한 시각. 1분 단위로 기록한다. */
+  lastUsedAt?: string;
+  revokedAt?: string;
+};
+/** 발급 응답. 키 원문(`key`)은 이 응답에만 한 번 나온다. */
+export type IssuedApiKeyDto = ApiKeyDto & { key: string };
+
+const apiKeyProperties = {
+  id: { ...API_KEY_ID, description: "API 키 ID" },
+  name: STRING,
+  prefix: {
+    type: "string",
+    description: "키 앞부분(접두어 포함 12자)",
+  },
+  scope: {
+    type: "string",
+    enum: ["channel"],
+    description: "부를 수 있는 범위. `channel`은 `판매 채널 연동` API입니다.",
+  },
+  createdAt: ISO_TIME,
+  lastUsedAt: {
+    ...ISO_TIME,
+    description: "마지막으로 인증한 시각(1분 단위)",
+  },
+  revokedAt: ISO_TIME,
+} as const;
+export const apiKeySchema = responseSchema<ApiKeyDto>(
+  "ApiKey",
+  "발급한 API 키. 키 원문은 담지 않습니다.",
+  apiKeyProperties,
+  { lastUsedAt: true, revokedAt: true },
+);
+export const issuedApiKeySchema = responseSchema<IssuedApiKeyDto>(
+  "IssuedApiKey",
+  "발급한 API 키와 키 원문. 원문은 이 응답에만 한 번 나옵니다.",
+  {
+    ...apiKeyProperties,
+    key: {
+      type: "string",
+      pattern: "^fvk_[A-Za-z0-9_-]{32}$",
+      description:
+        "키 원문. `Authorization: Bearer <키>`로 보냅니다. 서버는 해시만 보관합니다.",
+    },
+  },
+  { lastUsedAt: true, revokedAt: true },
+);

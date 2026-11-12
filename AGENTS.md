@@ -6,16 +6,16 @@ UI를 추가하거나 수정하기 전에 [DESIGN.md](DESIGN.md)를 읽는다. �
 
 FINVERIC은 판매사(B2B)와 감독기관(B2G)이 쓰는 서비스다. 고객(투자자)은 FINVERIC 화면을 직접 쓰지 않는다.
 
-| 위치                    | 내용                                                                                     |
-| ----------------------- | ---------------------------------------------------------------------------------------- |
-| `apps/web`              | 웹. 진입 화면(`/`), 판매사 콘솔과 판매 채널 시연(`/client/`), 감독기관 화면(`/auditor/`) |
-| `apps/api`              | Fastify API. 로컬은 Node 프로세스, 외부 시연은 Vercel 함수                               |
-| `packages/core`         | 판정·해시·커밋먼트·검증 로직, ABI, API 계약(DTO). 웹과 API가 함께 쓴다                   |
-| `packages/ui`           | 웹 페이지들의 공통 화면 요소와 API 클라이언트                                            |
-| `circuits`, `contracts` | ZKP 회로와 원장                                                                          |
-| `deploy/<network>`      | Vercel 빌드에 쓰는 원장 배포본                                                           |
-| `scripts`               | 개발·배포·시연 스크립트                                                                  |
-| `docs`                  | 문서. [README의 주요 문서 표](README.md#-주요-문서)를 따른다                             |
+| 위치                    | 내용                                                                                                 |
+| ----------------------- | ---------------------------------------------------------------------------------------------------- |
+| `apps/web`              | 웹. 진입 화면(`/`), 판매사 콘솔(`/client/`), 증권사 앱 예시(`/channel/`), 감독기관 화면(`/auditor/`) |
+| `apps/api`              | Fastify API와 API 문서(`/api/docs`). 로컬은 Node 프로세스, 외부 시연은 Vercel 함수                   |
+| `packages/core`         | 판정·해시·커밋먼트·검증 로직, ABI, API 계약(DTO). 웹과 API가 함께 쓴다                               |
+| `packages/ui`           | 웹 페이지들의 공통 화면 요소와 API 클라이언트                                                        |
+| `circuits`, `contracts` | ZKP 회로와 원장                                                                                      |
+| `deploy/<network>`      | Vercel 빌드에 쓰는 원장 배포본                                                                       |
+| `scripts`               | 개발·배포·시연 스크립트                                                                              |
+| `docs`                  | 문서. [README의 주요 문서 표](README.md#-주요-문서)를 따른다                                         |
 
 하위 폴더의 AGENTS.md가 그 영역의 규칙을 더한다. 이 파일과 충돌하면 더 가까운 폴더의 파일을 따른다.
 

@@ -40,7 +40,7 @@ import {
   limitRange,
   productName,
   profileName,
-} from "../sales.ts";
+} from "../../../../../packages/ui/src/sales.ts";
 
 const s = { ...ui, ...client, ...local };
 const PROFILES = Object.keys(PROFILE_NAMES).map(Number);

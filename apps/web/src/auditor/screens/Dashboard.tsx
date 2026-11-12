@@ -9,6 +9,7 @@ import {
   Badge,
   Facts,
   Heading,
+  Stat,
 } from "../../../../../packages/ui/src/components.tsx";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import local from "../auditor.module.css";
@@ -204,13 +205,14 @@ function Summary({
   ];
   return (
     <>
-      <div className={s.stats}>
+      <div className={`${s.stats} ${s.ledgerStats}`}>
         {stats.map((stat) => (
-          <div key={stat.label} className={s.stat}>
-            <span>{stat.label}</span>
-            <strong>{stat.value.toLocaleString("ko-KR")}</strong>
-            <small>{stat.unit}</small>
-          </div>
+          <Stat
+            key={stat.label}
+            label={stat.label}
+            value={stat.value.toLocaleString("ko-KR")}
+            note={stat.unit}
+          />
         ))}
       </div>
       <div className={s.columns}>

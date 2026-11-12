@@ -56,10 +56,6 @@ export function App() {
             : "Anvil 테스트 원장"
           : "원장 설정 대기",
       }}
-      foot={{
-        title: "판매사 API 없이 대조",
-        text: "이 브라우저가 지정 RPC에서 원장 이벤트를 읽어요.",
-      }}
       error={error}
       dismissError={() => setError("")}
     >

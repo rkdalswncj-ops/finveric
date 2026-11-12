@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
+import { ExternalLink } from "lucide-react";
 import type {
   CustomerDto,
   ProductEntryDto,
@@ -8,6 +9,7 @@ import type {
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
   Badge,
+  Empty,
   Facts,
   Heading,
   Notice,
@@ -16,7 +18,9 @@ import { dateTime, short, won } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
-import { DiagnosisTable, Empty, StatusBadge } from "../components.tsx";
+import { CHANNEL_APP_HREF } from "../../../../../packages/ui/src/links.ts";
+import { StatusBadge } from "../../../../../packages/ui/src/sale-components.tsx";
+import { DiagnosisTable } from "../components.tsx";
 import {
   awaitingApproval,
   nowSeconds,
@@ -28,7 +32,7 @@ import {
   statusKey,
   type Sale,
   type StatusKey,
-} from "../sales.ts";
+} from "../../../../../packages/ui/src/sales.ts";
 import { traceLabel, traceStatus } from "../traces.ts";
 
 const s = { ...ui, ...client, ...local };
@@ -332,8 +336,15 @@ export function Review({
         loaded && (
           <Empty
             title="아직 판매 건이 없습니다"
-            text="판매 채널에서 고객이 상품을 고르면 판매 건이 생깁니다."
-          />
+            text="고객이 증권사 앱에서 상품을 고르고 가입을 시작하면 판매 건이 생깁니다."
+          >
+            <Button variant="outline" asChild>
+              <a href={CHANNEL_APP_HREF} target="_blank" rel="noreferrer">
+                증권사 앱 예시 열기
+                <ExternalLink size={15} aria-label="새 탭에서 열기" />
+              </a>
+            </Button>
+          </Empty>
         )
       )}
     </>

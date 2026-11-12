@@ -1,21 +1,17 @@
-// 판매사 콘솔과 판매 채널이 함께 쓰는 판매 건·상품·기준 표시 계산.
+// 판매사 콘솔(client)과 증권사 앱 예시(channel)가 함께 쓰는 판매 건·상품·기준 표시 계산.
 // 판정(적합·녹취 대상·투자성향)과 위험 신호는 core를 쓴다. 여기서 다시 계산하지 않는다.
 import {
-  computeSignals,
   PROFILE_NAMES,
   productDisplayName,
   RISK_GRADE_NAMES,
   type ProductDocument,
-  type Signal,
-  type SignalSale,
-} from "../../../../packages/core/src/index.ts";
+} from "../../core/src/index.ts";
 import type {
-  CustomerDto,
   ProductEntryDto,
   RuleEntryDto,
   SaleDto,
   TraceDto,
-} from "../../../../packages/core/src/api.ts";
+} from "../../core/src/api.ts";
 
 export type Sale = SaleDto;
 export type ProductEntry = ProductEntryDto;
@@ -130,35 +126,3 @@ export const confirmedTrace = (sale: Sale | undefined, action: string) =>
     (trace) =>
       trace.action === action && trace.status === "confirmed" && trace.txHash,
   ) as (TraceDto & { txHash: string }) | undefined;
-
-/**
- * 위험 신호. 고객의 진단 회차와 청약한 판매 건을 core 입력 형식으로 바꿔 계산한다.
- * 판매사 API로는 시연 고객의 회차만 읽는다. 다른 고객의 신호는 감독기관 화면이 원장에서 계산한다.
- */
-export function saleSignals(
-  customer: CustomerDto | undefined,
-  sales: Sale[],
-): Signal[] {
-  const diagnoses =
-    customer?.diagnoses.map((diagnosis) => ({
-      customerRef: customer.ref,
-      attempt: diagnosis.attempt,
-      profile: diagnosis.profile,
-      at: diagnosis.at,
-    })) ?? [];
-  const subscribed = sales.flatMap((sale): SignalSale[] =>
-    sale.chain && sale.status !== "draft" && sale.status !== "abandoned"
-      ? [
-          {
-            saleId: sale.id,
-            customerRef: sale.customerRef,
-            attempt: sale.chain.attempt,
-            suitable: sale.chain.suitable,
-            status: sale.status,
-            explanationSeconds: sale.chain.explanationSeconds,
-          },
-        ]
-      : [],
-  );
-  return computeSignals({ diagnoses, sales: subscribed });
-}

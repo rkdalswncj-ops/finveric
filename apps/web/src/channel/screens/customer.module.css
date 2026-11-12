@@ -1,19 +1,10 @@
-/* 판매 채널의 가입 기록 확인 화면. 고객 가입 화면처럼 한 열로 둔다. */
-.page {
-  display: flex;
-  justify-content: center;
-}
-.main {
-  width: 100%;
-  max-width: 600px;
-}
+/* 가입 기록 확인 화면. 앱 본문과 같은 한 열이다. */
 .main form {
   margin-top: 16px;
 }
 .main h1 {
   margin: 0 0 8px;
-  font-size: 26px;
-  line-height: 1.35;
+  font-size: var(--type-title-lg);
 }
 .lead {
   margin: 0 0 24px;
@@ -23,7 +14,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 24px;
+  padding: 20px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -36,14 +27,14 @@
   flex-direction: column;
   gap: 6px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--type-detail);
 }
 .field input[type="text"] {
   min-height: 48px;
   padding: 10px 14px;
   border: 1px solid var(--input);
   border-radius: 10px;
-  font-size: 15px;
+  font-size: var(--type-body);
   overflow-wrap: anywhere;
 }
 .field input[type="text"]:focus-visible {
@@ -52,7 +43,7 @@
 }
 .field input[type="file"] {
   font-weight: 400;
-  font-size: 13px;
+  font-size: var(--type-ui);
 }
 .field small {
   color: var(--muted-foreground);
@@ -69,7 +60,7 @@
 }
 .result h2 {
   margin: 0 0 4px;
-  font-size: 20px;
+  font-size: var(--type-title);
 }
 .result p {
   margin: 0;
@@ -98,7 +89,7 @@
   padding-left: 18px;
 }
 .tech {
-  font-size: 13px;
+  font-size: var(--type-ui);
 }
 .tech code {
   overflow-wrap: anywhere;
@@ -124,11 +115,6 @@
 .checks small {
   display: block;
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: var(--type-caption);
   overflow-wrap: anywhere;
-}
-@media (max-width: 640px) {
-  .main h1 {
-    font-size: 22px;
-  }
 }
