@@ -21,6 +21,17 @@ npm run dev
 
 [진입 화면](http://127.0.0.1:5173/), [client](http://127.0.0.1:5173/client/), [auditor](http://127.0.0.1:5173/auditor/), [API 상태](http://127.0.0.1:3001/api/health)를 확인한다. API 상태는 RPC 연결과 체인 ID, 원장 코드, 판매 기록 저장소를 점검한다. 모두 정상이면 200, 하나라도 실패하면 503과 실패한 항목을 돌려준다. `npm run dev`는 기존 Anvil을 재사용한다. 원장 버전과 증명 키가 같으면 배포도 재사용한다. 원장 버전이나 증명 키를 변경하면 배포를 갱신한다. 로컬 계정은 Anvil의 공개 테스트 mnemonic에서 만든다. 역할마다 다른 주소를 쓴다.
 
+**개발할 때.** 개발도 Docker로 한다. `compose.yaml`이 `apps/`, `packages/`, `scripts/`를 컨테이너에 마운트한다. 그래서 코드를 고치면 다시 빌드하지 않아도 반영된다. Node(`npm run dev`)로 실행해도 같다.
+
+| 고친 곳 | 반영 방법 |
+| --- | --- |
+| 웹(`apps/web`, `packages/ui`) | 저장하면 브라우저에 바로 반영된다(Vite HMR). |
+| API, 코어(`apps/api`, `packages/core`) | 저장하면 API가 다시 시작한다(`tsx watch`). 진행 중인 요청은 끊긴다. |
+| 원장·회로(`contracts`, `circuits`) | 다시 빌드한다(`docker compose up --build -d`). 원장 버전이나 증명 키가 바뀌면 새로 배포한다. |
+| 의존성(`package.json`), `Dockerfile` | 다시 빌드한다(`docker compose up --build -d`). |
+
+로그는 `docker compose logs -f`로 본다. Docker와 Node 실행은 같은 포트(5173, 3001, 8545)를 쓰므로 한 번에 하나만 띄운다.
+
 **v4에서 올릴 때.** v5 코드로 처음 실행하면 증명 키를 새로 만들고(약 3분) 원장 v5를 새 주소에 배포한다. 이전 v4 배포 설정은 `.local/deployment-local-v4.json`으로 남는다. v4 판매 기록은 v4 원장 주소에 그대로 있지만 v5 화면은 v5 원장만 읽는다. Docker에서 `circuits/build/`를 호스트에 마운트해 v4 시연을 계속 쓰려면, 올리기 전에 그 폴더를 백업한다.
 
 ## 발표 순서

@@ -22,6 +22,7 @@
 | 개발 | [결정 기록: 앱 분리, 배포, 원장, API 계층, 판매사 콘솔](docs/adr/) | 개발       |
 | 개발 | [배포: Vercel·Upstash·Sepolia 순서와 환경 변수](docs/deploy.md)    | 개발       |
 | 발표 | [실행과 시연: 발표 순서, 검증 절차, 복구](docs/runbook.md)         | 개발, 발표 |
+| 발표 | [QA 기록: 체크리스트, 차수별 결과](docs/qa.md)                     | 모두       |
 | 팀   | [팀 운영과 자료 정리: 역할, 자료 위치, 넘겨줄 것](docs/team.md)    | 모두       |
 
 ---
@@ -136,6 +137,7 @@ docker compose up --build -d
 - 첫 실행은 이미지 빌드(약 3~4분)와 증명 키 생성·컨트랙트 배포(약 2~4분)를 거친다. 다음 실행은 볼륨에 남은 키와 원장을 써서 10초 안팎이면 준비된다.
 - `docker compose ps`의 상태가 `healthy`가 되면 연다. 이 상태는 health API가 RPC·원장·저장소를 점검한 결과다.
   - [진입 화면](http://localhost:5173/) · [client](http://localhost:5173/client/) · [auditor](http://localhost:5173/auditor/) · [health](http://localhost:3001/api/health)
+- 개발도 Docker로 한다. 소스 폴더를 마운트하므로 웹은 저장하면 바로 반영되고, API는 저장하면 다시 시작한다. 원장·회로나 의존성을 바꿨을 때만 다시 빌드한다. ([실행과 시연](docs/runbook.md#실행))
 - 진행 로그는 `docker compose logs -f`로 본다.
 - 멈출 때는 `docker compose down`을 실행한다. 원장 상태와 판매 기록은 볼륨에 남는다. 기록까지 지우려면 `docker compose down -v`를 실행한다.
 
@@ -149,6 +151,7 @@ npm run dev
 ```
 
 - [진입 화면](http://127.0.0.1:5173/) · [client](http://127.0.0.1:5173/client/) · [auditor](http://127.0.0.1:5173/auditor/) · [health](http://127.0.0.1:3001/api/health)
+- Docker와 같은 포트를 쓴다. 먼저 `docker compose stop`으로 컨테이너를 멈춘다.
 - 로컬 원장 상태와 판매 기록은 `.local/`에 저장한다. 이 폴더를 지우면 이력과 고객 원본을 잃는다.
 
 ### 처음 써 보기
@@ -170,6 +173,7 @@ npm run dev
 
 ### 개발
 
+- 시연 전에는 [QA 체크리스트](docs/qa.md)로 화면을 점검한다. 발견한 문제는 GitHub 이슈(`QA 이슈` 템플릿)로 남기고 차수 기록에 이슈 번호를 적는다.
 - `main` 브랜치에 커밋하고 push한다. 검사는 로컬에서 `npm run contracts:test`, `npm test`, `npm run build`로 돌린다. GitHub Actions 검사(증명 키 생성, 원장 검사, 통합 검사, 빌드)는 지금 자동으로 돌리지 않는다. 필요하면 Actions 탭에서 수동으로 실행한다.
 - 결정을 바꾸면 [결정 기록(ADR)](docs/adr/)을 추가한다.
 - 영역별 작업 규칙은 각 폴더의 `AGENTS.md`에 있다.

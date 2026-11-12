@@ -1,4 +1,6 @@
 # 로컬 시연: docker compose up --build
+# 개발도 이 컨테이너로 한다. 소스(apps, packages, scripts)를 마운트하므로
+# 웹은 저장하면 바로 반영되고 API는 저장할 때 다시 시작한다. 의존성을 바꿨을 때만 다시 빌드한다.
 # 웹 http://localhost:5173/ (판매사 콘솔 /client/ · 감독기관 /auditor/) · API http://localhost:3001/api/health
 services:
   finveric:
@@ -9,6 +11,10 @@ services:
       - "127.0.0.1:3001:3001"
       - "127.0.0.1:5173:5173"
     volumes:
+      # 소스를 마운트한다. 코드를 고치면 다시 빌드하지 않아도 반영된다.
+      - ./apps:/app/apps
+      - ./packages:/app/packages
+      - ./scripts:/app/scripts
       # 원장 상태·배포 설정·판매 기록, 증명 키, 컨트랙트 빌드를 재시작 뒤에도 유지한다.
       - local:/app/.local
       - circuits:/app/circuits/build

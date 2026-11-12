@@ -96,7 +96,8 @@ try {
       copyFileSync(file, "packages/ui/public/deployment.json");
     }
   }
-  run("tsx", ["apps/api/src/index.ts"], {
+  // 개발 중 API 코드를 저장하면 다시 시작한다. 웹은 Vite가 바로 반영한다(HMR).
+  run("tsx", ["watch", "--clear-screen=false", "apps/api/src/index.ts"], {
     env: { ...process.env, HOST: host },
   });
   // 웹 한 서버가 진입 화면(/), 판매사 콘솔(/client/), 감독기관·고객 검증(/auditor/)을 제공한다.
