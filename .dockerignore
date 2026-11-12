@@ -17,6 +17,7 @@ packages/ui/public/deployment*.json
 .claude/
 .impeccable/
 .mise.toml
+compose.override.yaml
 PRODUCT.md
 hosting/
 scripts/sites-*

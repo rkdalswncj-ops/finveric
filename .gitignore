@@ -27,3 +27,6 @@ packages/ui/public/deployment-v2.json
 packages/ui/public/deployment-v3.json
 coverage/
 test-results/
+
+# 개인 Docker 설정
+compose.override.yaml
