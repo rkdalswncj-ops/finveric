@@ -125,81 +125,89 @@ export function Review({
           </button>
         ))}
       </div>
-      <div className={`${s.panel} ${s.tableWrap} ${s.salesTable}`}>
-        <table>
-          <caption>
-            판매 건 목록 · 행을 골라 회차 이력과 처리 근거를 봅니다.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">판매 ID</th>
-              <th scope="col">상품</th>
-              <th scope="col">상태</th>
-              <th scope="col">회차</th>
-              <th scope="col">적합성</th>
-              <th scope="col">녹취·숙려</th>
-              <th scope="col">관리자 승인</th>
-              <th scope="col">신청 시각</th>
-              <th scope="col">선택</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((record) => {
-              const attempt = record.chain?.attempt ?? record.latestAttempt;
-              const abandoned = record.status === "abandoned";
-              return (
-                <tr
-                  key={record.id}
-                  className={record.id === sale?.id ? s.selectedRow : ""}
-                >
-                  <td>
-                    <code title={record.id}>{short(record.id)}</code>
-                  </td>
-                  <td className={s.wrapCell}>
-                    {productName(saleProduct(products, record)?.document)} v
-                    {record.productVersion}
-                  </td>
-                  <td>
-                    <StatusBadge sale={record} now={now} />
-                  </td>
-                  <td>
-                    {abandoned
-                      ? "—"
-                      : attempt
-                        ? `${attempt}회차${attempt > 1 ? " · 재진단" : ""}`
-                        : "진단 전"}
-                  </td>
-                  <td>
-                    {abandoned ? "—" : yesNo(record.suitable, "적합", "부적합")}
-                  </td>
-                  <td>
-                    {abandoned ? "—" : yesNo(record.protectedSale, "대상", "—")}
-                  </td>
-                  <td>
-                    {awaitingApproval(record) ? (
-                      <Badge tone="warning">승인 필요</Badge>
-                    ) : record.chain?.approved ||
-                      (record.status === "draft" && record.approvalRequired) ? (
-                      "승인"
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td>{dateTime(record.createdAt)}</td>
-                  <td>
-                    <Button
-                      variant="ghost"
-                      onClick={() => select(record.id)}
-                      aria-label={`${short(record.id)} 판매 건 보기`}
-                    >
-                      보기
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div className={`${s.panel} ${s.salesTable}`}>
+        <p className={s.tableNote}>
+          판매 건 목록 · 행을 골라 회차 이력과 처리 근거를 봅니다.
+        </p>
+        <div className={s.tableWrap}>
+          <table>
+            <caption className={s.srOnly}>판매 건 목록</caption>
+            <thead>
+              <tr>
+                <th scope="col">판매 ID</th>
+                <th scope="col">상품</th>
+                <th scope="col">상태</th>
+                <th scope="col">회차</th>
+                <th scope="col">적합성</th>
+                <th scope="col">녹취·숙려</th>
+                <th scope="col">관리자 승인</th>
+                <th scope="col">신청 시각</th>
+                <th scope="col">선택</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((record) => {
+                const attempt = record.chain?.attempt ?? record.latestAttempt;
+                const abandoned = record.status === "abandoned";
+                return (
+                  <tr
+                    key={record.id}
+                    className={record.id === sale?.id ? s.selectedRow : ""}
+                  >
+                    <td>
+                      <code title={record.id}>{short(record.id)}</code>
+                    </td>
+                    <td className={s.wrapCell}>
+                      {productName(saleProduct(products, record)?.document)} v
+                      {record.productVersion}
+                    </td>
+                    <td>
+                      <StatusBadge sale={record} now={now} />
+                    </td>
+                    <td>
+                      {abandoned
+                        ? "—"
+                        : attempt
+                          ? `${attempt}회차${attempt > 1 ? " · 재진단" : ""}`
+                          : "진단 전"}
+                    </td>
+                    <td>
+                      {abandoned
+                        ? "—"
+                        : yesNo(record.suitable, "적합", "부적합")}
+                    </td>
+                    <td>
+                      {abandoned
+                        ? "—"
+                        : yesNo(record.protectedSale, "대상", "—")}
+                    </td>
+                    <td>
+                      {awaitingApproval(record) ? (
+                        <Badge tone="warning">승인 필요</Badge>
+                      ) : record.chain?.approved ||
+                        (record.status === "draft" &&
+                          record.approvalRequired) ? (
+                        "승인"
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td>{dateTime(record.createdAt)}</td>
+                    <td>
+                      <Button
+                        variant="ghost"
+                        onClick={() => select(record.id)}
+                        aria-label={`${short(record.id)} 판매 건 보기`}
+                      >
+                        보기
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
         {shown.length === 0 && (
           <p className={s.empty}>
             {loaded

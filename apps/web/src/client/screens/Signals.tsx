@@ -61,66 +61,71 @@ export function Signals({
           </button>
         ))}
       </div>
-      <div className={`${s.panel} ${s.tableWrap} ${s.salesTable}`}>
-        <table>
-          <caption>
-            위험 신호 목록 · 판매 건을 열어 회차 이력을 확인합니다.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">신호</th>
-              <th scope="col">고객 가명 ID</th>
-              <th scope="col">판매 ID</th>
-              <th scope="col">상품</th>
-              <th scope="col">회차</th>
-              <th scope="col">근거</th>
-              <th scope="col">보기</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((signal, index) => {
-              const sale = saleFor(signal.customerRef, signal.saleId);
-              return (
-                <tr
-                  key={`${signal.kind}:${signal.saleId ?? signal.customerRef}:${index}`}
-                >
-                  <td>
-                    <Badge tone="warning">{SIGNAL_LABELS[signal.kind]}</Badge>
-                  </td>
-                  <td>
-                    <code title={signal.customerRef}>
-                      {short(signal.customerRef)}
-                    </code>
-                  </td>
-                  <td>
-                    {signal.saleId ? (
-                      <code title={signal.saleId}>{short(signal.saleId)}</code>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className={s.wrapCell}>
-                    {signal.saleId
-                      ? productName(saleProduct(products, sale)?.document)
-                      : "—"}
-                  </td>
-                  <td>{signal.attempt ? `${signal.attempt}회차` : "—"}</td>
-                  <td>{signal.detail}</td>
-                  <td>
-                    <Button
-                      variant="ghost"
-                      disabled={!sale}
-                      onClick={() => sale && open(sale.id)}
-                      aria-label={`${SIGNAL_LABELS[signal.kind]} 판매 건 보기`}
-                    >
-                      판매·검토
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div className={`${s.panel} ${s.salesTable}`}>
+        <p className={s.tableNote}>
+          위험 신호 목록 · 판매 건을 열어 회차 이력을 확인합니다.
+        </p>
+        <div className={s.tableWrap}>
+          <table>
+            <caption className={s.srOnly}>위험 신호 목록</caption>
+            <thead>
+              <tr>
+                <th scope="col">신호</th>
+                <th scope="col">고객 가명 ID</th>
+                <th scope="col">판매 ID</th>
+                <th scope="col">상품</th>
+                <th scope="col">회차</th>
+                <th scope="col">근거</th>
+                <th scope="col">보기</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((signal, index) => {
+                const sale = saleFor(signal.customerRef, signal.saleId);
+                return (
+                  <tr
+                    key={`${signal.kind}:${signal.saleId ?? signal.customerRef}:${index}`}
+                  >
+                    <td>
+                      <Badge tone="warning">{SIGNAL_LABELS[signal.kind]}</Badge>
+                    </td>
+                    <td>
+                      <code title={signal.customerRef}>
+                        {short(signal.customerRef)}
+                      </code>
+                    </td>
+                    <td>
+                      {signal.saleId ? (
+                        <code title={signal.saleId}>
+                          {short(signal.saleId)}
+                        </code>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className={s.wrapCell}>
+                      {signal.saleId
+                        ? productName(saleProduct(products, sale)?.document)
+                        : "—"}
+                    </td>
+                    <td>{signal.attempt ? `${signal.attempt}회차` : "—"}</td>
+                    <td>{signal.detail}</td>
+                    <td>
+                      <Button
+                        variant="ghost"
+                        disabled={!sale}
+                        onClick={() => sale && open(sale.id)}
+                        aria-label={`${SIGNAL_LABELS[signal.kind]} 판매 건 보기`}
+                      >
+                        판매·검토
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
         {shown.length === 0 && (
           <p className={s.empty}>표시할 위험 신호가 없습니다.</p>
         )}

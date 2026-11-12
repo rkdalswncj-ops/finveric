@@ -106,63 +106,66 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
           </button>
         ))}
       </div>
-      <section className={`${s.panel} ${s.tableWrap} ${s.section}`}>
-        <table>
-          <caption className={s.panelNote}>
-            {kind
-              ? `${SIGNAL_LABELS[kind]}: ${CONDITIONS[kind]}`
-              : "신호 5종 전체. 판매 ID나 고객 가명 ID를 열면 분쟁 조회로 이동해요."}
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">신호</th>
-              <th scope="col">근거</th>
-              <th scope="col">고객 가명 ID</th>
-              <th scope="col">판매 건</th>
-              <th scope="col">회차</th>
-              <th scope="col">블록 시각</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((signal, index) => {
-              const sale = snapshot.sales.find(
-                (entry) => entry.saleId === signal.saleId,
-              );
-              return (
-                <tr
-                  key={`${signal.kind}:${signal.customerRef}:${signal.saleId ?? signal.attempt}:${index}`}
-                >
-                  <td>
-                    <Badge tone="warning">{SIGNAL_LABELS[signal.kind]}</Badge>
-                  </td>
-                  <td className={s.wrap}>{signal.detail}</td>
-                  <td>
-                    <Link to={customerPath(signal.customerRef)}>
-                      <code title={signal.customerRef}>
-                        {short(signal.customerRef, 10, 8)}
-                      </code>
-                    </Link>
-                  </td>
-                  <td>
-                    {signal.saleId ? (
-                      <Link to={salePath(signal.saleId)}>
-                        <code title={signal.saleId}>
-                          {short(signal.saleId)}
+      <section className={`${s.panel} ${s.section}`}>
+        <p className={s.panelNote}>
+          {kind
+            ? `${SIGNAL_LABELS[kind]}: ${CONDITIONS[kind]}`
+            : "신호 5종 전체. 판매 ID나 고객 가명 ID를 열면 분쟁 조회로 이동해요."}
+        </p>
+        <div className={s.tableWrap}>
+          <table>
+            <caption className={s.srOnly}>위험 신호 목록</caption>
+            <thead>
+              <tr>
+                <th scope="col">신호</th>
+                <th scope="col">근거</th>
+                <th scope="col">고객 가명 ID</th>
+                <th scope="col">판매 건</th>
+                <th scope="col">회차</th>
+                <th scope="col">블록 시각</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((signal, index) => {
+                const sale = snapshot.sales.find(
+                  (entry) => entry.saleId === signal.saleId,
+                );
+                return (
+                  <tr
+                    key={`${signal.kind}:${signal.customerRef}:${signal.saleId ?? signal.attempt}:${index}`}
+                  >
+                    <td>
+                      <Badge tone="warning">{SIGNAL_LABELS[signal.kind]}</Badge>
+                    </td>
+                    <td className={s.wrap}>{signal.detail}</td>
+                    <td>
+                      <Link to={customerPath(signal.customerRef)}>
+                        <code title={signal.customerRef}>
+                          {short(signal.customerRef, 10, 8)}
                         </code>
-                        {sale &&
-                          ` · ${productName(snapshot, sale.productId, sale.productVersion)}`}
                       </Link>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td>{signal.attempt ? `${signal.attempt}회차` : "—"}</td>
-                  <td>{dateTime(signalTime(snapshot, signal))}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+                    <td>
+                      {signal.saleId ? (
+                        <Link to={salePath(signal.saleId)}>
+                          <code title={signal.saleId}>
+                            {short(signal.saleId)}
+                          </code>
+                          {sale &&
+                            ` · ${productName(snapshot, sale.productId, sale.productVersion)}`}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td>{signal.attempt ? `${signal.attempt}회차` : "—"}</td>
+                    <td>{dateTime(signalTime(snapshot, signal))}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
         {shown.length === 0 && (
           <p className={s.panelNote}>
             {kind

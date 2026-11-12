@@ -2,10 +2,13 @@
 .shell {
   display: grid;
   grid-template-columns: 216px minmax(0, 1fr);
-  min-height: 100vh;
+  min-height: 100dvh;
 }
+/* 화면 높이에 고정한다. 메뉴가 화면보다 길면 사이드바 안에서 스크롤한다(짧은 화면, 확대). */
 .sidebar {
-  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   position: sticky;
   top: 0;
   display: flex;
@@ -351,6 +354,13 @@
 .tableWrap {
   overflow: auto;
 }
+/* 표 설명. 가로로 스크롤하는 표 밖에 두어 좁은 화면에서도 잘리지 않게 한다. */
+.tableNote {
+  margin: 0;
+  padding: 16px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
 .breakWord {
   overflow-wrap: anywhere;
   word-break: break-all;
@@ -421,6 +431,7 @@
   }
   .sidebar {
     height: auto;
+    overflow: visible;
     position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
