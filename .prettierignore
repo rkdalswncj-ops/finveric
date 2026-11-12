@@ -1,0 +1,8 @@
+docs/
+circuits/build/
+out/
+cache/
+.local/
+apps/*/dist/
+packages/ui/public/deployment*.json
+contracts/src/Groth16Verifier.sol

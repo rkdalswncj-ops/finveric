@@ -1,0 +1,69 @@
+{
+  "name": "finveric",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.12 <23"
+  },
+  "scripts": {
+    "dev": "tsx scripts/dev.ts",
+    "build": "npm run typecheck && npm run build -w @finveric/client -w @finveric/auditor",
+    "build:vercel": "npm run build && node scripts/build-vercel.mjs",
+    "release:local": "node scripts/release.mjs local",
+    "release:sepolia": "node scripts/release.mjs sepolia",
+    "typecheck": "tsc --noEmit",
+    "zk:setup": "node scripts/setup-zk.mjs",
+    "contracts:build": "node scripts/foundry.mjs forge build",
+    "contracts:test": "node scripts/foundry.mjs forge test -vv",
+    "deploy:local": "tsx scripts/deploy.ts local",
+    "sepolia:prepare": "tsx scripts/prepare-sepolia.ts",
+    "deploy:sepolia": "tsx scripts/deploy.ts sepolia",
+    "demo": "tsx scripts/demo.ts",
+    "demo:attacks": "tsx scripts/demo-attacks.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "api:start": "tsx apps/api/src/index.ts",
+    "sites:prepare": "node scripts/sites-prepare.mjs",
+    "sites:test": "node --test hosting/sites/*.test.mjs"
+  },
+  "dependencies": {
+    "@fastify/cors": "11.4.1",
+    "@fastify/rate-limit": "10.3.0",
+    "@radix-ui/react-slot": "1.5.0",
+    "circomlib": "2.0.5",
+    "circomlibjs": "0.1.7",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "dotenv": "18.0.9",
+    "fastify": "5.12.8",
+    "lucide-react": "1.70.0",
+    "poseidon-lite": "0.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-router": "7.18.5",
+    "snarkjs": "0.7.6",
+    "tailwind-merge": "3.7.0",
+    "viem": "2.57.16"
+  },
+  "devDependencies": {
+    "@foundry-rs/anvil": "1.4.4",
+    "@foundry-rs/forge": "1.4.4",
+    "@tailwindcss/vite": "4.3.5",
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "5.2.0",
+    "circom2": "0.2.23",
+    "esbuild": "0.28.2",
+    "miniflare": "4.20260730.0",
+    "prettier": "3.9.10",
+    "tailwindcss": "4.3.5",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "8.3.6"
+  }
+}

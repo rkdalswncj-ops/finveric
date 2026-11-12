@@ -1,0 +1,86 @@
+/* 독립 검증: 감독기관·외부 검증자 화면 */
+.verifyGrid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 24px;
+}
+.upload {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px dashed var(--input);
+  border-radius: 8px;
+  font-size: 13px;
+  margin: 16px 0;
+}
+.upload input {
+  font-size: 11px;
+  width: 100%;
+  min-height: 30px;
+}
+.upload input::file-selector-button {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--foreground);
+  min-height: 32px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+.checkResult {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+.checkResult > svg {
+  width: 18px;
+  margin-top: 3px;
+}
+.checkResult > div {
+  flex: 1;
+  min-width: 0;
+}
+.checkResult strong {
+  font-size: 13px;
+}
+.checkResult p {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin-top: 5px;
+}
+.successIcon {
+  color: var(--success);
+}
+.warningIcon {
+  color: var(--warning);
+}
+@media (max-width: 1150px) {
+  .verifyGrid {
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 18px;
+  }
+}
+@media (max-width: 950px) {
+  .verifyGrid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .verifyGrid {
+    gap: 20px;
+  }
+  .checkResult {
+    gap: 10px;
+  }
+  /* 항목 결과 배지. 배지 스타일은 공통 모듈에 있으므로 마지막 span으로 고른다. */
+  .checkResult > span:last-child {
+    white-space: normal;
+    text-align: center;
+    flex-shrink: 0;
+    max-width: 65px;
+  }
+}

@@ -1,0 +1,86 @@
+/* 기관 업무: 판매·검토 현황과 온체인 처리 */
+.logGrid {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr);
+  margin-top: 22px;
+  overflow: hidden;
+}
+.logList {
+  max-height: 620px;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+}
+.logList > button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 15px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.logList > button:hover {
+  background: var(--muted);
+}
+.logList > .logSelected {
+  background: #edf3ff;
+}
+.logList time {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.logList > button > div {
+  flex: 1;
+  min-width: 0;
+}
+.logList strong {
+  display: block;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.logList small {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.logDetail {
+  padding: 24px;
+  min-width: 0;
+}
+.logDetail h2 {
+  font-size: 18px;
+  margin-bottom: 18px;
+}
+.salesTable {
+  margin: 20px 0 28px;
+}
+.salesTable caption {
+  padding: 16px;
+}
+.salesTable .selectedRow {
+  background: #edf3ff;
+}
+@media (max-width: 950px) {
+  .logGrid {
+    grid-template-columns: 1fr;
+  }
+  .logList {
+    max-height: 340px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}
+@media (max-width: 640px) {
+  .logDetail {
+    padding: 20px;
+  }
+  .logList > button {
+    gap: 8px;
+    padding: 14px 12px;
+  }
+  .logList time {
+    font-size: 10px;
+  }
+}

@@ -1,0 +1,237 @@
+@import "tailwindcss";
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+}
+:root {
+  color-scheme: light;
+  --background: #fafafa;
+  --card: #ffffff;
+  --foreground: #191f28;
+  --muted-foreground: #4e5968;
+  --muted: #f2f4f6;
+  --border: #e5e8eb;
+  --input: #6b7684;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --ring: #1d4ed8;
+  --success: #116149;
+  --success-surface: #eaf6ef;
+  --warning: #7a4900;
+  --warning-surface: #fff3d7;
+  --destructive: #a32535;
+  --destructive-surface: #fff1f1;
+  font-family:
+    "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-synthesis: none;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 15px;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button,
+a,
+input,
+select {
+  touch-action: manipulation;
+}
+button {
+  cursor: pointer;
+}
+a {
+  color: var(--primary);
+  text-underline-offset: 3px;
+}
+h1,
+h2,
+h3,
+p,
+dl,
+dd {
+  margin: 0;
+}
+h1,
+h2,
+h3 {
+  line-height: 1.4;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+h1 {
+  font-size: 28px;
+  text-wrap: balance;
+}
+h2 {
+  font-size: 20px;
+}
+h3 {
+  font-size: 16px;
+}
+p {
+  max-width: 72ch;
+}
+svg {
+  flex-shrink: 0;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 3px;
+}
+input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
+select {
+  border: 1px solid var(--input);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--foreground);
+  min-height: 44px;
+  padding: 10px 13px;
+  max-width: 100%;
+  min-width: 0;
+}
+input::placeholder {
+  color: var(--input);
+}
+input {
+  caret-color: var(--primary);
+}
+input[type="radio"],
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  flex: none;
+  margin: 0;
+}
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+pre {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 18px;
+  white-space: pre-wrap;
+  max-height: 500px;
+  overflow: auto;
+}
+details {
+  margin: 20px 0;
+}
+summary {
+  cursor: pointer;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+caption {
+  text-align: left;
+  color: var(--muted-foreground);
+  padding: 16px 0;
+  font-size: 13px;
+}
+th,
+td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  font-size: 13px;
+}
+th {
+  color: var(--muted-foreground);
+  background: var(--muted);
+  font-weight: 500;
+}
+::selection {
+  background: #dce8ff;
+  color: #173e91;
+}
+* {
+  scrollbar-color: #b0b8c1 var(--muted);
+  scrollbar-width: thin;
+}
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.5;
+}
+.button.primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+.button.primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+.button.button-outline {
+  background: var(--card);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+.button.button-outline:hover:not(:disabled),
+.button.ghost:hover:not(:disabled) {
+  background: var(--muted);
+}
+.button.ghost {
+  background: transparent;
+  color: var(--muted-foreground);
+}
+.button.large {
+  min-height: 56px;
+  border-radius: 16px;
+  font-size: 15px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
