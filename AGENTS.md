@@ -24,6 +24,7 @@ FINVERIC은 B2B·B2G 서비스다. 투자자는 FINVERIC 화면을 직접 쓰지
 
 - 사실 하나는 문서 하나에만 적는다. 배포 정보는 [docs/deploy.md](docs/deploy.md), 결정은 [docs/adr](docs/adr/)에 둔다. 결정을 바꾸면 ADR을 추가한다.
 - 개인키, `DEMO_TOKEN`, 고객 원본(`.local/`), `.env.*`를 커밋하지 않는다. 채팅에도 옮기지 않는다.
-- 사용자가 실행 중인 시연 서버(API, Anvil, Sites 브리지, 터널)를 끄거나 그 기록을 바꾸지 않는다. 검사는 다른 포트와 임시 디렉터리를 쓴다.
-- 변경 뒤 `npm run typecheck`와 `npm test`를 실행한다. 원장은 `npm run contracts:test`, Sites는 `npm run sites:test`도 실행한다.
+- 개인 설정(`.agents/`, `.claude/`, `.impeccable/`, `.mise.toml`, `PRODUCT.md`)과 개인 배포(`hosting/`, `scripts/sites-*`)는 원격 저장소에 올리지 않는다. 문서에 개인 계정이 드러나는 주소를 쓰지 않는다.
+- 사용자가 실행 중인 시연 서버(Anvil, API, 웹)를 끄거나 그 기록을 바꾸지 않는다. 검사는 다른 포트와 임시 디렉터리를 쓴다.
+- 변경 뒤 `npm run typecheck`와 `npm test`를 실행한다. 원장은 `npm run contracts:test`도 실행한다. 실행 환경을 바꾸면 `docker compose up --build`로도 확인한다.
 - 의존성은 정확한 버전으로 고정한다(`.npmrc`의 `save-exact`).

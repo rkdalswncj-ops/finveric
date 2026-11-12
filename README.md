@@ -10,11 +10,21 @@
 
 React 웹, Fastify API, Circom 회로, Solidity 원장을 사용한다. 원장 v4에서 가상 펀드 세 종의 가입을 지원한다. 진단 규칙 v3은 안정형·균형형·적극형을 분류한다. 투자성향이 직접 고른 펀드의 기준보다 낮으면 추가 안내를 확인한 뒤 가입할 수 있다. 최종 확인 전에는 임시 기록을 사용하고, 가입을 중단하면 폐기한다. 로컬 시연은 Anvil에서 실행한다. 외부 시연은 Vercel과 Sepolia로 배포한다. 업무 규칙과 완료 기준은 [펀드 PRD](docs/prd.md)를 따른다.
 
-[Sites에서 열기](https://example.invalid). 본인 전용 비공개 임시 배포다. 이 컴퓨터의 API·Anvil을 쓰므로 컴퓨터와 로컬 서버가 실행 중이어야 한다. Vercel 배포를 확인할 때까지 유지한다. [Sites 연결과 갱신 안내](hosting/sites/README.md)
-
 ## 빠른 시작
 
-Node.js 22.12 이상 22.x와 npm 10을 사용한다. `.mise.toml`은 Node 22.23.2를 지정한다. Foundry와 Circom은 npm 패키지에 포함했다. 별도 전역 설치는 필요 없다. Solidity 컴파일러는 첫 빌드 때 다운로드한다.
+### Docker
+
+Docker만 있으면 된다. Anvil, API, client, auditor를 한 컨테이너에서 실행한다.
+
+```bash
+docker compose up --build
+```
+
+첫 실행은 이미지를 만들고, 증명 키를 만들고, 컨트랙트를 배포하므로 몇 분 걸린다. 로그에 `FINVERIC 기관 업무`가 보이면 [client 앱](http://localhost:5173)과 [auditor 앱](http://localhost:5174/auditor/)을 연다. 원장 상태와 판매 기록은 Docker 볼륨에 남는다. `docker compose down`으로 멈춘다. `docker compose down -v`는 기록까지 지운다.
+
+### Node
+
+Node.js 22.12 이상 22.x와 npm 10을 사용한다. Foundry와 Circom은 npm 패키지에 포함했다. 별도 전역 설치는 필요 없다. Solidity 컴파일러는 첫 빌드 때 다운로드한다.
 
 ```bash
 npm ci
@@ -71,8 +81,6 @@ v4는 기존 Groth16 회로와 증명 키를 쓰는 새 원장이다. v1·v2·v3
 | [docs/adr](docs/adr/)                              | 결정 기록. 맥락·결정·이유·대가를 남긴다                    |
 | [DESIGN.md](DESIGN.md)                             | 화면 규칙과 디자인 토큰                                    |
 | [AGENTS.md](AGENTS.md)                             | 작업 규칙. 하위 폴더의 AGENTS.md가 그 영역의 규칙을 더한다 |
-
-[Notion 문제 정의 원문](https://example.invalid)
 
 ## 참여자와 역할
 

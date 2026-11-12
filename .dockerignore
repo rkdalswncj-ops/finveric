@@ -1,0 +1,24 @@
+# 이미지에 넣지 않는다: 의존성·빌드 결과·로컬 기록·비밀 값·개인 설정.
+node_modules/
+**/node_modules/
+**/dist/
+.git/
+.vercel/
+.local/
+out/
+cache/
+circuits/build/
+contracts/src/Groth16Verifier.sol
+packages/ui/public/deployment*.json
+.env
+.env.*
+!.env.example
+.agents/
+.claude/
+.impeccable/
+.mise.toml
+PRODUCT.md
+hosting/
+scripts/sites-*
+tests/sites-bridge.test.ts
+.DS_Store

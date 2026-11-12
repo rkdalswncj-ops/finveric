@@ -44,6 +44,8 @@ export function finvericVite({
     publicDir,
     plugins: [react(), tailwindcss(), deploymentFiles()],
     server: {
+      // Docker에서는 FINVERIC_HOST=0.0.0.0으로 컨테이너 밖에서 접속하게 한다.
+      host: process.env.FINVERIC_HOST ?? "127.0.0.1",
       port,
       strictPort: true,
       fs: { allow: ["../.."] },

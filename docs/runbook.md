@@ -4,16 +4,19 @@
 
 웹은 두 앱이다. client 앱은 운용사·증권사·준법 담당자 화면과 판매 채널 시연을 제공한다. auditor 앱은 감독기관·외부 검증자의 독립 검증 화면이다. [결정 기록](adr/0001-web-apps-by-audience.md)
 
-[비공개 Sites 배포](https://example.invalid)는 Vercel 배포를 확인할 때까지 유지한다. 이 컴퓨터의 API·Anvil·브리지·터널이 실행 중이어야 한다. [구성과 갱신 안내](../hosting/sites/README.md)
-
 ## 실행
 
-프로젝트 루트에서 Node 22.x를 사용한다. mise를 사용하면 아래 명령으로 실행한다.
+Docker로 실행하면 Node 설치가 필요 없다.
 
 ```bash
-mise trust .mise.toml
-mise exec node@22.23.2 -- npm ci
-mise exec node@22.23.2 -- npm run dev
+docker compose up --build
+```
+
+Node로 실행하려면 프로젝트 루트에서 Node 22.x를 사용한다.
+
+```bash
+npm ci
+npm run dev
 ```
 
 [client 앱](http://127.0.0.1:5173), [auditor 앱](http://127.0.0.1:5174/auditor/), [API 상태](http://127.0.0.1:3001/api/health)를 확인한다. `npm run dev`는 기존 Anvil을 재사용한다. 원장 버전과 증명 키가 같으면 배포도 재사용한다. 원장 버전이나 증명 키를 변경하면 배포를 갱신한다. 로컬 계정은 Anvil의 공개 테스트 mnemonic에서 만든다. 역할마다 다른 주소를 쓴다.

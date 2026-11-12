@@ -1,6 +1,12 @@
-# 개발 프로필 설정을 공유한다. 기기별 스킬 링크와 상태는 로컬에 둔다.
-.agents/*
-!.agents/development-profile.json
+# 개인 설정과 개인 배포. 이 컴퓨터에만 두고 원격 저장소에 올리지 않는다.
+.agents/
+.claude/
+.impeccable/
+.mise.toml
+PRODUCT.md
+hosting/
+scripts/sites-*
+tests/sites-bridge.test.ts
 
 .DS_Store
 .env
@@ -19,6 +25,5 @@ packages/ui/public/deployment.json
 packages/ui/public/deployment-v1.json
 packages/ui/public/deployment-v2.json
 packages/ui/public/deployment-v3.json
-.impeccable/review/
 coverage/
 test-results/

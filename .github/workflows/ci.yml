@@ -11,7 +11,6 @@ jobs:
           node-version: 22.23.2
           cache: npm
       - run: npm ci
-      - run: npm run sites:test
       - run: npm run zk:setup
       - run: npm run contracts:test
       - run: npm test

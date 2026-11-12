@@ -26,9 +26,7 @@
     "demo": "tsx scripts/demo.ts",
     "demo:attacks": "tsx scripts/demo-attacks.ts",
     "test": "tsx --test tests/*.test.ts",
-    "api:start": "tsx apps/api/src/index.ts",
-    "sites:prepare": "node scripts/sites-prepare.mjs",
-    "sites:test": "node --test hosting/sites/*.test.mjs"
+    "api:start": "tsx apps/api/src/index.ts"
   },
   "dependencies": {
     "@fastify/cors": "11.4.1",
@@ -59,7 +57,6 @@
     "@vitejs/plugin-react": "5.2.0",
     "circom2": "0.2.23",
     "esbuild": "0.28.2",
-    "miniflare": "4.20260730.0",
     "prettier": "3.9.10",
     "tailwindcss": "4.3.5",
     "tsx": "4.23.15",

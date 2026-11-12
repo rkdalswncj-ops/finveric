@@ -17,14 +17,24 @@ const sourceHash = createHash("sha256")
   .update(readFileSync("circuits/suitability.circom"))
   .digest("hex");
 const manifest = "circuits/build/manifest.json";
+const verifier = "contracts/src/Groth16Verifier.sol";
 if (
   existsSync(manifest) &&
   JSON.parse(readFileSync(manifest)).sourceHash === sourceHash &&
-  existsSync("contracts/src/Groth16Verifier.sol") &&
   existsSync("circuits/build/suitability.zkey") &&
   existsSync("circuits/build/suitability_js/suitability.wasm") &&
   existsSync("circuits/build/verification_key.json")
 ) {
+  // 키는 있는데 Verifier만 없으면(예: 새 Docker 컨테이너) 같은 키에서 Verifier만 다시 만든다.
+  // 키를 새로 만들면 이미 배포한 원장과 맞지 않는다.
+  if (!existsSync(verifier))
+    run("snarkjs", [
+      "zkey",
+      "export",
+      "solidityverifier",
+      "circuits/build/suitability.zkey",
+      verifier,
+    ]);
   console.log(
     "기존 시연용 증명 키를 사용합니다. 키를 바꾸면 컨트랙트를 다시 배포해야 합니다.",
   );

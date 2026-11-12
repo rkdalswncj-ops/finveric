@@ -6,6 +6,8 @@ import { proofKeyHash } from "./artifacts.ts";
 // @ts-expect-error The portable binary resolver is a JavaScript entry point.
 import { foundryBinary } from "./foundry.mjs";
 const env = environment();
+// 서버가 받을 주소. Docker에서는 0.0.0.0으로 컨테이너 밖에서 접속하게 한다.
+const host = process.env.FINVERIC_HOST ?? "127.0.0.1";
 const children: ChildProcess[] = [];
 const run = (cmd: string, args: string[], options: object = {}) => {
   const child = spawn(cmd, args, { stdio: "inherit", ...options });
@@ -48,7 +50,7 @@ try {
         foundryBinary("anvil"),
         [
           "--host",
-          "127.0.0.1",
+          host,
           "--port",
           "8545",
           "--chain-id",
@@ -94,7 +96,9 @@ try {
       copyFileSync(file, "packages/ui/public/deployment.json");
     }
   }
-  run("tsx", ["apps/api/src/index.ts"]);
+  run("tsx", ["apps/api/src/index.ts"], {
+    env: { ...process.env, HOST: host },
+  });
   // client는 기관 업무와 판매 채널 시연, auditor는 독립 검증이다.
   run("npm", ["run", "dev", "-w", "@finveric/client"], {
     env: {

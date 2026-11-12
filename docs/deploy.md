@@ -19,9 +19,8 @@
 ## 현재 상태
 
 - 코드는 Vercel 배포를 지원한다. 로컬에서 `NETWORK=local npm run build:vercel`로 결과물을 만들었다. 번들 함수로 실제 증명 생성까지 확인했다.
-- Sepolia 원장은 아직 배포하지 않았다. 배포 지갑 `0x0000000000000000000000000000000000000000`의 잔액은 0 ETH다.
+- Sepolia 원장은 아직 배포하지 않았다. 배포 지갑에 테스트 ETH를 충전해야 한다.
 - Vercel 프로젝트와 Upstash Redis는 아직 연결하지 않았다.
-- 비공개 Sites 배포는 Vercel 배포를 확인할 때까지 유지한다. [Sites 안내](../hosting/sites/README.md)
 
 ## 배포 순서
 
