@@ -16,7 +16,7 @@ FINVERIC은 B2B·B2G 서비스다. 투자자는 FINVERIC 화면을 직접 쓰지
 | `circuits`, `contracts` | ZKP 회로와 원장                                                        |
 | `deploy/<network>`      | Vercel 빌드에 쓰는 원장 배포본                                         |
 | `scripts`               | 개발·배포·시연 스크립트                                                |
-| `docs`                  | 문서. [README의 문서 표](README.md#문서)를 따른다                      |
+| `docs`                  | 문서. [README의 주요 문서 표](README.md#-주요-문서)를 따른다           |
 
 하위 폴더의 AGENTS.md가 그 영역의 규칙을 더한다. 이 파일과 충돌하면 더 가까운 폴더의 파일을 따른다.
 

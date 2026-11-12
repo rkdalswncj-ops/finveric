@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="530" viewBox="0 0 1220 530" font-family="-apple-system, 'Apple SD Gothic Neo', Pretendard, 'Noto Sans KR', 'Malgun Gothic', sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8B95A1"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563EB"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#116149"/>
+    </marker>
+  </defs>
+
+  <rect width="1220" height="530" rx="24" fill="#FFFFFF"/>
+  <rect x="0.5" y="0.5" width="1219" height="529" rx="24" fill="none" stroke="#E5E8EB"/>
+  <text x="38" y="52" font-size="22" font-weight="700" fill="#191F28">가입과 검증 흐름</text>
+  <text x="38" y="78" font-size="14" fill="#4E5968">진단과 검토는 거래를 만들지 않는다. 가입을 확정할 때 모든 회차의 증명을 거래 한 건에서 검사한다.</text>
+
+  <!-- 1 -->
+  <g transform="translate(38 104)">
+    <rect width="174" height="232" rx="14" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.4"/>
+    <circle cx="28" cy="30" r="14" fill="#2563EB"/><text x="28" y="35" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">1</text>
+    <text x="50" y="35" font-size="12" font-weight="700" fill="#4E5968">운용사</text>
+    <text x="16" y="76" font-size="16" font-weight="700" fill="#191F28">상품·설명서 등록</text>
+    <text x="16" y="102" font-size="13" fill="#4E5968">세 펀드의 설명서</text>
+    <text x="16" y="122" font-size="13" fill="#4E5968">지문과 기준 성향을</text>
+    <text x="16" y="142" font-size="13" fill="#4E5968">원장에 고정한다</text>
+    <text x="16" y="166" font-size="11" font-family="SFMono-Regular, Menlo, Consolas, monospace" fill="#8B95A1">registerProduct</text>
+    <rect x="16" y="196" width="80" height="26" rx="13" fill="#EEF4FF"/><text x="56" y="213" font-size="12" font-weight="700" fill="#1D4ED8" text-anchor="middle">원장 거래</text>
+  </g>
+  <!-- 2 -->
+  <g transform="translate(232 104)">
+    <rect width="174" height="232" rx="14" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.4"/>
+    <circle cx="28" cy="30" r="14" fill="#2563EB"/><text x="28" y="35" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">2</text>
+    <text x="50" y="35" font-size="12" font-weight="700" fill="#4E5968">판매사</text>
+    <text x="16" y="76" font-size="16" font-weight="700" fill="#191F28">진단 규칙 v3 등록</text>
+    <text x="16" y="102" font-size="13" fill="#4E5968">투자성향 분류</text>
+    <text x="16" y="122" font-size="13" fill="#4E5968">규칙의 지문을</text>
+    <text x="16" y="142" font-size="13" fill="#4E5968">원장에 등록한다</text>
+    <text x="16" y="166" font-size="11" font-family="SFMono-Regular, Menlo, Consolas, monospace" fill="#8B95A1">registerRule</text>
+    <rect x="16" y="196" width="80" height="26" rx="13" fill="#EEF4FF"/><text x="56" y="213" font-size="12" font-weight="700" fill="#1D4ED8" text-anchor="middle">원장 거래</text>
+  </g>
+  <!-- 3 -->
+  <g transform="translate(426 104)">
+    <rect width="174" height="232" rx="14" fill="#FFFFFF" stroke="#E5E8EB"/>
+    <circle cx="28" cy="30" r="14" fill="#2563EB"/><text x="28" y="35" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">3</text>
+    <text x="50" y="35" font-size="12" font-weight="700" fill="#4E5968">고객 · 판매 채널</text>
+    <text x="16" y="76" font-size="16" font-weight="700" fill="#191F28">진단과 ZKP</text>
+    <text x="16" y="102" font-size="13" fill="#4E5968">답변으로 Groth16</text>
+    <text x="16" y="122" font-size="13" fill="#4E5968">증명을 만든다</text>
+    <text x="16" y="142" font-size="13" fill="#4E5968">답변·총점은</text>
+    <text x="16" y="162" font-size="13" fill="#4E5968">원장에 올리지 않음</text>
+    <rect x="16" y="196" width="80" height="26" rx="13" fill="#F2F4F6"/><text x="56" y="213" font-size="12" font-weight="700" fill="#4E5968" text-anchor="middle">거래 없음</text>
+  </g>
+  <!-- 4 -->
+  <g transform="translate(620 104)">
+    <rect width="174" height="232" rx="14" fill="#FFFFFF" stroke="#E5E8EB"/>
+    <circle cx="28" cy="30" r="14" fill="#2563EB"/><text x="28" y="35" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">4</text>
+    <text x="50" y="35" font-size="12" font-weight="700" fill="#4E5968">준법 담당자</text>
+    <text x="16" y="76" font-size="16" font-weight="700" fill="#191F28">재진단 검토</text>
+    <text x="16" y="102" font-size="13" fill="#4E5968">세 번째 진단부터</text>
+    <text x="16" y="122" font-size="13" fill="#4E5968">모든 회차를 검토하고</text>
+    <text x="16" y="142" font-size="13" fill="#4E5968">서명한다</text>
+    <rect x="16" y="196" width="80" height="26" rx="13" fill="#F2F4F6"/><text x="56" y="213" font-size="12" font-weight="700" fill="#4E5968" text-anchor="middle">거래 없음</text>
+  </g>
+  <!-- 5 -->
+  <g transform="translate(814 104)">
+    <rect width="174" height="232" rx="14" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.4"/>
+    <circle cx="28" cy="30" r="14" fill="#2563EB"/><text x="28" y="35" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">5</text>
+    <text x="50" y="35" font-size="12" font-weight="700" fill="#4E5968">고객 · 판매 채널</text>
+    <text x="16" y="76" font-size="16" font-weight="700" fill="#191F28">가입 확정</text>
+    <text x="16" y="102" font-size="13" fill="#4E5968">증명, 설명 확인,</text>
+    <text x="16" y="122" font-size="13" fill="#4E5968">추가 위험 확인,</text>
+    <text x="16" y="142" font-size="13" fill="#4E5968">준법 서명을 거래</text>
+    <text x="16" y="162" font-size="13" fill="#4E5968">한 건에서 검사한다</text>
+    <text x="16" y="182" font-size="11" font-family="SFMono-Regular, Menlo, Consolas, monospace" fill="#8B95A1">completeEnrollment</text>
+    <rect x="16" y="196" width="80" height="26" rx="13" fill="#EEF4FF"/><text x="56" y="213" font-size="12" font-weight="700" fill="#1D4ED8" text-anchor="middle">원장 거래</text>
+  </g>
+  <!-- 6 -->
+  <g transform="translate(1008 104)">
+    <rect width="174" height="232" rx="14" fill="#FFFFFF" stroke="#116149" stroke-width="1.4"/>
+    <circle cx="28" cy="30" r="14" fill="#116149"/><text x="28" y="35" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">6</text>
+    <text x="50" y="35" font-size="12" font-weight="700" fill="#4E5968">감독기관·검증자</text>
+    <text x="16" y="76" font-size="16" font-weight="700" fill="#191F28">독립 검증</text>
+    <text x="16" y="102" font-size="13" fill="#4E5968">고객 파일과 RPC로</text>
+    <text x="16" y="122" font-size="13" fill="#4E5968">8개 항목을 대조한다</text>
+    <text x="16" y="142" font-size="13" fill="#4E5968">판매사 API는</text>
+    <text x="16" y="162" font-size="13" fill="#4E5968">필요 없다</text>
+    <rect x="16" y="196" width="80" height="26" rx="13" fill="#EAF6EF"/><text x="56" y="213" font-size="12" font-weight="700" fill="#116149" text-anchor="middle">RPC 조회</text>
+  </g>
+
+  <!-- 단계 사이 화살표 -->
+  <path d="M212 220 H230" stroke="#8B95A1" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M406 220 H424" stroke="#8B95A1" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M600 220 H618" stroke="#8B95A1" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M794 220 H812" stroke="#8B95A1" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M988 220 H1006" stroke="#8B95A1" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <!-- 원장 -->
+  <path d="M125 336 V390" stroke="#2563EB" stroke-width="1.6" marker-end="url(#arrow-blue)"/>
+  <path d="M319 336 V390" stroke="#2563EB" stroke-width="1.6" marker-end="url(#arrow-blue)"/>
+  <path d="M901 336 V390" stroke="#2563EB" stroke-width="1.6" marker-end="url(#arrow-blue)"/>
+  <path d="M1095 392 V338" stroke="#116149" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arrow-green)"/>
+  <text x="133" y="368" font-size="11" fill="#2563EB">기록</text>
+  <text x="327" y="368" font-size="11" fill="#2563EB">기록</text>
+  <text x="909" y="368" font-size="11" fill="#2563EB">기록</text>
+  <text x="1103" y="368" font-size="11" fill="#116149">조회</text>
+
+  <rect x="38" y="392" width="1144" height="56" rx="12" fill="#EEF4FF" stroke="#C7D7FE"/>
+  <text x="58" y="426" font-size="15" font-weight="700" fill="#1D4ED8">원장 · Sepolia (로컬은 Anvil)</text>
+  <text x="300" y="426" font-size="13" fill="#4E5968">FundLedger v4 + Groth16Verifier — 단계 순서, 증명, 필수 동의를 원장이 최종 판정한다</text>
+
+  <text x="38" y="490" font-size="13" fill="#4E5968">서버가 실수해도 원장이 조건을 갖추지 못한 가입을 거절한다. 원본 파일을 바꾸면 독립 검증에서 불일치가 드러난다.</text>
+</svg>
