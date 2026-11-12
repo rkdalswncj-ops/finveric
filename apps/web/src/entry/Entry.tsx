@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Landmark, Layers, Store } from "lucide-react";
 import type { HealthResponse } from "../../../../packages/core/src/api.ts";
-import { Badge, Facts } from "../../../../packages/ui/src/components.tsx";
+import { Badge } from "../../../../packages/ui/src/components.tsx";
 import { useDeployment } from "../../../../packages/ui/src/deployment.ts";
+import { networkName } from "../../../../packages/ui/src/format.ts";
 import s from "./entry.module.css";
 
 const ignore = () => {};
@@ -68,60 +69,50 @@ export function Entry() {
           </a>
         ))}
       </nav>
-      <div className={s.grid}>
-        <section aria-labelledby="demo-title">
-          <h2 id="demo-title">시연 순서</h2>
-          <ol>
-            <li>판매사 콘솔에서 상품과 진단 기준을 원장에 등록해요.</li>
-            <li>
-              판매 채널 시연(증권사 앱 화면)에서 고객이 진단하고 가입해요.
-            </li>
-            <li>세 번째 진단부터는 판매사 관리자가 승인해요.</li>
-            <li>감독기관 화면에서 같은 판매 건을 원장과 대조해요.</li>
-            <li>판매 채널 시연에서 고객이 가입 증명서로 기록을 확인해요.</li>
-          </ol>
-        </section>
-        <section aria-labelledby="ledger-title">
-          <h2 id="ledger-title">연결된 원장</h2>
-          <Facts
-            rows={[
-              [
-                "상태",
-                <Badge
-                  tone={
-                    health === "ok"
-                      ? "success"
-                      : health === "loading"
-                        ? "neutral"
-                        : "warning"
-                  }
-                >
-                  {health === "ok"
-                    ? "정상"
+      <section className={s.ledger} aria-labelledby="ledger-title">
+        <h2 id="ledger-title">연결된 원장</h2>
+        <dl>
+          <div>
+            <dt>상태</dt>
+            <dd>
+              <Badge
+                tone={
+                  health === "ok"
+                    ? "success"
                     : health === "loading"
-                      ? "확인 중"
-                      : health === "fail"
-                        ? "확인 필요"
-                        : "API 연결 안 됨"}
-                </Badge>,
-              ],
-              [
-                "네트워크",
-                deployment
-                  ? deployment.chainId === 11155111
-                    ? "Sepolia 테스트넷"
-                    : "Anvil 테스트 원장"
-                  : "설정 대기",
-              ],
-              ["원장 버전", deployment ? `v${deployment.ledgerVersion}` : "—"],
-              ["컨트랙트", <code>{deployment?.ledger ?? "—"}</code>],
-            ]}
-          />
-        </section>
-      </div>
+                      ? "neutral"
+                      : "warning"
+                }
+              >
+                {health === "ok"
+                  ? "정상"
+                  : health === "loading"
+                    ? "확인 중"
+                    : health === "fail"
+                      ? "확인 필요"
+                      : "API 연결 안 됨"}
+              </Badge>
+            </dd>
+          </div>
+          <div>
+            <dt>네트워크</dt>
+            <dd>{deployment ? networkName(deployment) : "설정 대기"}</dd>
+          </div>
+          <div>
+            <dt>원장 버전</dt>
+            <dd>{deployment ? `v${deployment.ledgerVersion}` : "—"}</dd>
+          </div>
+          <div className={s.contract}>
+            <dt>컨트랙트</dt>
+            <dd>
+              <code>{deployment?.ledger ?? "—"}</code>
+            </dd>
+          </div>
+        </dl>
+      </section>
       <p className={s.foot}>
-        테스트용 상품, 가상 고객, 테스트 원장으로 시연해요. 실제 자금과
-        개인정보는 쓰지 않아요.
+        고객 번호와 개인정보는 원장에 남기지 않아요. 원장은 고객을 가명 ID로만
+        구분해요.
       </p>
     </main>
   );

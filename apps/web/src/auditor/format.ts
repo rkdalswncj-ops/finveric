@@ -58,7 +58,7 @@ export const REFERENCE_LABELS: Readonly<
   subscribe: "청약",
   confirm: "최종 확인",
   withdraw: "철회",
-  settle: "모의 결제",
+  settle: "결제 기록",
 };
 
 /** 등록 원문을 읽을 수 있으면 돌려준다. 원장 값과 맞지 않는 원문도 표시용으로 읽는다. */

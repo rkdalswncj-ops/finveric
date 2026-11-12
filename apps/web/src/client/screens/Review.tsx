@@ -1,12 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { LEDGER_ERRORS } from "../../../../../packages/core/src/index.ts";
 import type {
   CustomerDto,
   ProductEntryDto,
   SaleAction,
-  TamperRequest,
-  TamperResponse,
 } from "../../../../../packages/core/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
@@ -15,12 +12,10 @@ import {
   Heading,
   Notice,
 } from "../../../../../packages/ui/src/components.tsx";
-import { api } from "../../../../../packages/ui/src/api.ts";
 import { dateTime, short, won } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
-import type { Run } from "../App.tsx";
 import { DiagnosisTable, Empty, StatusBadge } from "../components.tsx";
 import {
   awaitingApproval,
@@ -53,7 +48,7 @@ function approvalText(sale: Sale) {
       : `필요 · ${attempt}회차`;
 }
 
-/** 판매 건 목록, 선택한 건의 회차 이력·필수 확인·타임라인, 관리자 승인, 사후 변경 시도. */
+/** 판매 건 목록, 선택한 건의 회차 이력·필수 확인·타임라인, 관리자 승인. */
 export function Review({
   loaded,
   sales,
@@ -62,7 +57,6 @@ export function Review({
   selected,
   select,
   busy,
-  run,
   action,
 }: {
   loaded: boolean;
@@ -72,13 +66,10 @@ export function Review({
   selected: string;
   select: (id: string) => void;
   busy: boolean;
-  run: Run;
   action: (id: string, name: SaleAction, label: string) => unknown;
 }) {
   const now = nowSeconds();
   const [filter, setFilter] = useState<StatusKey | "">("");
-  const [tamperAttempt, setTamperAttempt] = useState<number>();
-  const [tamper, setTamper] = useState<TamperResponse>();
   const ordered = [...sales].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),
   );
@@ -98,9 +89,6 @@ export function Review({
   const usedDiagnosis = diagnoses.find(
     (diagnosis) => diagnosis.attempt === (usedAttempt ?? sale?.latestAttempt),
   );
-  const attempts = customer?.diagnoses ?? [];
-  const tamperTarget =
-    tamperAttempt ?? Math.max(1, (attempts.at(-1)?.attempt ?? 1) - 1);
   const timeline = sale
     ? [
         ...diagnoses.map((diagnosis) => ({
@@ -119,17 +107,6 @@ export function Review({
           })),
       ].sort((a, b) => a.at - b.at)
     : [];
-  const doTamper = async () => {
-    if (!customer) return;
-    setTamper(undefined);
-    const result = await run("기록한 회차의 변경을 시도하고 있습니다", () =>
-      api<TamperResponse>("/demo/tamper", {
-        customerNo: customer.number,
-        attempt: tamperTarget,
-      } satisfies TamperRequest),
-    );
-    if (result) setTamper(result);
-  };
   return (
     <>
       <Heading
@@ -279,7 +256,7 @@ export function Review({
                 ],
                 ["관리자 승인", approvalText(sale)],
                 [
-                  "모의 결제",
+                  "결제 기록",
                   sale.settled
                     ? "기록"
                     : sale.status === "confirmed"
@@ -300,8 +277,8 @@ export function Review({
               <DiagnosisTable diagnoses={diagnoses} used={usedAttempt} />
             ) : (
               <p className={s.small}>
-                이 고객의 회차는 판매사 고객 번호로만 조회합니다. 시연 고객의
-                판매 건을 골라 주세요.
+                이 판매 건의 고객 번호를 연결하지 않아 진단 회차를 표시하지
+                않습니다.
               </p>
             )}
             <h3 className={s.subTitle}>타임라인</h3>
@@ -337,76 +314,9 @@ export function Review({
                   회차 이력을 확인하고 승인
                 </Button>
               )}
-              {sale.status === "confirmed" && (
-                <Button
-                  variant="outline"
-                  disabled={busy || sale.settled}
-                  onClick={() =>
-                    action(sale.id, "settle", "모의 결제를 기록하고 있습니다")
-                  }
-                >
-                  {sale.settled
-                    ? "모의 결제 기록 완료"
-                    : "모의 결제 기록(인프라 키)"}
-                </Button>
-              )}
               <Button variant="outline" asChild>
                 <Link to="/chain">처리 근거 보기</Link>
               </Button>
-            </section>
-            <section className={`${s.panel} ${s.pad}`}>
-              <h2>사후 변경 시도</h2>
-              <p>
-                판매사가 이미 기록한 회차를 더 높은 투자성향으로 다시 쓰려는
-                시연입니다. 판매사 키로 원장 호출을 시뮬레이션만 하고 거래는
-                보내지 않습니다.
-              </p>
-              {attempts.length ? (
-                <>
-                  <label className={s.field}>
-                    바꿀 회차
-                    <select
-                      value={tamperTarget}
-                      onChange={(e) => {
-                        setTamperAttempt(Number(e.target.value));
-                        setTamper(undefined);
-                      }}
-                    >
-                      {attempts.map((diagnosis) => (
-                        <option
-                          key={diagnosis.attempt}
-                          value={diagnosis.attempt}
-                        >
-                          {diagnosis.attempt}회차 ·{" "}
-                          {profileName(diagnosis.profile)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => void doTamper()}
-                  >
-                    {tamperTarget}회차 결과 변경 시도
-                  </Button>
-                </>
-              ) : (
-                <p className={s.small}>기록한 진단 회차가 없습니다.</p>
-              )}
-              {tamper && (
-                <Notice tone={tamper.rejected ? "warning" : "danger"}>
-                  <strong>
-                    {tamper.rejected
-                      ? `원장이 ${tamper.attempt}회차 변경을 거절했습니다.`
-                      : "원장이 변경 요청을 거절하지 않았습니다."}
-                  </strong>
-                  <br />
-                  {tamper.error
-                    ? `${tamper.error} · ${LEDGER_ERRORS[tamper.error]}`
-                    : tamper.reason}
-                </Notice>
-              )}
             </section>
           </aside>
         </div>
@@ -414,7 +324,7 @@ export function Review({
         loaded && (
           <Empty
             title="아직 판매 건이 없습니다"
-            text="판매 채널 시연에서 고객이 상품을 고르면 판매 건이 생깁니다."
+            text="판매 채널에서 고객이 상품을 고르면 판매 건이 생깁니다."
           />
         )
       )}

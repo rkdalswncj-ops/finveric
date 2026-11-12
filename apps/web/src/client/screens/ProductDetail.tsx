@@ -81,7 +81,7 @@ export function ProductDetail({
               ["판매사", document.seller],
               ["판매대상 고객군", document.targetMarket],
               ["수수료", document.fee],
-              ["설명서", `v${product.version} · 시연용`],
+              ["설명서", `v${product.version}`],
             ]}
           />
           {document.complex && (
@@ -113,7 +113,7 @@ export function ProductDetail({
             ]}
           />
           <p className={s.small}>
-            가입 금액은 시연용으로 정해져 있어요. 실제로 돈이 오가지는 않아요.
+            가입 금액은 {won(DEMO_AMOUNT)}으로 정해져 있어요.
           </p>
           {otherDraft ? (
             <>

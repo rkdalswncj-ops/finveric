@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   LayoutGrid,
   ListChecks,
-  ShieldCheck,
   Siren,
 } from "lucide-react";
 import type {
@@ -33,7 +32,7 @@ import { useDeployment } from "../../../../packages/ui/src/deployment.ts";
 import { networkName } from "../../../../packages/ui/src/format.ts";
 import { Shell, type NavGroup } from "../../../../packages/ui/src/Shell.tsx";
 import { Empty } from "./components.tsx";
-import { auditorUrl, channel, fundPath } from "./links.ts";
+import { channel, fundPath } from "./links.ts";
 import { findProduct, type Sale } from "./sales.ts";
 import { Catalog } from "./screens/Catalog.tsx";
 import { Chain } from "./screens/Chain.tsx";
@@ -48,8 +47,8 @@ import { Rules } from "./screens/Rules.tsx";
 import { Signals } from "./screens/Signals.tsx";
 
 const OPERATIONS = "판매사 업무";
-const CHANNEL = "판매 채널 시연";
-/** 판매사 소비자보호 담당이 쓰는 B2B 화면. 판매 채널 시연은 증권사 앱의 고객 화면이다. */
+const CHANNEL = "판매 채널";
+/** 판매사 소비자보호 담당이 쓰는 B2B 화면. 판매 채널은 증권사 앱의 고객 화면이다. */
 const groups: NavGroup[] = [
   {
     label: OPERATIONS,
@@ -71,10 +70,6 @@ const groups: NavGroup[] = [
       { path: channel.records, label: "내 가입 기록", icon: FileText },
       { path: channel.verify, label: "가입 기록 확인", icon: BadgeCheck },
     ],
-  },
-  {
-    label: "감독·검증",
-    items: [{ href: auditorUrl(), label: "감독기관 화면", icon: ShieldCheck }],
   },
 ];
 const isChannel = (pathname: string) =>
@@ -183,7 +178,7 @@ export function App() {
     else sessionStorage.removeItem("finveric-draft");
   };
   const register = () =>
-    run("진단 기준과 시연 상품을 원장에 등록하고 있습니다", () =>
+    run("기본 진단 기준과 예시 상품을 원장에 등록하고 있습니다", () =>
       api<RegisterDto>("/register", {}),
     );
   const draft = sales.find((sale) => sale.id === draftId);
@@ -222,34 +217,12 @@ export function App() {
     setDraft(id);
     navigate(channel.enroll);
   };
-  const download = (id: string, kind: ExportKind, modified = false) =>
+  const download = (id: string, kind: ExportKind) =>
     run("파일을 준비하고 있어요", async () => {
       const value = await api<ExportResponse[ExportKind]>(
         `/sales/${id}/export/${kind}`,
       );
-      // 변경 탐지 시연: 원본 사본에서 답변 하나를 다른 선택지로 바꾼다.
-      if (modified && "attempts" in value) {
-        const attempt = value.attempts.at(-1);
-        const rule = rules.find(
-          (entry) =>
-            entry.hash.toLowerCase() === attempt?.ruleHash.toLowerCase(),
-        );
-        if (attempt) {
-          const q = Math.max(
-            0,
-            attempt.answers.findIndex(
-              (_, index) =>
-                (rule?.document.questions[index]?.choices.length ?? 2) > 1,
-            ),
-          );
-          const count = rule?.document.questions[q]?.choices.length ?? 2;
-          attempt.answers[q] = (attempt.answers[q] + 1) % count;
-        }
-      }
-      saveFile(
-        value,
-        `finveric-${modified ? "modified" : kind}-${id.slice(0, 10)}.json`,
-      );
+      saveFile(value, `finveric-${kind}-${id.slice(0, 10)}.json`);
     });
 
   const channelPage = isChannel(location.pathname);
@@ -257,20 +230,17 @@ export function App() {
   return (
     <Shell
       home="/"
+      entryHref="/"
       groups={groups}
       area={channelPage ? `${CHANNEL} · 증권사 앱 화면` : OPERATIONS}
       title={pageTitle(location.pathname)}
       badge={{
         tone: deployment ? "success" : "warning",
-        text: deployment
-          ? channelPage
-            ? "테스트 환경"
-            : networkName(deployment)
-          : "원장 설정 대기",
+        text: networkName(deployment),
       }}
       foot={{
         title: "판매 기록 검증",
-        text: "테스트용 상품과 가상 고객으로 판매 절차를 시연해요.",
+        text: "진단, 설명, 청약, 확정을 단계마다 원장에 기록합니다.",
       }}
       error={error}
       dismissError={() => setError("")}
@@ -336,7 +306,6 @@ export function App() {
               selected={selected}
               select={select}
               busy={!!busy}
-              run={run}
               action={action}
             />
           }

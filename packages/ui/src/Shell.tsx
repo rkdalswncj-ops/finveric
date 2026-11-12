@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router";
 import {
   ExternalLink,
+  House,
   Layers,
   LoaderCircle,
   type LucideIcon,
@@ -9,6 +10,15 @@ import {
 import { Button } from "./button.tsx";
 import { Badge, Notice } from "./components.tsx";
 import s from "./ui.module.css";
+
+const brand = (
+  <>
+    <span>
+      <Layers size={20} />
+    </span>
+    FINVERIC
+  </>
+);
 
 /** 앱 안 경로(path) 또는 다른 앱으로 가는 주소(href). */
 export type NavItem = {
@@ -19,9 +29,13 @@ export type NavItem = {
 };
 export type NavGroup = { label: string; caption?: string; items: NavItem[] };
 
-/** client·auditor 앱이 함께 쓰는 사이드 메뉴, 상단 막대, 상태 표시. */
+/**
+ * client·auditor 앱이 함께 쓰는 사이드 메뉴, 상단 막대, 상태 표시.
+ * entryHref를 주면 브랜드와 "처음 화면" 항목이 라우터 밖의 진입 화면으로 간다(같은 탭).
+ */
 export function Shell({
   home,
+  entryHref,
   groups,
   area,
   title,
@@ -34,6 +48,7 @@ export function Shell({
   children,
 }: {
   home: string;
+  entryHref?: string;
   groups: NavGroup[];
   area: string;
   title: string;
@@ -51,12 +66,19 @@ export function Shell({
         본문으로 이동
       </a>
       <aside className={s.sidebar}>
-        <Link className={s.brand} to={home}>
-          <span>
-            <Layers size={20} />
-          </span>
-          FINVERIC
-        </Link>
+        {entryHref ? (
+          <a
+            className={s.brand}
+            href={entryHref}
+            aria-label="FINVERIC 처음 화면"
+          >
+            {brand}
+          </a>
+        ) : (
+          <Link className={s.brand} to={home}>
+            {brand}
+          </Link>
+        )}
         <nav aria-label="주 메뉴">
           {groups.map((group) => (
             <div key={group.label}>
@@ -96,9 +118,17 @@ export function Shell({
             </div>
           ))}
         </nav>
-        <div className={s.sidebarFoot}>
-          <strong>{foot.title}</strong>
-          <p>{foot.text}</p>
+        <div className={s.sidebarEnd}>
+          {entryHref && (
+            <a className={s.entryLink} href={entryHref}>
+              <House size={16} />
+              처음 화면
+            </a>
+          )}
+          <div className={s.sidebarFoot}>
+            <strong>{foot.title}</strong>
+            <p>{foot.text}</p>
+          </div>
         </div>
       </aside>
       <div className={s.workspace}>

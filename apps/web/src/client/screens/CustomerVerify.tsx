@@ -44,11 +44,11 @@ const REFERENCE_NAMES: Record<string, string> = {
   subscribe: "청약",
   confirm: "최종 확인",
   withdraw: "철회",
-  settle: "모의 결제",
+  settle: "결제 기록",
 };
 
 /**
- * 판매 채널 시연의 고객 검증 테스트 화면. 고객이 증명서 번호나 파일로 가입 기록을 확인하는 모습을 보여 준다.
+ * 판매 채널의 가입 기록 확인 화면. 고객이 증명서 번호나 파일로 가입 기록을 확인한다.
  * 판매사 API를 부르지 않고 브라우저가 지정 RPC로 원장과 대조한다(verifySale). 결과는 일치, 불일치, 기록 없음이다.
  */
 export function CustomerVerify({
@@ -143,9 +143,6 @@ export function CustomerVerify({
           가입할 때 받은 증명서 번호를 넣거나 증명서 파일을 고르세요. 판매사
           서버를 거치지 않고, 여러 기관이 함께 보관하는 기록과 바로 대조해요.
         </p>
-        <Notice>
-          고객이 가입 기록을 확인하는 모습을 보여 주는 테스트 화면이에요.
-        </Notice>
         <form
           className={s.card}
           onSubmit={(e) => {

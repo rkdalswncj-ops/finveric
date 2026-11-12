@@ -46,7 +46,7 @@ export function Signals({ ledger }: { ledger: Ledger }) {
     <div className={s.page}>
       <Heading
         title="위험 신호를 원장 이벤트로 계산해요"
-        description="판매사 콘솔과 같은 기준으로 원장의 진단·청약·확정 이벤트만 써서 계산해요. 기준값은 시연용 가정이에요."
+        description="판매사 콘솔과 같은 기준으로 원장의 진단·청약·확정 이벤트만 써서 계산해요."
       />
       <LedgerLine ledger={ledger} />
       <LedgerGate ledger={ledger}>
@@ -173,9 +173,7 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
       </section>
       <section className={`${s.panel} ${s.tableWrap} ${s.section}`}>
         <table>
-          <caption className={s.panelNote}>
-            신호 조건. 기준값은 시연용 가정이에요.
-          </caption>
+          <caption className={s.panelNote}>신호 조건</caption>
           <thead>
             <tr>
               <th scope="col">신호</th>

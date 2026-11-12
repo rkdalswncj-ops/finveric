@@ -124,7 +124,7 @@ function Steps({ current }: { current: number }) {
 }
 
 /**
- * 판매 채널 시연의 가입 절차. 증권사 앱에서 고객이 보는 화면이다.
+ * 판매 채널의 가입 절차. 증권사 앱에서 고객이 보는 화면이다.
  * 진단(회차마다 원장 기록) → 결과 → 적합성 → 핵심 설명 카드 5장 → 녹취 동의 → 청약 → 숙려 → 최종 확인 → 증명서.
  */
 export function Enrollment({
@@ -284,7 +284,7 @@ export function Enrollment({
     body = (
       <>
         <Badge tone="success">가입 확정</Badge>
-        <h2>모의 가입 절차를 완료했어요</h2>
+        <h2>가입이 확정됐어요</h2>
         <p className={s.intro}>
           가입 기록이 안전하게 보관됐어요. 증명서 번호로 언제든 기록을 확인할 수
           있어요.
@@ -436,17 +436,6 @@ export function Enrollment({
         >
           청약 철회하기
         </Button>
-        {left > 0 && (
-          <Button
-            variant="ghost"
-            disabled={busy}
-            onClick={() =>
-              action(sale.id, "confirm", "숙려 중 최종 확인을 시도하고 있어요")
-            }
-          >
-            시연: 숙려 중에 최종 확인 시도하기
-          </Button>
-        )}
       </>
     );
   } else if (!rule) {
@@ -707,8 +696,8 @@ export function Enrollment({
           {document.complex
             ? "고난도 금융투자상품은 가입 과정을 녹취해요."
             : "고령 고객이나 투자성향에 맞지 않는 고객에게 파생결합증권을 팔 때는 가입 과정을 녹취해요."}{" "}
-          녹취에 동의하지 않으면 가입할 수 없어요. 시연에서는 모의 녹취록을
-          만들어요.
+          녹취에 동의하지 않으면 가입할 수 없어요. 녹취 파일은 판매사가
+          보관하고, 원장에는 파일의 지문만 남아요.
         </p>
         <label className={s.choice}>
           <input
@@ -757,11 +746,11 @@ export function Enrollment({
             ],
             ["적합성", suitable ? "적합" : "부적합 · 추가 위험 확인"],
             ["핵심 설명 확인", `${explanationSeconds}초`],
-            ["녹취", protectedSale ? "동의 · 모의 녹취록" : "대상 아님"],
+            ["녹취", protectedSale ? "동의" : "대상 아님"],
             [
               "숙려기간",
               protectedSale
-                ? `청약 뒤 ${deployment?.coolingPeriod ?? "—"}초(시연)`
+                ? `청약 뒤 ${deployment?.coolingPeriod ?? "—"}초`
                 : "대상 아님",
             ],
           ]}

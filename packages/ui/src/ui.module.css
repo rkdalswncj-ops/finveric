@@ -73,8 +73,28 @@
   background: #edf3ff;
   font-weight: 700;
 }
-.sidebarFoot {
+.sidebarEnd {
   margin-top: auto;
+  display: grid;
+  gap: 12px;
+}
+.entryLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.entryLink:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.sidebarFoot {
   padding: 14px 10px 0;
   border-top: 1px solid var(--border);
   font-size: 11px;
@@ -402,16 +422,28 @@
   .sidebar {
     height: auto;
     position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
     padding: 18px 16px 10px;
-    gap: 15px;
+    gap: 15px 12px;
     border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+  .sidebarEnd {
+    grid-row: 1;
+    grid-column: 2;
+    margin-top: 0;
+  }
+  .entryLink {
+    min-height: 44px;
   }
   .brand {
     padding-left: 4px;
     font-size: 17px;
   }
   .sidebar nav {
+    grid-column: 1 / -1;
     display: flex;
     gap: 5px;
     overflow-x: auto;

@@ -226,7 +226,7 @@ function SaleLookup({
           const config = await api<ConfigDto>("/config").catch(() => undefined);
           setTokenRequired(!!config?.requiresToken);
           sellerError = config?.requiresToken
-            ? "판매사 제출 자료를 받으려면 시연 접근 코드를 입력해 주세요. 원장 기록만 대조했어요."
+            ? "판매사 제출 자료를 받으려면 접근 코드를 입력해 주세요. 원장 기록만 대조했어요."
             : "판매사 제출 자료를 불러오지 못했어요. 원장 기록만 대조했어요.";
         }
       }

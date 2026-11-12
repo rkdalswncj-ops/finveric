@@ -57,7 +57,7 @@ export function StatusBadge({ sale, now }: { sale: Sale; now: number }) {
   return <Badge tone={STATUS_TONES[key]}>{STATUS_LABELS[key]}</Badge>;
 }
 
-/** 아무 기준·상품도 등록하지 않았을 때 보여 주는 시연 등록 안내. */
+/** 아무 기준·상품도 등록하지 않았을 때 보여 주는 기본 등록 안내. */
 export function RegisterNotice({
   busy,
   register,
@@ -68,7 +68,7 @@ export function RegisterNotice({
   return (
     <div className={s.registerNotice}>
       <Notice tone="warning">
-        아직 원장에 등록한 진단 기준과 상품이 없습니다. 시연 진단 기준 v1과 시연
+        아직 원장에 등록한 진단 기준과 상품이 없습니다. 기본 진단 기준과 예시
         상품 3종을 한 번에 등록할 수 있습니다.
       </Notice>
       <Button disabled={busy} onClick={register}>

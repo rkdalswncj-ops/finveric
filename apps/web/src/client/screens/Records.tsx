@@ -47,7 +47,7 @@ export function Records({
   selected: string;
   select: (id: string) => void;
   busy: boolean;
-  download: (id: string, kind: ExportKind, modified?: boolean) => unknown;
+  download: (id: string, kind: ExportKind) => unknown;
   resume: (id: string) => void;
 }) {
   const now = nowSeconds();
@@ -117,7 +117,14 @@ export function Records({
                       ? "철회"
                       : "대기",
                 ],
-                ["결제(모의)", sale.settled ? "완료" : "대기"],
+                [
+                  "결제 기록",
+                  sale.settled
+                    ? "완료"
+                    : sale.status === "confirmed"
+                      ? "대기"
+                      : "—",
+                ],
               ]}
             />
             {inCooling(sale, now) && (
@@ -180,20 +187,6 @@ export function Records({
               가입 원본에는 진단 답변이 담겨 있어요. 본인만 볼 수 있는 곳에
               보관해 주세요.
             </Notice>
-            <details>
-              <summary>시연: 변경한 원본으로 확인해 보기</summary>
-              <p className={s.small}>
-                원본 파일에서 진단 답변 하나를 바꿔 내려받아요. 가입 기록 확인
-                화면에서 이 파일을 고르면 불일치가 나와요.
-              </p>
-              <Button
-                variant="ghost"
-                disabled={busy}
-                onClick={() => download(sale.id, "original", true)}
-              >
-                변경한 원본 내려받기
-              </Button>
-            </details>
           </aside>
         </div>
       ) : (

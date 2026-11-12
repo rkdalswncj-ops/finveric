@@ -6,7 +6,7 @@ import tailwindcss from "@tailwindcss/vite";
 
 // 웹은 Vite 앱 하나에 페이지 세 개다. 배포와 같은 경로를 한 개발 서버가 제공한다.
 // - /         진입 화면(index.html)
-// - /client/  판매사 콘솔과 판매 채널 시연(client/index.html)
+// - /client/  판매사 콘솔과 판매 채널(client/index.html)
 // - /auditor/ 감독기관 화면과 고객 검증 페이지(auditor/index.html)
 // 페이지마다 번들을 따로 만든다. 판매사 콘솔 코드는 다른 페이지에 실리지 않는다.
 const page = (path: string) => fileURLToPath(new URL(path, import.meta.url));

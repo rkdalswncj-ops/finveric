@@ -15,12 +15,12 @@ const ACTION_LABELS: Readonly<Record<string, string>> = {
   subscribe: "청약",
   confirm: "최종 확인",
   withdraw: "철회",
-  recordSettlement: "모의 결제 기록",
+  recordSettlement: "결제 기록",
 };
 const SOURCE_LABELS: Readonly<Record<string, string>> = {
   seller: "판매사 키",
   approver: "관리자 승인 키",
-  customer: "고객 키(모의)",
+  customer: "고객 키",
   infrastructure: "인프라 키",
 };
 

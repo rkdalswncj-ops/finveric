@@ -32,7 +32,7 @@ const ICONS: Record<ProductType, [typeof TrendingUp, string]> = {
   ELB: [Umbrella, s.symbolElb],
 };
 
-/** 판매 채널 시연의 상품 목록. 원장에 등록한 최신 버전만 판다. */
+/** 판매 채널의 상품 목록. 원장에 등록한 최신 버전만 판다. */
 export function Catalog({
   loaded,
   products,
@@ -42,7 +42,7 @@ export function Catalog({
 }) {
   const [type, setType] = useState<ProductType | "">("");
   const [query, setQuery] = useState("");
-  // 위험등급이 높은 상품부터 보여 준다. 시연 주 상품(1등급 ELS)이 맨 앞에 온다.
+  // 위험등급이 높은 상품부터 보여 준다. 1등급 상품이 맨 앞에 온다.
   const selling = latestProducts(products).sort(
     (a, b) => a.product.document.riskGrade - b.product.document.riskGrade,
   );
@@ -136,11 +136,11 @@ export function Catalog({
             ? "상품을 불러오고 있어요."
             : selling.length
               ? "검색 결과가 없어요. 상품 유형이나 검색어를 바꿔 보세요."
-              : "지금 가입할 수 있는 상품이 없어요. 판매사 콘솔에서 상품을 등록하면 여기에 보여요."}
+              : "지금 가입할 수 있는 상품이 없어요. 상품이 등록되면 여기에 보여요."}
         </div>
       )}
       <div className={s.catalogNote}>
-        <span>상품과 기관 정보는 모두 시연용이에요.</span>
+        <span>원장에 등록한 최신 설명서로 보여 드려요.</span>
         <span>가입할 수 있는 상품 {selling.length}개</span>
       </div>
       <div className={s.help}>

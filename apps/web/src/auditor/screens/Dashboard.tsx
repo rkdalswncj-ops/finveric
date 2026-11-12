@@ -92,7 +92,7 @@ function ledgerEvents(snapshot: LedgerSnapshot): LedgerEvent[] {
     if (sale.settlement)
       events.push({
         ...sale.settlement,
-        name: "모의 결제",
+        name: "결제 기록",
         subject,
         to,
         tone: "neutral",

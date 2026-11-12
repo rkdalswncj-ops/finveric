@@ -44,6 +44,7 @@ export function App() {
   return (
     <Shell
       home="/"
+      entryHref="/"
       groups={groups}
       area="감독기관"
       title={page.label}

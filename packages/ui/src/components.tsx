@@ -90,7 +90,7 @@ export function AccessCodeForm({
         connect();
       }}
     >
-      <label htmlFor="access">시연 접근 코드</label>
+      <label htmlFor="access">접근 코드</label>
       <input
         id="access"
         type="password"

@@ -64,8 +64,7 @@ export function Signals({
       <div className={`${s.panel} ${s.tableWrap} ${s.salesTable}`}>
         <table>
           <caption>
-            위험 신호 목록 · 판매 건을 열어 회차 이력을 확인합니다. 신호
-            기준값은 시연용 가정입니다.
+            위험 신호 목록 · 판매 건을 열어 회차 이력을 확인합니다.
           </caption>
           <thead>
             <tr>
