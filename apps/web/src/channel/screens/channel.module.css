@@ -17,12 +17,12 @@
 }
 .search svg {
   position: absolute;
-  left: 13px;
+  inset-inline-start: 13px;
   top: 13px;
   color: var(--muted-foreground);
 }
 .search input {
-  padding-left: 40px !important;
+  padding-inline-start: 40px !important;
   width: 100%;
 }
 .catalog {
@@ -297,7 +297,7 @@
   border-bottom: 1px solid var(--border);
 }
 .attempts small {
-  margin-left: auto;
+  margin-inline-start: auto;
   color: var(--muted-foreground);
 }
 /* 내 가입 기록 */

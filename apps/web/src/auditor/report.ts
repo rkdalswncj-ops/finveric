@@ -136,6 +136,7 @@ export async function buildReport(
   for (const [index, saleId] of targets.entries()) {
     const result = await verifySale(deployment, saleId, undefined, undefined, {
       snapshot,
+      voice: "hapnida",
     });
     verified[result.outcome]++;
     const sale = result.sale;

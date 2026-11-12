@@ -22,6 +22,10 @@
 .card + .card {
   margin-top: 16px;
 }
+/* 화면 전체 오류의 자리. 오류가 없으면 자리를 차지하지 않는다. 요소는 남겨 두어 오류가 생기면 바로 읽힌다. */
+.alertSlot:empty {
+  position: absolute;
+}
 .field {
   display: flex;
   flex-direction: column;

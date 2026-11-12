@@ -14,8 +14,10 @@ import {
   Facts,
   Heading,
   Notice,
+  TableScroll,
   type Tone,
 } from "../../../../../packages/ui/src/components.tsx";
+import { focusElement } from "../../../../../packages/ui/src/focus.ts";
 import { dateTime, short, won } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import client from "../client.module.css";
@@ -72,7 +74,12 @@ export function Review({
   selected: string;
   select: (id: string) => void;
   busy: boolean;
-  action: (id: string, name: SaleAction, label: string) => unknown;
+  action: (
+    id: string,
+    name: SaleAction,
+    label: string,
+    done?: string,
+  ) => Promise<unknown>;
 }) {
   const now = nowSeconds();
   const [filter, setFilter] = useState<StatusKey | "">("");
@@ -135,7 +142,7 @@ export function Review({
         <p className={s.tableNote}>
           판매 건 목록 · 행을 골라 회차 이력과 처리 근거를 봅니다.
         </p>
-        <div className={s.tableWrap}>
+        <TableScroll label="판매 건 목록">
           <table>
             <caption className={s.srOnly}>판매 건 목록</caption>
             <thead>
@@ -200,23 +207,24 @@ export function Review({
                     </td>
                     <td>{dateTime(record.createdAt)}</td>
                     <td>
-                      <Button
-                        variant="ghost"
+                      <button
+                        type="button"
+                        className={s.linkButton}
                         onClick={() => select(record.id)}
-                        aria-label={`${short(record.id)} 판매 건 보기`}
+                        aria-label={`보기 · ${short(record.id)} 판매 건`}
                         aria-current={
                           record.id === sale?.id ? "true" : undefined
                         }
                       >
                         보기
-                      </Button>
+                      </button>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
         {shown.length === 0 &&
           (load === "ready" && filter ? (
             <div className={s.empty}>
@@ -321,7 +329,10 @@ export function Review({
           </section>
           <aside className={s.editorAside}>
             <section className={`${s.panel} ${s.pad}`}>
-              <h2>관리자 승인</h2>
+              {/* 승인하면 버튼이 사라진다. 초점은 이 제목으로 옮긴다. */}
+              <h2 id="approval-title" tabIndex={-1}>
+                관리자 승인
+              </h2>
               <p>
                 3회차 이상 진단한 고객의 청약은 소비자보호 담당이 승인 키로
                 서명해야 원장이 받습니다.
@@ -330,13 +341,15 @@ export function Review({
               {awaitingApproval(sale) && (
                 <Button
                   busy={busy}
-                  onClick={() =>
-                    action(
+                  onClick={async () => {
+                    const approved = await action(
                       sale.id,
                       "approve",
                       "관리자 승인 서명을 만들고 있습니다",
-                    )
-                  }
+                      "관리자 승인을 기록했습니다.",
+                    );
+                    if (approved) focusElement("approval-title");
+                  }}
                 >
                   회차 이력을 확인하고 승인
                 </Button>

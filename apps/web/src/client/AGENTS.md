@@ -29,5 +29,6 @@
 - 콘솔 화면만 쓰는 표시 요소는 `components.tsx`, 위험 신호 입력은 `signals.ts`, 처리 기록 이름·상태는 `traces.ts`에 둔다.
 - 증권사 앱 예시와 함께 쓰는 판매 건·상품·기준 표시 계산은 `packages/ui/src/sales.ts`에 둔다. 상태 배지와 핵심 설명 카드는 `packages/ui/src/sale-components.tsx`에 둔다. 다른 페이지 폴더에서 import하지 않는다.
 - `App.tsx`가 기준, 상품, 판매 건, 처리 기록, 시연 고객의 회차를 한 번에 읽는다. 화면은 `run()`으로 처리를 부르고, 끝나면 모두 다시 읽는다. 시연 고객 번호는 `/api/config`의 `demoCustomer`를 쓴다.
+- `run(이름, 처리, 끝난 문장)`의 끝난 문장은 상태 줄에 들어가 화면 낭독기가 읽는다(예: "관리자 승인을 기록했습니다."). 누른 버튼이 처리 뒤에 사라지면 그 구역의 제목으로 초점을 옮긴다(`focusElement`).
 - API는 `packages/ui`의 `api()`로 부른다. 응답 타입과 요청 본문은 `packages/core/src/api.ts`의 DTO를 쓴다.
 - 진단 기준 검사·판정(`validateRule`, `evaluateRule`, `ruleHash`), 상품 검사(`validateProduct`), 적합 판정(`isSuitable`), 위험 신호(`computeSignals`)는 `packages/core`를 쓴다. 화면에서 다시 구현하지 않는다.

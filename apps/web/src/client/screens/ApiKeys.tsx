@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Copy, ExternalLink, KeyRound } from "lucide-react";
 import {
   MAX_ACTIVE_API_KEYS,
@@ -11,8 +11,11 @@ import { api, type LoadState } from "../../../../../packages/ui/src/api.ts";
 import {
   Badge,
   ConfirmDialog,
+  FieldError,
   Heading,
+  TableScroll,
 } from "../../../../../packages/ui/src/components.tsx";
+import { focusElement } from "../../../../../packages/ui/src/focus.ts";
 import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import { API_DOCS_HREF } from "../../../../../packages/ui/src/links.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
@@ -24,6 +27,7 @@ const s = { ...ui, ...local };
 /**
  * 증권사 앱 서버가 `판매 채널 연동` API를 부를 때 쓰는 키를 발급하고 폐기한다.
  * 키 원문은 발급 응답에만 있다. 이 화면을 떠나면 다시 볼 수 없다.
+ * 누른 버튼이 사라지면(폐기, 저장했습니다) 초점을 그 구역의 제목으로 옮긴다.
  */
 export function ApiKeys({
   keys,
@@ -43,15 +47,30 @@ export function ApiKeys({
   const [revoking, setRevoking] = useState<ApiKeyDto>();
   /** 발급 버튼이 처리 중인지. 다른 처리(폐기) 중에는 발급 버튼을 막기만 한다. */
   const [issuing, setIssuing] = useState(false);
+  /** 이름 없이 발급을 눌렀다. 입력 칸 아래에 이유를 보여 준다. */
+  const [nameMissing, setNameMissing] = useState(false);
+  const nameInput = useRef<HTMLInputElement>(null);
   const active = keys.filter((key) => !key.revokedAt).length;
   const full = active >= MAX_ACTIVE_API_KEYS;
+  // 새 키를 발급하면 키 원문을 보여 주는 구역으로 초점을 옮긴다.
+  useEffect(() => {
+    if (issued) focusElement("issued-key-title");
+  }, [issued]);
 
   const issue = async () => {
+    if (!name.trim()) {
+      setNameMissing(true);
+      nameInput.current?.focus();
+      return;
+    }
     setIssuing(true);
-    const created = await run("API 키를 발급하고 있습니다", () =>
-      api<IssuedApiKeyDto>("/keys", {
-        name: name.trim(),
-      } satisfies IssueApiKeyRequest),
+    const created = await run(
+      "API 키를 발급하고 있습니다",
+      () =>
+        api<IssuedApiKeyDto>("/keys", {
+          name: name.trim(),
+        } satisfies IssueApiKeyRequest),
+      "API 키를 발급했습니다. 이 화면을 떠나면 다시 볼 수 없습니다.",
     );
     setIssuing(false);
     if (!created) return;
@@ -60,10 +79,14 @@ export function ApiKeys({
     setName("");
   };
   const revoke = async (key: ApiKeyDto) => {
-    await run(`${key.name} 키를 폐기하고 있습니다`, () =>
-      api<ApiKeyDto>(`/keys/${key.id}/revoke`, {}),
+    const revoked = await run(
+      `${key.name} 키를 폐기하고 있습니다`,
+      () => api<ApiKeyDto>(`/keys/${key.id}/revoke`, {}),
+      `${key.name} 키를 폐기했습니다.`,
     );
     if (issued?.id === key.id) setIssued(undefined);
+    // 폐기한 행의 버튼이 사라진다. 초점은 키 목록 제목으로 옮긴다.
+    if (revoked) focusElement("key-list-title");
   };
   const copyKey = async (value: string) => {
     try {
@@ -94,7 +117,7 @@ export function ApiKeys({
             className={`${s.panel} ${s.pad} ${s.secret}`}
             aria-labelledby="issued-key-title"
           >
-            <h2 id="issued-key-title">
+            <h2 id="issued-key-title" tabIndex={-1}>
               <KeyRound size={18} aria-hidden />
               {issued.name} 키를 발급했습니다
             </h2>
@@ -118,7 +141,13 @@ export function ApiKeys({
                 ? "복사하지 못했습니다. 키를 직접 선택해 복사하세요."
                 : ""}
             </p>
-            <Button variant="ghost" onClick={() => setIssued(undefined)}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setIssued(undefined);
+                focusElement("issue-key-title");
+              }}
+            >
               저장했습니다
             </Button>
           </section>
@@ -128,7 +157,9 @@ export function ApiKeys({
           className={`${s.panel} ${s.pad}`}
           aria-labelledby="issue-key-title"
         >
-          <h2 id="issue-key-title">새 키 발급</h2>
+          <h2 id="issue-key-title" tabIndex={-1}>
+            새 키 발급
+          </h2>
           <form
             className={s.issueForm}
             onSubmit={(event) => {
@@ -139,23 +170,31 @@ export function ApiKeys({
             <label className={s.field}>
               키 이름
               <input
+                ref={nameInput}
                 value={name}
                 maxLength={40}
                 placeholder="예: 증권사 앱 운영 서버"
-                onChange={(event) => setName(event.target.value)}
-                aria-describedby="issue-key-help"
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setNameMissing(false);
+                }}
+                aria-invalid={nameMissing ? true : undefined}
+                aria-describedby="issue-key-error issue-key-help"
               />
             </label>
-            {/* 키가 가득 차면 정말 쓸 수 없다(disabled). 처리 중과 빈 이름은 초점을 지키도록 aria-disabled다. */}
+            {/* 키가 가득 차면 정말 쓸 수 없다(disabled). 처리 중은 초점을 지키도록 aria-disabled다. 빈 이름은 누르면 알려 준다. */}
             <Button
               type="submit"
               disabled={full}
               busy={issuing}
-              blocked={(busy && !issuing) || !name.trim()}
+              blocked={busy && !issuing}
             >
               발급하기
             </Button>
           </form>
+          <FieldError id="issue-key-error">
+            {nameMissing ? "키 이름을 쓰세요." : ""}
+          </FieldError>
           <p id="issue-key-help" className={s.small}>
             {full
               ? `사용 중인 키가 ${MAX_ACTIVE_API_KEYS}개입니다. 쓰지 않는 키를 폐기한 뒤 발급하세요.`
@@ -164,7 +203,7 @@ export function ApiKeys({
         </section>
 
         <section className={s.panel} aria-labelledby="key-list-title">
-          <h2 id="key-list-title" className={s.listTitle}>
+          <h2 id="key-list-title" tabIndex={-1} className={s.listTitle}>
             발급한 키
           </h2>
           {load === "loading" ? (
@@ -175,7 +214,7 @@ export function ApiKeys({
               고치세요.
             </p>
           ) : keys.length ? (
-            <div className={s.tableWrap}>
+            <TableScroll label="API 키 목록">
               <table>
                 <caption className={s.srOnly}>API 키 목록</caption>
                 <thead>
@@ -224,7 +263,7 @@ export function ApiKeys({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableScroll>
           ) : (
             <p className={s.tableNote}>
               아직 발급한 키가 없습니다. 위에서 키를 발급하세요.

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import {
   AlertTriangle,
@@ -35,8 +35,10 @@ import {
   AccessCodeForm,
   Badge,
   Facts,
+  FieldError,
   Heading,
   Notice,
+  TableScroll,
   type Tone,
 } from "../../../../../packages/ui/src/components.tsx";
 import { dateTime } from "../../../../../packages/ui/src/format.ts";
@@ -159,6 +161,10 @@ function SaleLookup({
   const [result, setResult] = useState<Result>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  /** 판매 ID 입력 칸의 오류. 비었거나 형식이 다르면 누를 때 알려 준다. */
+  const [idError, setIdError] = useState("");
+  const idInput = useRef<HTMLInputElement>(null);
+  const idErrorId = useId();
   const [tokenRequired, setTokenRequired] = useState(false);
   const autoRun = useRef(false);
   const saleId = id.trim();
@@ -204,7 +210,24 @@ function SaleLookup({
   };
 
   const verify = async () => {
-    if (!deployment || !saleId || loading) return;
+    if (loading) return;
+    // 누를 수 없게 막지 않고, 누르면 빠진 것을 입력 칸 아래에 알려 준다.
+    const invalid = !saleId
+      ? "판매 ID를 입력하세요."
+      : !/^[1-9][0-9]*$/.test(saleId)
+        ? "판매 ID는 10진수 숫자입니다. 원장의 판매 건에서 선택할 수도 있습니다."
+        : "";
+    setIdError(invalid);
+    if (invalid) {
+      idInput.current?.focus();
+      return;
+    }
+    if (!deployment) {
+      setError(
+        "검증 설정을 아직 불러오지 못했습니다. 잠시 후 다시 대조하세요.",
+      );
+      return;
+    }
     setLoading(true);
     setResult(undefined);
     setError("");
@@ -237,12 +260,13 @@ function SaleLookup({
         saleId,
         undefined,
         undefined,
-        { snapshot },
+        { snapshot, voice: "hapnida" },
       );
       const primary =
         evidence || witness
           ? await verifySale(deployment, saleId, evidence, witness, {
               snapshot,
+              voice: "hapnida",
             })
           : ledgerOnly;
       setResult({
@@ -297,6 +321,7 @@ function SaleLookup({
             disabled={loading || sales.length === 0}
             onChange={(e) => {
               setId(e.target.value);
+              setIdError("");
               setResult(undefined);
             }}
           >
@@ -322,19 +347,24 @@ function SaleLookup({
         <label className={s.field}>
           판매 ID
           <input
+            ref={idInput}
             className={s.breakWord}
             value={id}
             inputMode="numeric"
             autoComplete="off"
             spellCheck={false}
             readOnly={loading}
+            aria-invalid={idError ? true : undefined}
+            aria-describedby={idErrorId}
             onChange={(e) => {
               setId(e.target.value);
+              setIdError("");
               setResult(undefined);
             }}
             placeholder="판매 ID(10진수)를 입력하세요"
           />
         </label>
+        <FieldError id={idErrorId}>{idError}</FieldError>
         <fieldset className={s.sources}>
           <legend>함께 대조할 자료</legend>
           {(
@@ -406,7 +436,7 @@ function SaleLookup({
         {source === "seller" && tokenRequired && (
           <AccessCodeForm connect={() => void verify()} busy={loading} />
         )}
-        <Button type="submit" busy={loading} blocked={!deployment || !saleId}>
+        <Button type="submit" busy={loading}>
           {loading ? (
             "원장과 대조하는 중"
           ) : (
@@ -432,12 +462,18 @@ function SaleLookup({
           </Button>
         )}
       </form>
-      <section className={`${s.panel} ${s.pad}`} aria-live="polite">
-        {error && (
-          <div role="alert">
-            <Notice tone="danger">{error}</Notice>
-          </div>
-        )}
+      <section className={`${s.panel} ${s.pad}`}>
+        {/* 대조 중과 결과를 화면 낭독기에 짧게 알린다. 오류 자리는 늘 그려 둔다. */}
+        <p role="status" className={s.srOnly}>
+          {loading
+            ? "원장과 대조하고 있습니다."
+            : result
+              ? `대조를 마쳤습니다. 결과: ${OUTCOME_LABELS[result.primary.outcome]}`
+              : ""}
+        </p>
+        <div role="alert">
+          {error && <Notice tone="danger">{error}</Notice>}
+        </div>
         {result ? (
           <SaleResult result={result} deployment={deployment} files={files} />
         ) : (
@@ -672,7 +708,7 @@ function SaleResult({
       {primary.references.length > 0 && (
         <details>
           <summary>블록·거래 근거 보기 ({primary.references.length}건)</summary>
-          <div className={s.tableWrap}>
+          <TableScroll label="블록·거래 근거">
             <table>
               <thead>
                 <tr>
@@ -696,7 +732,7 @@ function SaleResult({
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
         </details>
       )}
       {sale && (
@@ -735,7 +771,7 @@ function DiagnosisTable({
           블록·거래 보기
         </label>
       </div>
-      <div className={s.tableWrap}>
+      <TableScroll label={caption}>
         <table>
           <thead>
             <tr>
@@ -780,7 +816,7 @@ function DiagnosisTable({
             ))}
           </tbody>
         </table>
-      </div>
+      </TableScroll>
       {diagnoses.length === 0 && (
         <p className={s.small}>원장에 진단 기록이 없습니다.</p>
       )}
@@ -798,6 +834,8 @@ function CustomerLookup({
   const navigate = useNavigate();
   const [value, setValue] = useState(customerRef);
   const [error, setError] = useState("");
+  const input = useRef<HTMLInputElement>(null);
+  const errorId = useId();
   const snapshot = ledger.snapshot;
   const known = snapshot
     ? [
@@ -811,7 +849,12 @@ function CustomerLookup({
   const submit = (ref: string) => {
     const next = ref.trim();
     if (!CUSTOMER_REF.test(next)) {
-      setError("고객 가명 ID는 0x로 시작하는 64자리 16진수입니다.");
+      setError(
+        next
+          ? "고객 가명 ID는 0x로 시작하는 64자리 16진수입니다."
+          : "고객 가명 ID를 입력하세요.",
+      );
+      input.current?.focus();
       return;
     }
     setError("");
@@ -854,20 +897,22 @@ function CustomerLookup({
         <label className={s.field}>
           고객 가명 ID
           <input
+            ref={input}
             className={s.breakWord}
             value={value}
             autoComplete="off"
             spellCheck={false}
-            onChange={(e) => setValue(e.target.value)}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={errorId}
+            onChange={(e) => {
+              setValue(e.target.value);
+              setError("");
+            }}
             placeholder="0x로 시작하는 64자리 16진수"
           />
         </label>
-        {error && (
-          <p role="alert" className={s.small}>
-            {error}
-          </p>
-        )}
-        <Button type="submit" blocked={!value.trim()}>
+        <FieldError id={errorId}>{error}</FieldError>
+        <Button type="submit">
           원장에서 조회하기
           <ShieldCheck size={16} data-icon="end" />
         </Button>
@@ -944,7 +989,7 @@ function CustomerRecord({
             caption="진단 회차"
           />
           <h3 className={s.subhead}>판매 건</h3>
-          <div className={s.tableWrap}>
+          <TableScroll label="판매 건">
             <table>
               <thead>
                 <tr>
@@ -990,7 +1035,7 @@ function CustomerRecord({
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
           {sales.length === 0 && (
             <p className={s.small}>
               청약 기록이 없습니다. 가입을 중단해도 진단 회차는 원장에 남습니다.

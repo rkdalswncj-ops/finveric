@@ -592,7 +592,8 @@ const SCRIPT = String.raw`
       responsesView(spec, op),
       h("div", { class: "block example" },
         h("div", { class: "example-head" }, h("h4", null, "요청 예시"), copyButton(example, "요청 예시")),
-        h("pre", null, h("code", null, example))));
+        // 긴 예시는 가로로 스크롤한다. 키보드로 초점을 옮겨 화살표로 스크롤할 수 있게 한다.
+        h("pre", { tabindex: "0", "aria-label": "요청 예시" }, h("code", null, example))));
   }
 
   function render(spec) {

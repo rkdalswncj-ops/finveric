@@ -75,6 +75,7 @@ export function StepHeader({
 /**
  * 단계의 주요 동작. 처리 중(busy)에는 같은 자리에서 회전 표시를 보이고 누름을 무시한다.
  * 아직 누를 수 없으면(blocked: 확인란, 숙려, 승인 대기) 흐린 모양으로 두고 누름을 무시한다.
+ * 확인란이나 답을 기다리면 `explain`이 누를 때 이유를 보여 주고 그 입력으로 초점을 옮긴다. `describedBy`는 그 안내의 id다.
  * 두 경우 모두 네이티브 disabled를 쓰지 않는다. 초점과 Tab 순서가 그대로 남는다.
  */
 export function PrimaryAction({
@@ -83,12 +84,16 @@ export function PrimaryAction({
   to,
   blocked,
   busy,
+  explain,
+  describedBy,
 }: {
   label: string;
   onClick?: () => void;
   to?: string;
   blocked?: boolean;
   busy?: boolean;
+  explain?: () => void;
+  describedBy?: string;
 }) {
   if (to && !busy && !blocked)
     return (
@@ -99,14 +104,22 @@ export function PrimaryAction({
       </Button>
     );
   return (
-    <Button size="large" busy={busy} blocked={blocked} onClick={onClick}>
+    <Button
+      size="large"
+      busy={busy}
+      blocked={blocked}
+      onClick={onClick}
+      onBlockedClick={explain}
+      aria-describedby={describedBy}
+    >
       {label}
     </Button>
   );
 }
 
 /**
- * 아래 동작 막대. 좁은 화면에서는 탭 막대 바로 위에 고정하고, 넓은 화면에서는 본문 끝에 둔다.
+ * 아래 동작 막대. 화면 높이가 넉넉하면 좁은 화면에서는 탭 막대 바로 위에 고정하고,
+ * 넓은 화면에서는 본문 끝에 두되 스크롤하면 탭 막대 위에 붙는다. 짧은 화면에서는 본문 끝에 둔다(flow.module.css).
  * 주요 동작은 하나만 둔다. 처리 중 안내는 버튼 아래 한 줄이다. 자리를 미리 잡아 화면이 움직이지 않는다.
  */
 export function ActionBar({

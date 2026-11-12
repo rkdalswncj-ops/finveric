@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import {
   BadgeCheck,
@@ -13,6 +13,10 @@ import {
   Notice,
   type Tone,
 } from "../../../../packages/ui/src/components.tsx";
+import {
+  focusPageTitle,
+  useFocusRescue,
+} from "../../../../packages/ui/src/focus.ts";
 import ui from "../../../../packages/ui/src/ui.module.css";
 import f from "./frame.module.css";
 import { channel } from "./links.ts";
@@ -31,6 +35,7 @@ const tabOf = (pathname: string) =>
  * 증권사 앱의 틀. 맨 위 줄은 이 화면이 FINVERIC API 연동 예시라는 표시와 연결한 원장이다.
  * 앱 머리글(증권사 이름 또는 뒤로 가기), 최대 480px 한 열의 본문, 아래 탭 막대로 이뤄진다.
  * 탭을 옮겨도 진행 중인 가입은 그대로다(App의 신청 번호와 가입 화면의 세션 보관).
+ * 화면이 바뀌면 맨 위로 가고 화면 제목에 초점을 옮긴다. 문서 제목은 "화면 · 증권사 이름 · 증권사 앱 예시"다.
  */
 export function Frame({
   firm,
@@ -51,9 +56,21 @@ export function Frame({
 }) {
   const { pathname, search } = useLocation();
   const current = tabOf(pathname);
-  // 앱처럼 화면이 바뀌면 맨 위에서 시작한다.
+  const page = title ?? TABS.find((tab) => tab.path === current)?.label;
+  const main = useRef<HTMLElement>(null);
+  const firstRoute = useRef(true);
+  useFocusRescue(main);
+  useEffect(() => {
+    document.title = [page, firm, "증권사 앱 예시"].filter(Boolean).join(" · ");
+  }, [page, firm]);
+  // 앱처럼 화면이 바뀌면 맨 위에서 시작하고 새 화면 제목(가입은 단계 제목)에 초점을 옮긴다.
   useEffect(() => {
     window.scrollTo(0, 0);
+    if (firstRoute.current) {
+      firstRoute.current = false;
+      return;
+    }
+    focusPageTitle(main.current, { preventScroll: true });
   }, [pathname, search]);
   return (
     <div className={f.page}>
@@ -77,7 +94,7 @@ export function Frame({
           )}
           <strong>{title ?? firm}</strong>
         </header>
-        <main id="content" className={f.main}>
+        <main id="content" ref={main} className={f.main}>
           {children}
         </main>
         {/* 오류는 본문 위에 띄운다. 본문이 밀려 움직이지 않는다. 처리 중 표시는 각 화면의 동작 자리에 둔다. */}

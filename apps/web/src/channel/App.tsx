@@ -66,7 +66,7 @@ function customerMessage(error: unknown) {
     case "offline":
       return "서버에 연결하지 못했어요. 연결을 확인하고 화면을 새로 고쳐 주세요.";
     case "pending":
-      return "가입 요청을 보냈어요. 처리를 확인하는 데 시간이 걸리고 있어요. 잠시 후 다시 시도해 주세요.";
+      return "요청을 보냈어요. 처리를 확인하는 데 시간이 걸리고 있어요. 잠시 후 다시 시도해 주세요.";
     case "unavailable":
       return UNAVAILABLE;
     case "rejected":
@@ -105,7 +105,15 @@ export function App() {
     sessionStorage.getItem(DRAFT_KEY) ?? "",
   );
   const [busy, setBusy] = useState("");
+  /** 서버가 접근 코드를 거절했을 때 입력 칸 아래에 보여 줄 문장. */
+  const [accessError, setAccessError] = useState("");
   const params = new URLSearchParams(location.search);
+  const noteAccess = (e: unknown) =>
+    setAccessError(
+      e instanceof ApiError && e.status === 401
+        ? "접근 코드를 다시 확인해 주세요."
+        : "",
+    );
 
   const reload = useCallback(async () => {
     const current = configRef.current ?? (await api<ConfigDto>("/config"));
@@ -132,6 +140,7 @@ export function App() {
   useEffect(() => {
     reload().catch((e: unknown) => {
       setError(customerMessage(e));
+      noteAccess(e);
       // 처음 읽기에 실패하면 빈 화면이 "불러오고 있어요"에 머물지 않게 한다.
       setLoad((current) => (current === "loading" ? "failed" : current));
     });
@@ -156,9 +165,11 @@ export function App() {
     try {
       const result = await operation?.();
       await reload();
+      setAccessError("");
       return result;
     } catch (e) {
       setError(customerMessage(e));
+      noteAccess(e);
       await refresh();
       return undefined;
     } finally {
@@ -196,7 +207,10 @@ export function App() {
         customerNo: config.demoCustomer.number,
       } satisfies OpenSaleRequest);
       setDraft(sale.id);
-      navigate(channel.enroll);
+      return sale;
+    }).then((sale) => {
+      // 새 판매 건을 다시 읽은 뒤에 옮긴다. 가입 화면이 "진행 중인 가입이 없어요"를 잠깐 보였다가 바뀌지 않는다.
+      if (sale) navigate(channel.enroll);
     });
   };
   const action = (id: string, name: SaleAction, label: string) =>
@@ -205,9 +219,16 @@ export function App() {
     activeDraft?.status === "draft" &&
     run("가입을 중단하고 있어요", async () => {
       await api<SaleDto>(`/sales/${activeDraft.id}/action/abandon`, {});
-      setDraft("");
+      // 신청 번호는 가입 화면을 떠난 뒤 지운다(아래 효과). 먼저 지우면 가입 화면이 잠깐 "진행 중인 가입이 없어요"로 바뀐다.
       navigate(fundPath(activeDraft.productId));
     });
+  // 중단한 가입의 신청 번호는 가입 화면 밖에서 지운다.
+  useEffect(() => {
+    if (draft?.status === "abandoned" && location.pathname !== channel.enroll) {
+      setDraftId("");
+      sessionStorage.removeItem(DRAFT_KEY);
+    }
+  }, [draft?.status, location.pathname]);
   /** 내 가입 기록에서 숙려 중인 청약을 가입 화면으로 다시 연다. */
   const resume = (id: string) => {
     setDraft(id);
@@ -254,6 +275,8 @@ export function App() {
         <AccessCodeForm
           connect={() => void run("연결하고 있어요", reload)}
           busy={!!busy}
+          error={accessError}
+          emptyMessage="접근 코드를 입력해 주세요."
         />
       )}
       <Routes>

@@ -31,6 +31,7 @@ import {
   ConfirmDialog,
   Empty,
   Facts,
+  FieldError,
   Notice,
 } from "../../../../../packages/ui/src/components.tsx";
 import { dateTime, won } from "../../../../../packages/ui/src/format.ts";
@@ -114,6 +115,10 @@ const limitPhrase = (limit: number) =>
 /** 문장 안에 쓰는 위험등급. 예: "1등급(매우 높은 위험)". */
 const gradePhrase = (grade: number) =>
   `${grade}등급(${RISK_GRADE_NAMES[grade] ?? "위험등급 확인 필요"})`;
+
+/** 확인란이나 답을 기다리는 주요 버튼을 눌렀을 때 보여 주는 안내의 id와 확인란 안내. */
+const GATE_HINT = "enroll-gate-hint";
+const CHECK_HINT = "위 확인란을 체크하면 계속할 수 있어요.";
 
 const clock = (seconds: number) =>
   `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
@@ -245,8 +250,17 @@ export function Enrollment({
   ].join(":");
   const titleRef = useRef<HTMLHeadingElement>(null);
   const firstStep = useRef(true);
+  // 확인란·답을 기다리는 주요 버튼을 누르면 안내를 보이고 그 입력으로 초점을 옮긴다.
+  const [gateHint, setGateHint] = useState(false);
+  const gateRef = useRef<HTMLInputElement>(null);
+  const explainGate = () => {
+    setGateHint(true);
+    gateRef.current?.focus();
+  };
   useEffect(() => {
+    setGateHint(false);
     window.scrollTo(0, 0);
+    // 처음 화면(새로 고침, 탭 이동)은 Frame이 초점을 정한다.
     if (firstStep.current) {
       firstStep.current = false;
       return;
@@ -377,6 +391,9 @@ export function Enrollment({
               <Download size={16} />
               증명서 내려받기
             </Button>
+            <Button variant="outline" asChild onClick={finish}>
+              <Link to={channel.catalog}>다른 상품 보기</Link>
+            </Button>
           </div>
           <details>
             <summary>기술 정보 보기</summary>
@@ -395,9 +412,6 @@ export function Enrollment({
               ]}
             />
           </details>
-          <Button variant="ghost" asChild onClick={finish}>
-            <Link to={channel.catalog}>다른 상품 보기</Link>
-          </Button>
         </>
       ),
       action: (
@@ -599,26 +613,37 @@ export function Enrollment({
             {nextAttempt > 1 ? `재진단 ${nextAttempt}회차` : "투자성향 진단"} ·
             답변은 판매사가 보관하고, 진단 결과는 고칠 수 없게 기록돼요.
           </p>
-          <fieldset className={s.choices} disabled={isBusy}>
+          <fieldset
+            className={s.choices}
+            disabled={isBusy}
+            aria-describedby={GATE_HINT}
+          >
             <legend className={s.srOnly}>{question.title}</legend>
             {question.choices.map((choice, o) => (
               <label className={s.choice} key={o}>
                 <input
+                  ref={o === 0 ? gateRef : undefined}
                   type="radio"
                   name={`question-${q}`}
                   checked={answers[q] === o}
-                  onChange={() =>
+                  onChange={() => {
+                    setGateHint(false);
                     update({
                       answers: answers.map((value, index) =>
                         index === q ? o : value,
                       ),
-                    })
-                  }
+                    });
+                  }}
                 />
                 {choice.text}
               </label>
             ))}
           </fieldset>
+          <FieldError id={GATE_HINT}>
+            {gateHint && answers[q] === null
+              ? "답을 하나 고르면 계속할 수 있어요."
+              : ""}
+          </FieldError>
         </>
       ),
       action: last ? (
@@ -627,12 +652,21 @@ export function Enrollment({
           busy={isBusy}
           blocked={answers.some((answer) => answer === null)}
           onClick={() => void diagnose(answers)}
+          explain={() => {
+            // 빠진 답이 이 문항이 아니면 그 문항으로 돌아간다.
+            const missing = answers.findIndex((answer) => answer === null);
+            if (missing !== q) update({ question: missing });
+            else explainGate();
+          }}
+          describedBy={GATE_HINT}
         />
       ) : (
         <PrimaryAction
           label="다음"
           blocked={answers[q] === null}
           onClick={() => update({ question: q + 1, answers })}
+          explain={explainGate}
+          describedBy={GATE_HINT}
         />
       ),
     };
@@ -727,13 +761,21 @@ export function Enrollment({
               />
               <label className={s.choice}>
                 <input
+                  ref={gateRef}
                   type="checkbox"
                   checked={flow.higherRisk}
-                  onChange={(e) => update({ higherRisk: e.target.checked })}
+                  aria-describedby={GATE_HINT}
+                  onChange={(e) => {
+                    setGateHint(false);
+                    update({ higherRisk: e.target.checked });
+                  }}
                 />
                 투자성향에 맞지 않는다는 안내를 받았어요. 권유 없이 제 판단으로
                 가입을 이어 갈게요.
               </label>
+              <FieldError id={GATE_HINT}>
+                {gateHint && !flow.higherRisk ? CHECK_HINT : ""}
+              </FieldError>
             </>
           ),
           action: (
@@ -741,6 +783,8 @@ export function Enrollment({
               label="추가 위험을 확인하고 계속하기"
               blocked={!flow.higherRisk}
               onClick={() => update({ phase: "cards", card: 0 })}
+              explain={explainGate}
+              describedBy={GATE_HINT}
             />
           ),
         };
@@ -764,14 +808,24 @@ export function Enrollment({
             <p>{card.text}</p>
           </div>
           {last && (
-            <label className={s.choice}>
-              <input
-                type="checkbox"
-                checked={flow.cardsRead}
-                onChange={(e) => update({ cardsRead: e.target.checked })}
-              />
-              핵심 설명 {document.cards.length}장을 모두 읽고 이해했어요.
-            </label>
+            <>
+              <label className={s.choice}>
+                <input
+                  ref={gateRef}
+                  type="checkbox"
+                  checked={flow.cardsRead}
+                  aria-describedby={GATE_HINT}
+                  onChange={(e) => {
+                    setGateHint(false);
+                    update({ cardsRead: e.target.checked });
+                  }}
+                />
+                핵심 설명 {document.cards.length}장을 모두 읽고 이해했어요.
+              </label>
+              <FieldError id={GATE_HINT}>
+                {gateHint && !flow.cardsRead ? CHECK_HINT : ""}
+              </FieldError>
+            </>
           )}
         </>
       ),
@@ -782,6 +836,8 @@ export function Enrollment({
           onClick={() =>
             leaveCards({ phase: protectedSale ? "recording" : "subscribe" })
           }
+          explain={explainGate}
+          describedBy={GATE_HINT}
         />
       ) : (
         <PrimaryAction
@@ -808,12 +864,20 @@ export function Enrollment({
           </p>
           <label className={s.choice}>
             <input
+              ref={gateRef}
               type="checkbox"
               checked={flow.consent}
-              onChange={(e) => update({ consent: e.target.checked })}
+              aria-describedby={GATE_HINT}
+              onChange={(e) => {
+                setGateHint(false);
+                update({ consent: e.target.checked });
+              }}
             />
             녹취에 동의해요.
           </label>
+          <FieldError id={GATE_HINT}>
+            {gateHint && !flow.consent ? CHECK_HINT : ""}
+          </FieldError>
         </>
       ),
       action: (
@@ -821,6 +885,8 @@ export function Enrollment({
           label="다음"
           blocked={!flow.consent}
           onClick={() => update({ phase: "subscribe" })}
+          explain={explainGate}
+          describedBy={GATE_HINT}
         />
       ),
     };

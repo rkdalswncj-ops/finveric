@@ -24,7 +24,7 @@ const roles = [
     icon: Store,
     who: "판매사",
     title: "판매사 콘솔",
-    text: "진단 기준과 판매 상품을 관리해요. 판매 건, 관리자 승인, 위험 신호를 봐요.",
+    text: "진단 기준과 판매 상품을 관리합니다. 판매 건, 관리자 승인, 위험 신호를 봅니다.",
     go: "콘솔 열기",
   },
   {
@@ -32,7 +32,7 @@ const roles = [
     icon: Landmark,
     who: "감독기관",
     title: "감독기관 화면",
-    text: "판매 건을 원장과 대조해요. 판매사가 낸 원본이 기록과 같은지 확인해요.",
+    text: "판매 건을 원장과 대조합니다. 판매사가 낸 원본이 기록과 같은지 확인합니다.",
     go: "감독기관 화면 열기",
   },
 ];
@@ -42,7 +42,7 @@ const extras = [
   { href: CHANNEL_APP_HREF, label: "증권사 앱 예시" },
 ];
 
-/** 사이트 루트(/)의 진입 화면. 역할을 고르고 연결된 원장 상태를 본다. */
+/** 사이트 루트(/)의 진입 화면. 역할을 고르고 연결된 원장 상태를 본다. 기관이 읽으므로 합니다체로 쓴다. */
 export function Entry() {
   const [configFailed, setConfigFailed] = useState(false);
   const deployment = useDeployment(
@@ -70,11 +70,11 @@ export function Entry() {
         FINVERIC
       </div>
       <h1 className={s.title}>
-        판매 과정을 단계마다 기록하고, 판매사 밖에서 검증해요
+        판매 과정을 단계마다 기록하고, 판매사 밖에서 검증합니다
       </h1>
       <p className={s.lead}>
-        투자성향 진단, 적합성 판정, 설명 확인을 공동 원장에 남겨요. 판매사도
-        기록을 바꿀 수 없고, 감독기관은 판매사를 거치지 않고 확인해요.
+        투자성향 진단, 적합성 판정, 설명 확인을 공동 원장에 남깁니다. 판매사도
+        기록을 바꿀 수 없습니다. 감독기관은 판매사를 거치지 않고 확인합니다.
       </p>
       <nav className={s.roles} aria-label="역할 선택">
         {roles.map((role) => (
@@ -93,7 +93,9 @@ export function Entry() {
         ))}
       </nav>
       <div className={s.extras}>
-        <p>고객은 증권사 앱에서 가입해요. 증권사 앱은 FINVERIC API를 써요.</p>
+        <p>
+          고객은 증권사 앱에서 가입합니다. 증권사 앱은 FINVERIC API를 씁니다.
+        </p>
         <ul aria-label="API 연동">
           {extras.map((extra) => (
             <li key={extra.href}>
@@ -154,8 +156,8 @@ export function Entry() {
         </dl>
       </section>
       <p className={s.foot}>
-        고객 번호와 개인정보는 원장에 남기지 않아요. 원장은 고객을 가명 ID로만
-        구분해요.
+        고객 번호와 개인정보는 원장에 남기지 않습니다. 원장은 고객을 가명 ID로만
+        구분합니다.
       </p>
     </main>
   );

@@ -11,7 +11,11 @@ import type {
 } from "../../../../../packages/core/src/api.ts";
 import type { LoadState } from "../../../../../packages/ui/src/api.ts";
 import { Button } from "../../../../../packages/ui/src/button.tsx";
-import { Badge, Heading } from "../../../../../packages/ui/src/components.tsx";
+import {
+  Badge,
+  Heading,
+  TableScroll,
+} from "../../../../../packages/ui/src/components.tsx";
 import { short } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import client from "../client.module.css";
@@ -73,7 +77,7 @@ export function Signals({
         <p className={s.tableNote}>
           위험 신호 목록 · 판매 건을 열어 회차 이력을 확인합니다.
         </p>
-        <div className={s.tableWrap}>
+        <TableScroll label="위험 신호 목록">
           <table>
             <caption className={s.srOnly}>위험 신호 목록</caption>
             <thead>
@@ -119,21 +123,25 @@ export function Signals({
                     <td>{signal.attempt ? `${signal.attempt}회차` : "—"}</td>
                     <td>{signal.detail}</td>
                     <td>
-                      <Button
-                        variant="ghost"
-                        disabled={!sale}
-                        onClick={() => sale && open(sale.id)}
-                        aria-label={`${SIGNAL_LABELS[signal.kind]} 판매 건 보기`}
-                      >
-                        판매·검토
-                      </Button>
+                      {sale ? (
+                        <button
+                          type="button"
+                          className={s.linkButton}
+                          onClick={() => open(sale.id)}
+                          aria-label={`판매·검토 · ${SIGNAL_LABELS[signal.kind]} 판매 건`}
+                        >
+                          판매·검토
+                        </button>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
         {shown.length === 0 &&
           (load === "ready" && kind ? (
             <div className={s.empty}>

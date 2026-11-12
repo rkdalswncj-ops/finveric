@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Download, FileText } from "lucide-react";
 import {
@@ -17,6 +17,8 @@ import {
   Facts,
   Heading,
   Notice,
+  FieldError,
+  TableScroll,
   type Tone,
 } from "../../../../../packages/ui/src/components.tsx";
 import { dateTime } from "../../../../../packages/ui/src/format.ts";
@@ -65,11 +67,25 @@ export function Report({
   const [error, setError] = useState("");
   const busy = !!progress && progress[0] < progress[1];
   const [loading, setLoading] = useState(false);
+  /** 판매 건을 고르지 않고 눌렀다. 선택 칸 아래에 이유를 보여 준다. */
+  const [saleMissing, setSaleMissing] = useState(false);
+  const saleSelect = useRef<HTMLSelectElement>(null);
+  const saleErrorId = useId();
   const sales = [...(ledger.snapshot?.sales ?? [])].reverse();
   const confirmed = sales.filter((sale) => sale.status === "confirmed").length;
 
   const build = async () => {
-    if (!deployment || loading) return;
+    if (loading) return;
+    // 누를 수 없게 막지 않고, 누르면 빠진 것을 알려 준다.
+    if (kind === "sale" && !saleId.trim()) {
+      setSaleMissing(true);
+      saleSelect.current?.focus();
+      return;
+    }
+    if (!deployment) {
+      setError("검증 설정을 아직 불러오지 못했습니다. 잠시 후 다시 만드세요.");
+      return;
+    }
     setLoading(true);
     setReport(undefined);
     setError("");
@@ -151,9 +167,15 @@ export function Report({
             <label className={s.field}>
               판매 건
               <select
+                ref={saleSelect}
                 value={saleId}
                 disabled={loading || sales.length === 0}
-                onChange={(e) => setSaleId(e.target.value)}
+                aria-invalid={saleMissing ? true : undefined}
+                aria-describedby={saleErrorId}
+                onChange={(e) => {
+                  setSaleId(e.target.value);
+                  setSaleMissing(false);
+                }}
               >
                 <option value="">판매 건을 선택하세요</option>
                 {saleId && !sales.some((sale) => sale.saleId === saleId) && (
@@ -174,11 +196,12 @@ export function Report({
               </select>
             </label>
           )}
-          <Button
-            type="submit"
-            busy={loading}
-            blocked={!deployment || (kind === "sale" && !saleId)}
-          >
+          {kind === "sale" && (
+            <FieldError id={saleErrorId}>
+              {saleMissing ? "판매 건을 선택하세요." : ""}
+            </FieldError>
+          )}
+          <Button type="submit" busy={loading}>
             {loading ? (
               progress ? (
                 `${progress[0]}/${progress[1]}건 대조 중`
@@ -197,12 +220,20 @@ export function Report({
             조회를 쓰세요.
           </p>
         </form>
-        <section className={`${s.panel} ${s.pad}`} aria-live="polite">
-          {(error || (!ledger.snapshot && ledger.error)) && (
-            <div role="alert">
+        <section className={`${s.panel} ${s.pad}`}>
+          {/* 만드는 중과 끝남을 화면 낭독기에 짧게 알린다. 오류 자리는 늘 그려 둔다. */}
+          <p role="status" className={s.srOnly}>
+            {loading
+              ? "보고서를 만들고 있습니다."
+              : report
+                ? "보고서를 만들었습니다. JSON과 CSV로 내려받을 수 있습니다."
+                : ""}
+          </p>
+          <div role="alert">
+            {(error || (!ledger.snapshot && ledger.error)) && (
               <Notice tone="danger">{error || ledger.error}</Notice>
-            </div>
-          )}
+            )}
+          </div>
           {report ? (
             <ReportView
               report={report}
@@ -297,7 +328,7 @@ function ReportView({
           ["만든 시각", dateTime(report.generatedAt)],
         ]}
       />
-      <div className={`${s.tableWrap} ${s.section}`}>
+      <TableScroll label="판매 건별 대조 결과" className={s.section}>
         <table>
           <caption>판매 건별 대조 결과</caption>
           <thead>
@@ -357,7 +388,7 @@ function ReportView({
         {report.sales.length === 0 && (
           <p className={s.small}>범위 안에 판매 건이 없습니다.</p>
         )}
-      </div>
+      </TableScroll>
     </>
   );
 }

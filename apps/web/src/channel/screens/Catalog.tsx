@@ -94,10 +94,17 @@ export function Catalog({
           />
         </div>
       </div>
+      {/* 유형·검색으로 목록이 바뀌면 화면 낭독기가 상품 수를 읽는다. */}
+      <p role="status" className={s.srOnly}>
+        {load === "ready" ? `상품 ${filtered.length}개` : ""}
+      </p>
       <div className={s.catalog}>
         {filtered.map(({ product }) => {
           const { document } = product;
           const [Icon, tone] = ICONS[document.type];
+          const enrollLabel = enroll.same(product.id)
+            ? "가입 이어 하기"
+            : "가입하기";
           return (
             <article className={s.fundCard} key={product.id}>
               <div className={s.cardTop}>
@@ -144,14 +151,14 @@ export function Catalog({
                 <Button
                   busy={!!busy && starting === product.id}
                   blocked={!!busy && starting !== product.id}
-                  aria-label={`${document.name} 가입하기`}
+                  aria-label={`${enrollLabel} · ${document.name}`}
                   onClick={() => {
                     setStarting(product.id);
                     enroll.request(product.id);
                   }}
                 >
-                  {enroll.same(product.id) ? "가입 이어 하기" : "가입하기"}
-                  <ArrowRight size={16} data-icon="end" />
+                  {enrollLabel}
+                  <ArrowRight size={16} aria-hidden="true" data-icon="end" />
                 </Button>
               </div>
             </article>

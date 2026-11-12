@@ -23,6 +23,7 @@ import {
   Facts,
   Heading,
   Notice,
+  TableScroll,
 } from "../../../../../packages/ui/src/components.tsx";
 import { api, type LoadState } from "../../../../../packages/ui/src/api.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
@@ -423,7 +424,7 @@ export function Products({
       ) : (
         <>
           <section className={s.panel}>
-            <div className={s.tableWrap}>
+            <TableScroll label="판매 상품">
               <table>
                 <caption className={s.tableCaption}>판매 상품</caption>
                 <thead>
@@ -471,21 +472,22 @@ export function Products({
                           </Badge>
                         </td>
                         <td>
-                          <Button
-                            variant="ghost"
+                          <button
+                            type="button"
+                            className={s.linkButton}
                             onClick={() => setSelected(id)}
-                            aria-label={`${document.name} 보기`}
+                            aria-label={`보기 · ${document.name}`}
                             aria-current={group?.id === id ? "true" : undefined}
                           >
                             보기
-                          </Button>
+                          </button>
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-            </div>
+            </TableScroll>
             {groups.length === 0 ? (
               <p className={s.empty}>
                 {load === "ready"

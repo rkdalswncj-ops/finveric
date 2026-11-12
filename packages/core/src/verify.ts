@@ -80,6 +80,11 @@ export const CHECK_NAMES = {
   receipt: "증명서 대조",
 } as const;
 
+/**
+ * 검사 설명(`Check.detail`)의 말투. 고객 화면(증권사 앱 예시)은 해요체, 감독기관 화면과 보고서는 합니다체다.
+ */
+export type Voice = "haeyo" | "hapnida";
+
 export type VerifyClient = Pick<
   PublicClient,
   | "getChainId"
@@ -129,8 +134,15 @@ export async function verifySale(
   saleId: string,
   receipt?: EvidenceReceipt,
   original?: OriginalBundle,
-  options: { client?: VerifyClient; snapshot?: LedgerSnapshot } = {},
+  options: {
+    client?: VerifyClient;
+    snapshot?: LedgerSnapshot;
+    voice?: Voice;
+  } = {},
 ): Promise<SaleVerification> {
+  /** 말투에 맞는 문장을 고른다. 기본은 해요체다. */
+  const say = (haeyo: string, hapnida: string) =>
+    options.voice === "hapnida" ? hapnida : haeyo;
   if (!/^[1-9][0-9]{0,76}$/.test(saleId) || BigInt(saleId) >= FIELD)
     throw new Error("판매 ID 형식을 확인하세요.");
   const client = options.client ?? ledgerClient(dep);
@@ -177,10 +189,20 @@ export async function verifySale(
     check(
       CHECK_NAMES.sale,
       false,
-      "지정한 원장에 이 판매 ID의 청약 기록이 없어요.",
+      say(
+        "지정한 원장에 이 판매 ID의 청약 기록이 없어요.",
+        "지정한 원장에 이 판매 ID의 청약 기록이 없습니다.",
+      ),
     );
     if (receipt)
-      check(CHECK_NAMES.receipt, false, "증명서의 판매 기록을 찾지 못했어요.");
+      check(
+        CHECK_NAMES.receipt,
+        false,
+        say(
+          "증명서의 판매 기록을 찾지 못했어요.",
+          "증명서의 판매 기록을 찾지 못했습니다.",
+        ),
+      );
     return result("missing");
   }
   const saleOk =
@@ -203,8 +225,11 @@ export async function verifySale(
     CHECK_NAMES.sale,
     saleOk,
     saleOk
-      ? `청약 이벤트와 원장 상태가 같아요. 상태: ${{ subscribed: "청약", confirmed: "확정", withdrawn: "철회" }[sale!.status]}`
-      : "청약 이벤트와 원장 상태가 달라요.",
+      ? `${say("청약 이벤트와 원장 상태가 같아요.", "청약 이벤트와 원장 상태가 같습니다.")} 상태: ${{ subscribed: "청약", confirmed: "확정", withdrawn: "철회" }[sale!.status]}`
+      : say(
+          "청약 이벤트와 원장 상태가 달라요.",
+          "청약 이벤트와 원장 상태가 다릅니다.",
+        ),
   );
   if (!sale) return result();
   reference("subscribe", sale.subscribed.txHash, sale.subscribed.block);
@@ -255,12 +280,21 @@ export async function verifySale(
     CHECK_NAMES.product,
     productOk,
     !product
-      ? "청약한 상품 버전의 등록 기록이 없어요."
+      ? say(
+          "청약한 상품 버전의 등록 기록이 없어요.",
+          "청약한 상품 버전의 등록 기록이 없습니다.",
+        )
       : !originalDocumentOk
-        ? "제출한 설명서가 원장에 등록한 설명서 지문과 달라요."
+        ? say(
+            "제출한 설명서가 원장에 등록한 설명서 지문과 달라요.",
+            "제출한 설명서가 원장에 등록한 설명서 지문과 다릅니다.",
+          )
         : productOk
           ? `${product.parsed?.name ?? "상품"} v${product.version} · 청약 당시 최신 버전 · 설명서 지문 일치`
-          : "설명서 원문, 지문, 등록 속성 또는 청약 당시 최신 여부가 맞지 않아요.",
+          : say(
+              "설명서 원문, 지문, 등록 속성 또는 청약 당시 최신 여부가 맞지 않아요.",
+              "설명서 원문, 지문, 등록 속성 또는 청약 당시 최신 여부가 맞지 않습니다.",
+            ),
   );
 
   // 3. 진단 기준 원문
@@ -284,8 +318,11 @@ export async function verifySale(
     CHECK_NAMES.rule,
     ruleOk,
     ruleOk
-      ? `등록 원문으로 다시 계산한 기준 해시가 같아요. ${rules.map((rule) => `v${rule!.version}`).join(", ")}`
-      : "진단 기준 원문이 없거나 원문으로 계산한 해시가 달라요.",
+      ? `${say("등록 원문으로 다시 계산한 기준 해시가 같아요.", "등록 원문으로 다시 계산한 기준 해시가 같습니다.")} ${rules.map((rule) => `v${rule!.version}`).join(", ")}`
+      : say(
+          "진단 기준 원문이 없거나 원문으로 계산한 해시가 달라요.",
+          "진단 기준 원문이 없거나 원문으로 계산한 해시가 다릅니다.",
+        ),
   );
 
   // 4. 진단 회차: 1회차부터 빠짐없이 있고, 청약 회차가 당시 최신이며, 증명이 다시 검증된다.
@@ -365,12 +402,21 @@ export async function verifySale(
     CHECK_NAMES.attempts,
     attemptsOk,
     !complete
-      ? `청약 회차(${sale.attempt})까지의 진단 기록이 빠져 있어요.`
+      ? say(
+          `청약 회차(${sale.attempt})까지의 진단 기록이 빠져 있어요.`,
+          `청약 회차(${sale.attempt})까지의 진단 기록이 빠져 있습니다.`,
+        )
       : !latestAtSubscription
-        ? "청약 당시 더 최근 회차가 있었어요."
+        ? say(
+            "청약 당시 더 최근 회차가 있었어요.",
+            "청약 당시 더 최근 회차가 있었습니다.",
+          )
         : proofsOk
           ? `${sale.attempt}개 회차 · 청약 회차가 당시 최신 · Verifier로 증명 재검증`
-          : "진단 기록과 증명이 맞지 않아요.",
+          : say(
+              "진단 기록과 증명이 맞지 않아요.",
+              "진단 기록과 증명이 맞지 않습니다.",
+            ),
   );
 
   // 5. 원본 답변 대조
@@ -417,8 +463,14 @@ export async function verifySale(
       CHECK_NAMES.original,
       originalOk,
       originalOk
-        ? "모든 회차의 답변·임의값으로 커밋먼트와 판정을 다시 계산했어요."
-        : "원본의 답변, 임의값 또는 설명 확인 시간이 원장 기록과 달라요.",
+        ? say(
+            "모든 회차의 답변·임의값으로 커밋먼트와 판정을 다시 계산했어요.",
+            "모든 회차의 답변·임의값으로 커밋먼트와 판정을 다시 계산했습니다.",
+          )
+        : say(
+            "원본의 답변, 임의값 또는 설명 확인 시간이 원장 기록과 달라요.",
+            "원본의 답변, 임의값 또는 설명 확인 시간이 원장 기록과 다릅니다.",
+          ),
     );
   }
 
@@ -488,16 +540,29 @@ export async function verifySale(
       Number(state.confirmedAt) === at &&
       (!sale.protectedSale || at >= coolingEnds);
     confirmationDetail = sale.protectedSale
-      ? `숙려 ${Number(coolingPeriod)}초 뒤 최종 확인했어요.`
-      : "숙려 대상이 아니에요. 최종 확인했어요.";
+      ? say(
+          `숙려 ${Number(coolingPeriod)}초 뒤 최종 확인했어요.`,
+          `숙려 ${Number(coolingPeriod)}초 뒤 최종 확인했습니다.`,
+        )
+      : say(
+          "숙려 대상이 아니에요. 최종 확인했어요.",
+          "숙려 대상이 아닙니다. 최종 확인했습니다.",
+        );
   } else if (sale.status === "withdrawn" && sale.withdrawn) {
     reference("withdraw", sale.withdrawn.txHash, sale.withdrawn.block);
     confirmationOk &&= Number(state.withdrawnAt) === sale.withdrawn.at;
-    confirmationDetail = "고객이 최종 확인 전에 철회했어요.";
+    confirmationDetail = say(
+      "고객이 최종 확인 전에 철회했어요.",
+      "고객이 최종 확인 전에 철회했습니다.",
+    );
   } else {
+    const ends = new Date(coolingEnds * 1000).toISOString();
     confirmationDetail = sale.protectedSale
-      ? `숙려기간 중이에요. ${new Date(coolingEnds * 1000).toISOString()} 뒤 최종 확인할 수 있어요.`
-      : "최종 확인 전이에요.";
+      ? say(
+          `숙려기간 중이에요. ${ends} 뒤 최종 확인할 수 있어요.`,
+          `숙려기간 중입니다. ${ends} 뒤 최종 확인할 수 있습니다.`,
+        )
+      : say("최종 확인 전이에요.", "최종 확인 전입니다.");
   }
   check(CHECK_NAMES.confirmation, confirmationOk, confirmationDetail);
 
@@ -524,8 +589,14 @@ export async function verifySale(
       CHECK_NAMES.receipt,
       receiptOk,
       receiptOk
-        ? "증명서의 판매 ID, 상품 버전, 회차, 기준, 금액, 거래가 원장과 같아요."
-        : "증명서 내용이 원장 기록과 달라요.",
+        ? say(
+            "증명서의 판매 ID, 상품 버전, 회차, 기준, 금액, 거래가 원장과 같아요.",
+            "증명서의 판매 ID, 상품 버전, 회차, 기준, 금액, 거래가 원장과 같습니다.",
+          )
+        : say(
+            "증명서 내용이 원장 기록과 달라요.",
+            "증명서 내용이 원장 기록과 다릅니다.",
+          ),
     );
   }
   return result();

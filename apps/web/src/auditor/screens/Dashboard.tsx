@@ -10,6 +10,7 @@ import {
   Facts,
   Heading,
   Stat,
+  TableScroll,
   type Tone,
 } from "../../../../../packages/ui/src/components.tsx";
 import { dateTime } from "../../../../../packages/ui/src/format.ts";
@@ -47,7 +48,7 @@ function ledgerEvents(snapshot: LedgerSnapshot): LedgerEvent[] {
       name: "진단 기준 등록",
       subject: `v${rule.version} · ${rule.parsed?.name ?? short(rule.hash)}`,
       to: "/rules",
-      tone: "info",
+      tone: "neutral",
     });
   for (const product of snapshot.products)
     events.push({
@@ -55,7 +56,7 @@ function ledgerEvents(snapshot: LedgerSnapshot): LedgerEvent[] {
       name: "상품 설명서 등록",
       subject: `${productName(snapshot, product.id, product.version)} v${product.version}`,
       to: "/products",
-      tone: "info",
+      tone: "neutral",
     });
   for (const diagnosis of snapshot.diagnoses)
     events.push({
@@ -278,7 +279,7 @@ function Summary({
         </section>
       </div>
       <div className={s.columns}>
-        <section className={`${s.panel} ${s.tableWrap}`}>
+        <TableScroll as="section" label="상품별 판매 건" className={s.panel}>
           <table>
             <caption className={s.tableCaption}>상품별 판매 건</caption>
             <thead>
@@ -315,8 +316,12 @@ function Summary({
           {byProduct.length === 0 && (
             <p className={s.panelNote}>원장에 등록한 상품이 없습니다.</p>
           )}
-        </section>
-        <section className={`${s.panel} ${s.tableWrap}`}>
+        </TableScroll>
+        <TableScroll
+          as="section"
+          label="위험등급별 판매 건"
+          className={s.panel}
+        >
           <table>
             <caption className={s.tableCaption}>위험등급별 판매 건</caption>
             <thead>
@@ -350,9 +355,9 @@ function Summary({
               ))}
             </tbody>
           </table>
-        </section>
+        </TableScroll>
       </div>
-      <section className={`${s.panel} ${s.tableWrap}`}>
+      <TableScroll as="section" label="최근 원장 이벤트" className={s.panel}>
         <div className={s.panelTitle}>
           <h2>최근 원장 이벤트</h2>
           <label className={s.toggle}>
@@ -403,7 +408,7 @@ function Summary({
         {events.length === 0 && (
           <p className={s.panelNote}>아직 원장 이벤트가 없습니다.</p>
         )}
-      </section>
+      </TableScroll>
     </>
   );
 }

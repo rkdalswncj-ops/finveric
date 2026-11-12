@@ -1,7 +1,23 @@
 /* 단계 화면 부품: 단계 머리글, 아래 동작 막대 */
+
+/*
+ * 단계 머리글과 동작 막대의 높이. 글자 크기 설정(rem)을 따라 커진다.
+ * 단계 머리글: 위 여백 4px + 이전·중단 줄 + 진행 막대 4px.
+ * 동작 막대: 위아래 여백 16px + 위 테두리 1px + 버튼 + 사이 4px + 진행 안내 한 줄.
+ */
+:global(html) {
+  --step-header-height: calc(8px + max(44px, var(--type-detail) * 1.6));
+  --action-bar-height: calc(
+    21px + max(56px, var(--type-body) * 1.5 + 22px) + var(--type-caption) * 1.6
+  );
+}
+/* 단계 머리글이 있으면 위에 붙은 요소가 그만큼 높다(frame.module.css의 scroll-padding). */
+:global(html):has(.stepHeader) {
+  --chrome-top: calc(var(--header-height) + var(--step-header-height));
+}
 .stepHeader {
   position: sticky;
-  top: 56px;
+  top: var(--header-height);
   z-index: 5;
   margin: 0 -24px;
   padding: 4px 24px 0;
@@ -21,7 +37,7 @@
   align-items: center;
   gap: 2px;
   min-height: 44px;
-  margin-left: -8px;
+  margin-inline-start: -8px;
   padding: 0 8px;
   border: 0;
   border-radius: var(--rounded-control);
@@ -36,7 +52,8 @@
   }
 }
 .stop {
-  margin: 0 -8px 0 0;
+  margin: 0;
+  margin-inline-end: -8px;
   color: var(--muted-foreground);
 }
 .stepLabel {
@@ -75,7 +92,12 @@
   color: var(--muted-foreground);
   font-size: var(--type-caption);
 }
-/* 아래 동작 막대. 넓은 화면에서는 본문 끝에 둔다. */
+/*
+ * 아래 동작 막대. 화면 높이가 넉넉할 때만 붙인다.
+ * - 640px 이하, 높이 560px 이상: 탭 막대 바로 위에 고정한다. 본문 끝에 같은 높이의 자리를 둔다.
+ * - 641px 이상, 높이 481px 이상: 본문 끝에 두되, 스크롤하면 탭 막대 위에 붙는다(sticky).
+ * - 그 밖(짧은 화면, 큰 글자의 좁은 화면): 본문 끝에 둔다.
+ */
 .actionSpacer {
   display: none;
 }
@@ -95,17 +117,15 @@
   font-size: var(--type-caption);
   text-align: center;
 }
-/* 좁은 화면에서는 탭 막대 바로 위에 고정한다. 본문 끝에 같은 높이의 자리를 둔다. */
-@media (max-width: 640px) {
+@media (max-width: 640px) and (min-height: 560px) {
   .actionSpacer {
     display: block;
-    height: 96px;
+    height: var(--action-bar-height);
   }
   .actionBar {
     position: fixed;
-    right: 0;
-    bottom: calc(62px + env(safe-area-inset-bottom));
-    left: 0;
+    inset-inline: 0;
+    bottom: calc(var(--tabs-height) + 1px + env(safe-area-inset-bottom));
     z-index: 9;
     max-width: 480px;
     margin: 0 auto;
@@ -114,5 +134,33 @@
     /* 투명 테두리: 강제 색상 모드에서 막대 위 경계가 보인다. */
     border-top: 1px solid transparent;
     box-shadow: 0 -8px 16px -12px var(--shadow);
+  }
+}
+@media (min-width: 641px) and (min-height: 481px) {
+  .actionBar {
+    position: sticky;
+    bottom: calc(var(--tabs-height) + 1px + env(safe-area-inset-bottom));
+    z-index: 9;
+    margin-inline: -24px;
+    padding: 12px 24px 4px;
+    background: var(--card);
+    border-top: 1px solid transparent;
+    box-shadow: 0 -8px 16px -12px var(--shadow);
+  }
+}
+/* 동작 막대가 붙어 있으면 아래에 붙은 요소가 그만큼 높다(frame.module.css의 scroll-padding). */
+@media (max-width: 640px) and (min-height: 560px),
+  (min-width: 641px) and (min-height: 481px) {
+  :global(html):has(.actionBar) {
+    --chrome-bottom: calc(
+      var(--tabs-height) + 1px + var(--action-bar-height) +
+        env(safe-area-inset-bottom)
+    );
+  }
+}
+/* 짧은 화면에서는 단계 머리글도 붙이지 않는다(frame.module.css). */
+@media (max-height: 480px) {
+  .stepHeader {
+    position: static;
   }
 }

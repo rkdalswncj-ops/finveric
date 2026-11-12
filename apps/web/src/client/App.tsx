@@ -23,7 +23,11 @@ import type {
   TraceDto,
 } from "../../../../packages/core/src/api.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
-import { api, type LoadState } from "../../../../packages/ui/src/api.ts";
+import {
+  api,
+  ApiError,
+  type LoadState,
+} from "../../../../packages/ui/src/api.ts";
 import {
   AccessCodeForm,
   Empty,
@@ -104,10 +108,14 @@ function ChannelRedirect() {
   );
 }
 
-/** 화면이 부르는 처리. 실패하면 오류를 보여 주고 undefined를 돌려준다. */
+/**
+ * 화면이 부르는 처리. 실패하면 오류를 보여 주고 undefined를 돌려준다.
+ * done을 주면 끝난 뒤 상태 줄에 넣어 화면 낭독기가 읽는다.
+ */
 export type Run = <T>(
   name: string,
   operation?: () => Promise<T>,
+  done?: string,
 ) => Promise<T | undefined>;
 
 export function App() {
@@ -129,6 +137,14 @@ export function App() {
   );
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
+  /** 서버가 접근 코드를 거절했을 때 입력 칸 아래에 보여 줄 문장. */
+  const [accessError, setAccessError] = useState("");
+  const noteAccess = (e: unknown) =>
+    setAccessError(
+      e instanceof ApiError && e.status === 401
+        ? "접근 코드를 다시 확인하세요."
+        : "",
+    );
 
   const reload = useCallback(async () => {
     const current = configRef.current ?? (await api<ConfigDto>("/config"));
@@ -160,6 +176,7 @@ export function App() {
   useEffect(() => {
     reload().catch((e: Error) => {
       setError(e.message);
+      noteAccess(e);
       // 처음 읽기에 실패하면 빈 표가 "불러오고 있습니다"에 머물지 않게 한다.
       setLoad((current) => (current === "loading" ? "failed" : current));
     });
@@ -183,7 +200,7 @@ export function App() {
     return () => clearInterval(timer);
   }, [busy, refresh]);
 
-  const run: Run = async (name, operation) => {
+  const run: Run = async (name, operation, done) => {
     if (busy) return undefined;
     setBusy(name);
     setError("");
@@ -191,9 +208,12 @@ export function App() {
     try {
       const result = await operation?.();
       await reload();
+      setAccessError("");
+      if (done) setNotice(done);
       return result;
     } catch (e) {
       setError(e instanceof Error ? e.message : "처리를 완료하지 못했습니다.");
+      noteAccess(e);
       await refresh();
       return undefined;
     } finally {
@@ -210,11 +230,13 @@ export function App() {
     navigate("/review");
   };
   const register = () =>
-    run("기본 진단 기준과 예시 상품을 원장에 등록하고 있습니다", () =>
-      api<RegisterDto>("/register", {}),
+    run(
+      "기본 진단 기준과 예시 상품을 원장에 등록하고 있습니다",
+      () => api<RegisterDto>("/register", {}),
+      "기본 진단 기준과 예시 상품을 원장에 등록했습니다.",
     );
-  const action = (id: string, name: SaleAction, label: string) =>
-    run(label, () => api<SaleDto>(`/sales/${id}/action/${name}`, {}));
+  const action = (id: string, name: SaleAction, label: string, done?: string) =>
+    run(label, () => api<SaleDto>(`/sales/${id}/action/${name}`, {}), done);
 
   return (
     <Shell
@@ -223,6 +245,7 @@ export function App() {
       groups={groups}
       links={links}
       area={OPERATIONS}
+      app="판매사 콘솔"
       title={pageTitle(location.pathname)}
       badge={{
         tone: deployment ? "success" : "warning",
@@ -235,8 +258,9 @@ export function App() {
     >
       {config?.requiresToken && (
         <AccessCodeForm
-          connect={() => void run("연결하고 있습니다", reload)}
+          connect={() => void run("연결하고 있습니다", reload, "연결했습니다.")}
           busy={!!busy}
+          error={accessError}
         />
       )}
       <Routes>

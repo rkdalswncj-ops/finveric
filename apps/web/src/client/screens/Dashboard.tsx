@@ -11,6 +11,7 @@ import {
   Facts,
   Heading,
   Stat,
+  TableScroll,
 } from "../../../../../packages/ui/src/components.tsx";
 import { dateTime, short } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
@@ -62,23 +63,33 @@ export function Dashboard({
   const recent = [...sales]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 6);
+  // 처음 읽기에 실패하면 0 대신 "—"를 보여 준다. 0건이라고 읽히지 않게 한다.
+  const count = (value: number) => (load === "failed" ? "—" : value);
   const stats = [
     {
       label: "진행 중·숙려 중 청약",
-      value: drafts.length + subscribed.length,
-      note: `신청 ${drafts.length}건 · 청약 ${subscribed.length}건`,
+      value: count(drafts.length + subscribed.length),
+      note:
+        load === "failed"
+          ? "불러오지 못했습니다"
+          : `신청 ${drafts.length}건 · 청약 ${subscribed.length}건`,
       to: "/review",
     },
-    { label: "가입 확정", value: confirmed.length, note: "건", to: "/review" },
+    {
+      label: "가입 확정",
+      value: count(confirmed.length),
+      note: "건",
+      to: "/review",
+    },
     {
       label: "관리자 승인 대기",
-      value: approvals.length,
+      value: count(approvals.length),
       note: "3회차 이상 진단한 고객의 신청",
       to: "/review",
     },
     {
       label: "위험 신호",
-      value: signals.length,
+      value: count(signals.length),
       note: "원장 기록 기준",
       to: "/signals",
     },
@@ -98,7 +109,7 @@ export function Dashboard({
         ))}
       </div>
       <div className={s.detailGrid}>
-        <section className={`${s.panel} ${s.tableWrap}`}>
+        <TableScroll label="최근 판매 건" as="section" className={s.panel}>
           <table>
             <caption className={s.tableCaption}>최근 판매 건</caption>
             <thead>
@@ -144,13 +155,14 @@ export function Dashboard({
                     </td>
                     <td>{dateTime(sale.createdAt)}</td>
                     <td>
-                      <Button
-                        variant="ghost"
+                      <button
+                        type="button"
+                        className={s.linkButton}
                         onClick={() => open(sale.id)}
-                        aria-label={`${short(sale.id)} 판매 건 보기`}
+                        aria-label={`보기 · ${short(sale.id)} 판매 건`}
                       >
                         보기
-                      </Button>
+                      </button>
                     </td>
                   </tr>
                 );
@@ -166,7 +178,7 @@ export function Dashboard({
                   : "판매 건을 불러오고 있습니다."}
             </p>
           )}
-        </section>
+        </TableScroll>
         <aside className={`${s.panel} ${s.pad}`}>
           <h2>적용 기준</h2>
           <Facts

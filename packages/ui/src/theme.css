@@ -135,6 +135,10 @@ h2 {
 h3 {
   font-size: var(--type-body-lg);
 }
+/* 화면 제목은 경로가 바뀌거나 누른 요소가 사라지면 초점을 받는다(focus.ts). 누르는 요소가 아니므로 테두리를 그리지 않는다. */
+:is(h1, h2)[tabindex="-1"]:focus {
+  outline: none;
+}
 p {
   max-width: 72ch;
   text-wrap: pretty;
@@ -192,7 +196,7 @@ input {
 }
 input[type="file"]::file-selector-button {
   min-height: 32px;
-  margin-right: 8px;
+  margin-inline-end: 8px;
   padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: var(--rounded-control);
@@ -237,11 +241,11 @@ summary {
 table {
   border-collapse: collapse;
   width: 100%;
-  text-align: left;
+  text-align: start;
   font-variant-numeric: tabular-nums;
 }
 caption {
-  text-align: left;
+  text-align: start;
   color: var(--muted-foreground);
   padding: 16px 0;
   font-size: var(--type-ui);
@@ -253,7 +257,9 @@ td {
   white-space: nowrap;
   font-size: var(--type-ui);
 }
+/* th의 기본 정렬은 가운데다. 표의 start를 따르게 한다. */
 th {
+  text-align: start;
   color: var(--muted-foreground);
   background: var(--muted);
   font-weight: 500;

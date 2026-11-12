@@ -13,6 +13,7 @@ import {
   Facts,
   Heading,
   Notice,
+  TableScroll,
 } from "../../../../../packages/ui/src/components.tsx";
 import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
@@ -66,7 +67,7 @@ function RuleAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
     });
   return (
     <>
-      <section className={`${s.panel} ${s.tableWrap}`}>
+      <TableScroll as="section" label="등록 버전" className={s.panel}>
         <div className={s.panelTitle}>
           <h2>등록 버전</h2>
           <label className={s.toggle}>
@@ -132,7 +133,7 @@ function RuleAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
             ))}
           </tbody>
         </table>
-      </section>
+      </TableScroll>
       <RuleDetail
         key={selected.hash}
         rule={selected}
@@ -271,7 +272,11 @@ function RuleDocumentView({ document }: { document: RuleDocument }) {
   });
   return (
     <>
-      <section className={`${s.panel} ${s.tableWrap} ${s.section}`}>
+      <TableScroll
+        as="section"
+        label="문항과 선택지"
+        className={`${s.panel} ${s.section}`}
+      >
         <div className={s.panelTitle}>
           <h2>문항과 선택지</h2>
         </div>
@@ -314,8 +319,12 @@ function RuleDocumentView({ document }: { document: RuleDocument }) {
             ))}
           </tbody>
         </table>
-      </section>
-      <section className={`${s.panel} ${s.tableWrap} ${s.section}`}>
+      </TableScroll>
+      <TableScroll
+        as="section"
+        label="등급 구간과 적합성 기준"
+        className={`${s.panel} ${s.section}`}
+      >
         <div className={s.panelTitle}>
           <h2>등급 구간과 적합성 기준</h2>
         </div>
@@ -345,7 +354,7 @@ function RuleDocumentView({ document }: { document: RuleDocument }) {
             ))}
           </tbody>
         </table>
-      </section>
+      </TableScroll>
     </>
   );
 }

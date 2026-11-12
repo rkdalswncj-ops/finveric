@@ -1,14 +1,9 @@
-import type { ReactNode } from "react";
-import { Link, NavLink } from "react-router";
-import {
-  ExternalLink,
-  House,
-  Layers,
-  LoaderCircle,
-  type LucideIcon,
-} from "lucide-react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { Link, NavLink, useLocation } from "react-router";
+import { ExternalLink, House, Layers, type LucideIcon } from "lucide-react";
 import { Button } from "./button.tsx";
 import { Badge, Notice, type Tone } from "./components.tsx";
+import { focusPageTitle, useFocusRescue } from "./focus.ts";
 import s from "./ui.module.css";
 
 const brand = (
@@ -30,6 +25,8 @@ export type ExternalItem = { label: string; icon: LucideIcon; href: string };
  * client·auditor 앱이 함께 쓰는 사이드 메뉴, 상단 막대, 상태 표시.
  * entryHref를 주면 브랜드와 "처음 화면" 항목이 라우터 밖의 진입 화면으로 간다(같은 탭).
  * links는 "처음 화면" 아래에 작은 링크로 둔다. 새 탭으로 연다.
+ * 문서 제목은 "화면 · app · FINVERIC"이다. 경로가 바뀌면 맨 위로 가고 화면 제목(h1)에 초점을 옮긴다.
+ * 상태 줄(role="status")은 늘 그려 둔다. 처리 중에는 busy를 보인다. 처리가 끝난 뒤의 notice는 화면 낭독기만 읽는다.
  */
 export function Shell({
   home,
@@ -37,6 +34,7 @@ export function Shell({
   groups,
   links,
   area,
+  app = area,
   title,
   badge,
   foot,
@@ -51,6 +49,7 @@ export function Shell({
   groups: NavGroup[];
   links?: ExternalItem[];
   area: string;
+  app?: string;
   title: string;
   badge: { tone: Tone; text: string };
   foot?: { title: string; text: string };
@@ -60,6 +59,41 @@ export function Shell({
   busy?: string;
   children: ReactNode;
 }) {
+  const { pathname } = useLocation();
+  const main = useRef<HTMLElement>(null);
+  const nav = useRef<HTMLElement>(null);
+  const firstRoute = useRef(true);
+  useFocusRescue(main);
+  useEffect(() => {
+    document.title = `${title} · ${app} · FINVERIC`;
+  }, [title, app]);
+  useEffect(() => {
+    // 좁은 화면의 가로 메뉴에서 현재 항목이 가려지지 않게 한다. 가로로만 스크롤한다(화면은 움직이지 않는다).
+    // 여백은 ui.module.css의 메뉴 안쪽 여백(앞 16px, 뒤 40px의 흐린 끝)과 같다.
+    const reveal = () => {
+      const menu = nav.current;
+      const item = menu?.querySelector('[aria-current="page"]');
+      if (!menu || !item || menu.scrollWidth <= menu.clientWidth) return;
+      const box = menu.getBoundingClientRect();
+      const { left, right } = item.getBoundingClientRect();
+      if (left < box.left + 16) menu.scrollLeft += left - box.left - 16;
+      else if (right > box.right - 40)
+        menu.scrollLeft += right - box.right + 40;
+    };
+    reveal();
+    // 창 크기를 줄이거나 기기를 돌려 가로 메뉴가 되면 다시 맞춘다.
+    const narrow = window.matchMedia("(max-width: 640px)");
+    narrow.addEventListener("change", reveal);
+    return () => narrow.removeEventListener("change", reveal);
+  }, [pathname]);
+  useEffect(() => {
+    if (firstRoute.current) {
+      firstRoute.current = false;
+      return;
+    }
+    window.scrollTo(0, 0);
+    focusPageTitle(main.current, { preventScroll: true });
+  }, [pathname]);
   return (
     <div className={s.shell}>
       <a className={s.skip} href="#content">
@@ -79,7 +113,7 @@ export function Shell({
             {brand}
           </Link>
         )}
-        <nav aria-label="주 메뉴">
+        <nav ref={nav} aria-label="주 메뉴">
           {groups.map((group) => (
             <div key={group.label}>
               <div className={s.navLabel}>
@@ -142,7 +176,7 @@ export function Shell({
           </div>
           <Badge tone={badge.tone}>{badge.text}</Badge>
         </header>
-        <main id="content" className={s.main}>
+        <main id="content" ref={main} className={s.main}>
           {error && (
             <div role="alert" className={s.alert}>
               <Notice tone="danger">{error}</Notice>
@@ -153,17 +187,10 @@ export function Shell({
               )}
             </div>
           )}
-          {notice && (
-            <p role="status" className={s.notice}>
-              {notice}
-            </p>
-          )}
-          {busy && (
-            <div role="status" aria-live="polite" className={s.busy}>
-              <LoaderCircle className={s.spin} size={18} />
-              {busy}
-            </div>
-          )}
+          {/* 처리 중 표시는 누른 버튼의 회전 표시 하나다. 이 줄은 글자만 보인다. */}
+          <p role="status" className={busy ? s.busy : s.srOnly}>
+            {busy || notice}
+          </p>
           {children}
         </main>
       </div>

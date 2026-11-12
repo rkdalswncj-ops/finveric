@@ -169,7 +169,9 @@ function RecordDetail({
     <div className={s.stack}>
       <section className={`${s.panel} ${s.pad}`}>
         <StatusBadge sale={sale} now={now} />
-        <h1 className={s.recordTitle}>{productName(product?.document)}</h1>
+        <h1 tabIndex={-1} className={s.recordTitle}>
+          {productName(product?.document)}
+        </h1>
         <Facts
           rows={[
             ["증명서 번호", <code>{sale.id}</code>],

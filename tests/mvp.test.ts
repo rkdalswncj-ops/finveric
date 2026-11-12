@@ -826,7 +826,14 @@ test(
         await failing("증명서 대조", { ...receipt, amount: "1" }, original);
         await failing("증명서 대조", { ...receipt, attempt: 2 }, original);
 
-        assert.equal((await verifySale(dep, "1")).outcome, "missing");
+        const missing = await verifySale(dep, "1");
+        assert.equal(missing.outcome, "missing");
+        assert.match(missing.checks[0].detail, /없어요\.$/);
+        // 감독기관 화면과 보고서는 합니다체로 받는다.
+        const formal = await verifySale(dep, "1", undefined, undefined, {
+          voice: "hapnida",
+        });
+        assert.match(formal.checks[0].detail, /없습니다\.$/);
         assert.equal((await verifySale(dep, abandonedId)).outcome, "missing");
         const bond = await verifySale(dep, bondId);
         assert.equal(bond.outcome, "match", JSON.stringify(bond.checks));

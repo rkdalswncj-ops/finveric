@@ -7,7 +7,11 @@ import {
 } from "../../../../packages/core/src/index.ts";
 import type { DiagnosisDto } from "../../../../packages/core/src/api.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
-import { Facts, Notice } from "../../../../packages/ui/src/components.tsx";
+import {
+  Facts,
+  Notice,
+  TableScroll,
+} from "../../../../packages/ui/src/components.tsx";
 import { dateTime } from "../../../../packages/ui/src/format.ts";
 import {
   gradeName,
@@ -82,7 +86,7 @@ export function ProfileProducts({
 }) {
   if (!rule) return <p className={s.small}>진단 기준을 등록하면 표시합니다.</p>;
   return (
-    <div className={s.tableWrap}>
+    <TableScroll label="투자성향별 권유 가능 상품">
       <table>
         <thead>
           <tr>
@@ -116,7 +120,7 @@ export function ProfileProducts({
           })}
         </tbody>
       </table>
-    </div>
+    </TableScroll>
   );
 }
 
@@ -131,7 +135,7 @@ export function DiagnosisTable({
   caption?: string;
 }) {
   return (
-    <div className={s.tableWrap}>
+    <TableScroll label={caption ?? "진단 회차"}>
       <table>
         {caption && <caption>{caption}</caption>}
         <thead>
@@ -167,6 +171,6 @@ export function DiagnosisTable({
           ))}
         </tbody>
       </table>
-    </div>
+    </TableScroll>
   );
 }

@@ -50,7 +50,7 @@ export function ProductDetail({
   if (!product)
     return (
       <div className={s.empty}>
-        <h1>
+        <h1 tabIndex={-1}>
           {load === "ready"
             ? "상품을 찾을 수 없어요"
             : load === "failed"

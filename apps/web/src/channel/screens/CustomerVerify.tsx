@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { AlertTriangle, Check, SearchX } from "lucide-react";
 import type {
   Deployment,
@@ -10,12 +10,14 @@ import { Button } from "../../../../../packages/ui/src/button.tsx";
 import {
   Badge,
   Facts,
+  FieldError,
   Notice,
 } from "../../../../../packages/ui/src/components.tsx";
 import {
   dateTime,
   networkName,
 } from "../../../../../packages/ui/src/format.ts";
+import ui from "../../../../../packages/ui/src/ui.module.css";
 import s from "./customer.module.css";
 
 /** 결과 세 가지의 제목과 안내. 화면 문구는 이 셋만 쓴다. */
@@ -36,6 +38,10 @@ const OUTCOMES = {
     title: "이 번호의 가입 기록을 찾지 못했어요",
   },
 } as const;
+/** 오류가 난 입력 칸. 없으면 화면 전체의 오류다. */
+type Field = "id" | "receipt" | "original";
+type Failure = { field?: Field; message: string };
+
 const REFERENCE_NAMES: Record<string, string> = {
   rule: "진단 기준 등록",
   product: "상품 설명서 등록",
@@ -62,11 +68,30 @@ export function CustomerVerify({
   const [original, setOriginal] = useState<OriginalBundle>();
   const [result, setResult] = useState<SaleVerification>();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Failure>();
+  const errorIds: Record<Field, string> = {
+    id: useId(),
+    receipt: useId(),
+    original: useId(),
+  };
+  const inputs = {
+    id: useRef<HTMLInputElement>(null),
+    receipt: useRef<HTMLInputElement>(null),
+    original: useRef<HTMLInputElement>(null),
+  };
+  const fail = (failure: Failure) => {
+    setError(failure);
+    if (failure.field) inputs[failure.field].current?.focus();
+  };
+  /** 입력 칸의 오류 연결: 오류 문장 id와 오류 여부. */
+  const fieldProps = (field: Field) => ({
+    "aria-describedby": errorIds[field],
+    "aria-invalid": error?.field === field ? true : undefined,
+  });
 
   const load = async (file: File | undefined, kind: "receipt" | "original") => {
     setResult(undefined);
-    setError("");
+    setError(undefined);
     if (kind === "receipt") setReceipt(undefined);
     else setOriginal(undefined);
     if (!file) return;
@@ -94,32 +119,48 @@ export function CustomerVerify({
         setId((current) => current || parsed.saleId);
       }
     } catch (e) {
-      setError(
-        e instanceof Error && /^[가-힣0-9]/.test(e.message)
-          ? e.message
-          : `파일을 읽을 수 없어요. ${source}로 받은 파일을 골라 주세요.`,
-      );
+      fail({
+        field: kind,
+        message:
+          e instanceof Error && /^[가-힣0-9]/.test(e.message)
+            ? e.message
+            : `파일을 읽을 수 없어요. ${source}로 받은 파일을 골라 주세요.`,
+      });
     }
   };
 
   const verify = async () => {
     const saleId = id.trim();
-    if (!deployment || !saleId || loading) return;
+    if (loading) return;
+    // 누를 수 없게 막지 않고, 누르면 빠진 것을 알려 준다.
+    if (!saleId)
+      return fail({ field: "id", message: "증명서 번호를 넣어 주세요." });
+    if (!deployment)
+      return fail({
+        message: "확인 화면 설정을 불러오고 있어요. 잠시 후 다시 눌러 주세요.",
+      });
     setLoading(true);
     setResult(undefined);
-    setError("");
+    setError(undefined);
     try {
       const { verifySale } =
         await import("../../../../../packages/core/src/verify.ts");
       setResult(await verifySale(deployment, saleId, receipt, original));
     } catch (e) {
       const message = e instanceof Error ? e.message : "";
-      setError(
+      fail(
         message.includes("판매 ID 형식")
-          ? "증명서 번호를 다시 확인해 주세요. 숫자로만 되어 있어요."
-          : message.includes("네트워크") || message.includes("컨트랙트")
-            ? "확인 화면의 기록 위치 설정이 달라요. 잠시 후 다시 시도해 주세요."
-            : "기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+          ? {
+              field: "id",
+              message:
+                "증명서 번호를 다시 확인해 주세요. 숫자로만 되어 있어요.",
+            }
+          : {
+              message:
+                message.includes("네트워크") || message.includes("컨트랙트")
+                  ? "확인 화면의 기록 위치 설정이 달라요. 잠시 후 다시 시도해 주세요."
+                  : "기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+            },
       );
     } finally {
       setLoading(false);
@@ -139,10 +180,14 @@ export function CustomerVerify({
   const failed = result?.checks.filter((check) => !check.ok) ?? [];
   return (
     <div className={s.main}>
-      <h1>가입 기록이 그대로인지 확인해요</h1>
+      <h1 tabIndex={-1}>가입 기록이 그대로인지 확인해요</h1>
       <p className={s.lead}>
         가입할 때 받은 증명서 번호를 넣거나 증명서 파일을 고르세요. 판매사
         서버를 거치지 않고, 여러 기관이 함께 보관하는 기록과 바로 대조해요.
+      </p>
+      {/* 확인 중과 결과를 화면 낭독기에 알린다. 결과 카드는 폼 아래에 그린다. */}
+      <p role="status" className={ui.srOnly}>
+        {loading ? "기록을 확인하고 있어요" : (outcome?.title ?? "")}
       </p>
       <form
         className={s.card}
@@ -155,50 +200,64 @@ export function CustomerVerify({
           증명서 번호
           <small>증명서에 적힌 숫자 번호예요.</small>
           <input
+            ref={inputs.id}
             type="text"
             inputMode="numeric"
             value={id}
             readOnly={loading}
+            {...fieldProps("id")}
             onChange={(e) => {
               setId(e.target.value);
               setResult(undefined);
+              if (error?.field === "id") setError(undefined);
             }}
           />
         </label>
+        <FieldError id={errorIds.id}>
+          {error?.field === "id" && error.message}
+        </FieldError>
         <label className={s.field}>
           가입 증명서 파일 (선택)
           <small>가입 후 내려받은 증명서예요.</small>
           <input
+            ref={inputs.receipt}
             type="file"
             accept="application/json,.json"
             disabled={loading}
+            {...fieldProps("receipt")}
             onChange={(e) => void load(e.target.files?.[0], "receipt")}
           />
         </label>
+        <FieldError id={errorIds.receipt}>
+          {error?.field === "receipt" && error.message}
+        </FieldError>
         <label className={s.field}>
           가입 원본 파일 (선택)
           <small>함께 고르면 진단 답변과 설명서까지 확인해요.</small>
           <input
+            ref={inputs.original}
             type="file"
             accept="application/json,.json"
             disabled={loading}
+            {...fieldProps("original")}
             onChange={(e) => void load(e.target.files?.[0], "original")}
           />
         </label>
-        {error && <Notice tone="danger">{error}</Notice>}
-        <Button
-          size="large"
-          type="submit"
-          busy={loading}
-          blocked={!deployment || !id.trim()}
-        >
+        <FieldError id={errorIds.original}>
+          {error?.field === "original" && error.message}
+        </FieldError>
+        <div role="alert" className={s.alertSlot}>
+          {error && !error.field && (
+            <Notice tone="danger">{error.message}</Notice>
+          )}
+        </div>
+        <Button size="large" type="submit" busy={loading}>
           {loading ? "기록을 확인하고 있어요" : "확인하기"}
         </Button>
       </form>
       {result && outcome && (
         <section
           className={`${s.card} ${result.outcome === "match" ? s.match : result.outcome === "mismatch" ? s.mismatch : ""}`}
-          aria-live="polite"
         >
           <div className={s.result}>
             <span className={s.icon}>

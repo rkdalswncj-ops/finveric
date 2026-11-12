@@ -8,7 +8,11 @@ import {
   type SignalKind,
 } from "../../../../../packages/core/src/index.ts";
 import type { LedgerSnapshot } from "../../../../../packages/core/src/ledger.ts";
-import { Badge, Heading } from "../../../../../packages/ui/src/components.tsx";
+import {
+  Badge,
+  Heading,
+  TableScroll,
+} from "../../../../../packages/ui/src/components.tsx";
 import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import local from "../auditor.module.css";
@@ -107,7 +111,7 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
             ? `${SIGNAL_LABELS[kind]}: ${CONDITIONS[kind]}`
             : "신호 5종 전체. 판매 ID나 고객 가명 ID를 열면 분쟁 조회로 이동합니다."}
         </p>
-        <div className={s.tableWrap}>
+        <TableScroll label="위험 신호 목록">
           <table>
             <caption className={s.srOnly}>위험 신호 목록</caption>
             <thead>
@@ -160,7 +164,7 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
               })}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
         {shown.length === 0 && (
           <p className={s.panelNote}>
             {kind
@@ -169,7 +173,11 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
           </p>
         )}
       </section>
-      <section className={`${s.panel} ${s.tableWrap} ${s.section}`}>
+      <TableScroll
+        as="section"
+        label="신호 조건"
+        className={`${s.panel} ${s.section}`}
+      >
         <table>
           <caption className={s.tableCaption}>신호 조건</caption>
           <thead>
@@ -193,7 +201,7 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
             ))}
           </tbody>
         </table>
-      </section>
+      </TableScroll>
     </>
   );
 }

@@ -15,6 +15,7 @@ import {
   Facts,
   Heading,
   Notice,
+  TableScroll,
 } from "../../../../../packages/ui/src/components.tsx";
 import { dateTime } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
@@ -88,7 +89,7 @@ function ProductAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
     });
   return (
     <>
-      <section className={`${s.panel} ${s.tableWrap}`}>
+      <TableScroll as="section" label="등록 상품" className={s.panel}>
         <table>
           <caption className={s.tableCaption}>등록 상품</caption>
           <thead>
@@ -148,7 +149,7 @@ function ProductAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
             })}
           </tbody>
         </table>
-      </section>
+      </TableScroll>
       <ProductDetail
         key={selectedId}
         versions={versionsOf(selectedId)}
@@ -192,7 +193,11 @@ function ProductDetail({
   const current = comparable(selected);
   return (
     <>
-      <section className={`${s.panel} ${s.tableWrap} ${s.section}`}>
+      <TableScroll
+        as="section"
+        label="설명서 버전 이력"
+        className={`${s.panel} ${s.section}`}
+      >
         <div className={s.panelTitle}>
           <h2>
             {document ? productDisplayName(document) : short(selected.id)} 버전
@@ -267,7 +272,7 @@ function ProductDetail({
             ))}
           </tbody>
         </table>
-      </section>
+      </TableScroll>
       <section className={`${s.panel} ${s.pad} ${s.section}`}>
         <h2>v{selected.version} 설명서 원문 대조</h2>
         <Facts

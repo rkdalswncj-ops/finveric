@@ -27,12 +27,14 @@ import {
   Facts,
   Heading,
   Notice,
+  TableScroll,
 } from "../../../../../packages/ui/src/components.tsx";
 import { api, type LoadState } from "../../../../../packages/ui/src/api.ts";
 import { short } from "../../../../../packages/ui/src/format.ts";
 import ui from "../../../../../packages/ui/src/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
+import { focusElement } from "../../../../../packages/ui/src/focus.ts";
 import type { Run } from "../App.tsx";
 import { ProfileProducts, RegisterNotice } from "../components.tsx";
 import {
@@ -100,7 +102,7 @@ function RuleView({ entry }: { entry: RuleEntryDto }) {
         ]}
       />
       <h3 className={s.subTitle}>문항과 선택지</h3>
-      <div className={s.tableWrap}>
+      <TableScroll label="문항과 선택지">
         <table>
           <thead>
             <tr>
@@ -128,9 +130,9 @@ function RuleView({ entry }: { entry: RuleEntryDto }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableScroll>
       <h3 className={s.subTitle}>등급 구간과 적합성 기준</h3>
-      <div className={s.tableWrap}>
+      <TableScroll label="등급 구간과 적합성 기준">
         <table>
           <thead>
             <tr>
@@ -149,7 +151,7 @@ function RuleView({ entry }: { entry: RuleEntryDto }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableScroll>
       <p className={s.small}>
         추출 조건은 등급표보다 우선합니다. 추출 조건이 있는 답을 고르면
         투자성향과 관계없이 그 등급까지만 권유합니다.
@@ -268,6 +270,7 @@ function RuleEditor({
               <label className={s.grow}>
                 질문
                 <input
+                  id={`rule-q${q}-title`}
                   value={question.title}
                   onChange={(e) =>
                     edit((draft) => {
@@ -279,18 +282,23 @@ function RuleEditor({
               <Button
                 variant="ghost"
                 disabled={doc.questions.length <= 1}
-                onClick={() =>
+                onClick={() => {
                   edit((draft) => {
                     draft.questions.splice(q, 1);
-                  })
-                }
+                  });
+                  // 지운 자리의 문항(마지막이었으면 앞 문항)으로 초점을 옮긴다. 화면 처음으로 돌아가지 않는다.
+                  const next = Math.min(q, doc.questions.length - 2);
+                  requestAnimationFrame(() =>
+                    focusElement(`rule-q${next}-title`),
+                  );
+                }}
                 aria-label={`${q + 1}번 문항 삭제`}
               >
                 <Trash2 size={16} />
                 문항 삭제
               </Button>
             </div>
-            <div className={s.tableWrap}>
+            <TableScroll label={`${q + 1}번 문항 선택지`}>
               <table className={s.choiceTable}>
                 <thead>
                   <tr>
@@ -310,6 +318,7 @@ function RuleEditor({
                       <tr key={o}>
                         <td>
                           <input
+                            id={`rule-q${q}-c${o}-text`}
                             aria-label={`${where} 문구`}
                             value={choice.text}
                             onChange={(e) =>
@@ -382,11 +391,19 @@ function RuleEditor({
                             variant="ghost"
                             disabled={question.choices.length <= 1}
                             aria-label={`${where} 삭제`}
-                            onClick={() =>
+                            onClick={() => {
                               edit((draft) => {
                                 draft.questions[q].choices.splice(o, 1);
-                              })
-                            }
+                              });
+                              // 지운 자리의 선택지(마지막이었으면 앞 선택지) 문구로 초점을 옮긴다.
+                              const next = Math.min(
+                                o,
+                                question.choices.length - 2,
+                              );
+                              requestAnimationFrame(() =>
+                                focusElement(`rule-q${q}-c${next}-text`),
+                              );
+                            }}
                           >
                             <Trash2 size={16} />
                           </Button>
@@ -396,7 +413,7 @@ function RuleEditor({
                   })}
                 </tbody>
               </table>
-            </div>
+            </TableScroll>
             <Button
               variant="outline"
               blocked={question.choices.length >= MAX_CHOICES}
