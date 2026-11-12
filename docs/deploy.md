@@ -29,7 +29,7 @@
 npm run sepolia:prepare
 ```
 
-`.env.sepolia`가 있으면 기존 키를 유지한다. 출력된 배포 주소에 faucet에서 약 0.03 Sepolia ETH를 받는다. 배포 스크립트가 잔액 0.025 ETH 이상을 확인한다. 배포 뒤 역할 지갑 5개에 0.003 ETH씩 보낸다.
+`.env.sepolia`가 있으면 기존 키를 유지한다. 출력된 배포 주소에 faucet에서 약 0.03 Sepolia ETH를 받는다. 배포 스크립트가 잔액 0.025 ETH 이상을 확인한다. 배포 뒤 역할 지갑에 테스트 ETH를 보낸다. 판매사는 진단마다 거래를 보내므로 0.006 ETH, 나머지 역할(관리자 승인, 고객, 인프라)은 0.003 ETH씩 받는다. 기존 `.env.sepolia`에 빠진 역할 키가 있으면 `sepolia:prepare`가 더한다.
 
 ```bash
 npm run contracts:build
@@ -45,7 +45,7 @@ npm run release:sepolia
 2. 빌드 설정은 `vercel.json`이 정한다. 설치 `npm ci`, 빌드 `npm run build:vercel`, 프레임워크 없음.
 3. Node.js 버전은 22.x를 쓴다. `package.json`의 `engines`와 같다.
 
-`build:vercel`은 웹 두 개를 빌드한다. 이어서 `.vercel/output`을 [Build Output API v3](https://vercel.com/docs/build-output-api) 형식으로 만든다. API는 esbuild로 한 파일에 묶는다. 증명 키, WASM, 배포 설정을 함수 디렉터리에 함께 넣는다. 배포본이 없거나 증명 키가 다르면 빌드를 멈춘다.
+`build:vercel`은 웹(페이지 세 개)을 빌드한다. 이어서 `.vercel/output`을 [Build Output API v3](https://vercel.com/docs/build-output-api) 형식으로 만든다. API는 esbuild로 한 파일에 묶는다. 증명 키, WASM, 배포 설정을 함수 디렉터리에 함께 넣는다. 배포본이 없거나 증명 키가 다르면 빌드를 멈춘다.
 
 ### 3. Upstash Redis
 
@@ -65,12 +65,13 @@ Production과 Preview에 같은 값을 넣는다.
 | `NETWORK` | `sepolia` |
 | `RPC_URL` | Sepolia RPC 주소. 없으면 `https://ethereum-sepolia-rpc.publicnode.com`을 쓴다 |
 | `DEMO_TOKEN` | 32자 이상. `.env.sepolia`의 값 |
-| `DEPLOYER_PRIVATE_KEY` 외 역할 키 5개 | `.env.sepolia`의 값. `MANAGER`, `SELLER`, `COMPLIANCE`, `CUSTOMER`, `INFRASTRUCTURE` |
+| `DEPLOYER_PRIVATE_KEY` 외 역할 키 4개 | `.env.sepolia`의 값. `SELLER`, `APPROVER`, `CUSTOMER`, `INFRASTRUCTURE` |
+| `CUSTOMER_REF_SECRET` | 선택. 고객 가명 ID를 만드는 비밀값(0x로 시작하는 hex). 없으면 판매사 키에서 만든다 |
 
 개인키는 직접 입력한다. 채팅이나 저장소에 올리지 않는다. Vercel CLI를 쓰면 값을 화면에 출력하지 않고 넣을 수 있다.
 
 ```bash
-for role in DEPLOYER MANAGER SELLER COMPLIANCE CUSTOMER INFRASTRUCTURE DEMO; do
+for role in DEPLOYER SELLER APPROVER CUSTOMER INFRASTRUCTURE DEMO; do
   key=$([ "$role" = DEMO ] && echo DEMO_TOKEN || echo "${role}_PRIVATE_KEY")
   for target in production preview; do
     grep "^${key}=" .env.sepolia | cut -d= -f2- | vercel env add "$key" "$target"

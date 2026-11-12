@@ -1,6 +1,6 @@
-# 핀베릭(FINVERIC), 펀드 판매절차 공동 검증 플랫폼
+# 핀베릭(FINVERIC), 투자상품 판매 기록 검증 플랫폼
 
-![FINVERIC 핀베릭 — 펀드 판매절차 공동 검증 플랫폼](docs/assets/cover.png)
+![FINVERIC 핀베릭 — 투자상품 판매 기록 검증 플랫폼](docs/assets/cover.png)
 
 ## 📌 목차
 
@@ -31,13 +31,13 @@
 판매사(증권사·은행)와 감독기관이 같은 판매 기록을 함께 검증하는 B2B·B2G 서비스다. 판매사는 판매 절차 시스템을 직접 만들지 않고 FINVERIC을 쓴다. 투자자는 FINVERIC 화면을 직접 쓰지 않는다. 투자자는 증권사 앱에서 가입하고, 증권사 앱이 FINVERIC API에 연결한다.
 
 1. **판매 기록과 검증 경로가 분쟁 당사자인 판매사에 몰려 있다**
-   - 투자성향 진단, 설명 확인, 추가 위험 확인, 관리자 승인을 가입 건 하나로 묶는다.
-   - 스마트컨트랙트가 증명과 필수 동의를 거래 한 건에서 검사하고 가입을 확정한다.
+   - 진단 회차마다, 청약과 최종 확인 때마다 원장에 기록한다. 가입을 중단해도 진단 회차는 남는다.
+   - 스마트컨트랙트가 회차 순서, 증명, 추가 위험 확인, 관리자 승인, 녹취, 숙려기간을 검사한다. 기록한 회차는 판매사도 바꿀 수 없다.
 2. **답변을 공개하지 않고 판정 결과를 증명한다**
-   - ZKP(Groth16)로 등록된 규칙에 따라 투자성향을 계산했음을 증명한다.
+   - ZKP(Groth16)로 원장에 등록한 진단 기준에 따라 투자성향을 계산했음을 증명한다. 진단 기준은 판매사가 버전으로 관리한다.
    - 답변, 총점, 임의값은 원장에 올리지 않는다.
 3. **판매사 API 없이 기록을 검증한다**
-   - 감독기관은 고객 파일과 공개 원장(RPC)만으로 기록을 대조한다.
+   - 감독기관은 공개 원장(RPC)만으로 판매 건, 진단 기준·설명서 원문, 위험 신호를 대조한다.
    - 원본을 바꾸면 불일치를 표시한다.
 
 ## 🖥 화면
@@ -46,15 +46,15 @@
 | ------- | ----------- | ---------------------------- | --------------------------------------------------------------------------------- |
 | 진입    | `/`         | 모두                         | 역할 선택, 시연 순서, 연결된 원장 상태                                            |
 | client  | `/client/`  | 판매사 소비자보호 담당 (B2B) | 대시보드, 진단 기준, 상품 관리, 판매·검토, 위험 신호, 온체인 처리, 판매 채널 시연 |
-| auditor | `/auditor/` | 감독기관 (B2G)               | 분쟁 조회                                                                         |
+| auditor | `/auditor/` | 감독기관 (B2G)               | 대시보드, 분쟁 조회, 기준 감사, 상품 감사, 위험 신호, 보고서                      |
 
-| 진입 화면                                                | 대시보드 (client)                                     |
-| -------------------------------------------------------- | ----------------------------------------------------- |
-| ![진입 화면](docs/assets/screens/entry.png)              | ![대시보드](docs/assets/screens/client-dashboard.png) |
-| **진단 기준 (client)**                                   | **판매·검토 (client)**                                |
-| ![진단 기준](docs/assets/screens/client-rules.png)       | ![판매·검토](docs/assets/screens/client-review.png)   |
-| **가입 기록 확인 (client · 판매 채널 시연)**             | **분쟁 조회 (auditor)**                               |
-| ![가입 기록 확인](docs/assets/screens/client-verify.png) | ![분쟁 조회](docs/assets/screens/auditor-dispute.png) |
+| 진입 화면                                                       | 진단 기준 (client)                                       |
+| --------------------------------------------------------------- | -------------------------------------------------------- |
+| ![진입 화면](docs/assets/screens/entry.png)                     | ![진단 기준](docs/assets/screens/client-rules.png)       |
+| **판매·검토 (client)**                                          | **가입 기록 확인 (client · 판매 채널 시연)**             |
+| ![판매·검토](docs/assets/screens/client-review.png)             | ![가입 기록 확인](docs/assets/screens/client-verify.png) |
+| **대시보드 (auditor)**                                          | **분쟁 조회 (auditor)**                                  |
+| ![감독기관 대시보드](docs/assets/screens/auditor-dashboard.png) | ![분쟁 조회](docs/assets/screens/auditor-dispute.png)    |
 
 판매 채널 시연은 증권사 앱에서 고객이 보는 화면을 재현한다. 고객은 FINVERIC 화면을 직접 쓰지 않는다. 가입 기록 확인은 고객이 증명서로 기록을 확인하는 모습을 보여 주는 테스트 화면이다. 캡처는 로컬 Anvil 시연 원장에서 찍었다.
 
@@ -62,7 +62,8 @@
 
 ![FINVERIC 시스템 아키텍처](docs/assets/architecture.png)
 
-- 웹 두 개와 API를 Vercel 프로젝트 하나, 같은 도메인에 둔다. 루트 `/`는 `/client/`로 보낸다.
+- 웹(Vite 앱 하나, 페이지 세 개)과 API를 Vercel 프로젝트 하나, 같은 도메인에 둔다. 루트 `/`는 진입 화면이다. ([ADR 0006](docs/adr/0006-seller-console-and-single-web-app.md))
+- 원장 v5는 진단 기준과 설명서 원문을 이벤트에 남긴다. 감독기관 화면은 판매사 API 없이 원장에서 읽는다. ([ADR 0005](docs/adr/0005-ledger-v5-registered-rules.md))
 - API는 경로 → 업무 절차 → 리포지토리·게이트웨이 계층으로 나눈다. ([ADR 0004](docs/adr/0004-api-layers.md))
 - 요청·응답 DTO와 판정·검증 로직은 `packages/core`에 두고 웹과 API가 함께 쓴다.
 - 판매 기록은 로컬에서는 파일에, 배포에서는 Upstash Redis에 둔다. 별도 DB 서버는 없다.
@@ -153,7 +154,7 @@ npm run dev
 ### 처음 써 보기
 
 1. client의 **상품 관리**에서 **상품·진단 기준 등록**을 누른다.
-2. **판매 채널 시연 › 펀드 찾기**에서 펀드를 고르고 진단부터 가입까지 진행한다.
+2. **판매 채널 시연 › 상품 찾기**에서 상품을 고르고 진단부터 청약, 숙려, 최종 확인까지 진행한다.
 3. **내 가입 기록**에서 **가입 기록 확인하기**를 눌러 고객이 보는 확인 결과를 본다.
 4. auditor의 **분쟁 조회**에서 같은 판매 건을 원장과 대조한다.
 
@@ -169,16 +170,16 @@ npm run dev
 
 ### 개발
 
-- `main` 브랜치에 커밋하고 push한다. push할 때마다 GitHub Actions가 증명 키 생성, 원장 검사(Foundry), 통합 검사, 빌드를 실행한다.
+- `main` 브랜치에 커밋하고 push한다. 검사는 로컬에서 `npm run contracts:test`, `npm test`, `npm run build`로 돌린다. GitHub Actions 검사(증명 키 생성, 원장 검사, 통합 검사, 빌드)는 지금 자동으로 돌리지 않는다. 필요하면 Actions 탭에서 수동으로 실행한다.
 - 결정을 바꾸면 [결정 기록(ADR)](docs/adr/)을 추가한다.
 - 영역별 작업 규칙은 각 폴더의 `AGENTS.md`에 있다.
 
 ### 실제 처리와 모의 처리
 
 - 실제: ZKP 생성·검증, 원장 거래, 영수증·이벤트 조회, 원본 대조
-- 모의: 본인인증, 전자서명, 자금 이동, 펀드 매입 결과
+- 모의: 본인인증, 전자서명, 녹취, 자금 이동, 결제·발행 결과
 - 증명 키는 단일 운영자가 만든 시연용 trusted setup이다. 운영에 쓰지 않는다.
-- 감독기관의 공식 참여와 실제 펀드넷 연동은 설계 가정이다.
+- 감독기관의 공식 참여와 실제 판매 시스템 연동은 설계 가정이다.
 
 ## 📂 구조와 명령어
 
@@ -197,16 +198,15 @@ tests/         통합 검사
 docs/          문서, 그림(assets/)
 ```
 
-| 명령                                                             | 내용                                                            |
-| ---------------------------------------------------------------- | --------------------------------------------------------------- |
-| `docker compose up --build -d`                                   | Docker로 Anvil, API, client, auditor를 실행한다                 |
-| `npm run dev`                                                    | Node로 Anvil, API, client, auditor를 실행한다                   |
-| `npm test`                                                       | 실제 회로·EVM·API 통합 검사와 저장소·잠금 검사                  |
-| `npm run contracts:test`                                         | 원장의 단계·권한 검사 (Foundry)                                 |
-| `npm run build`                                                  | 타입 검사와 웹 빌드                                             |
-| `npm run demo`                                                   | 세 상품의 가입을 자동 시연한다. 결과는 `.local/demo/v4/`에 둔다 |
-| `npm run demo:attacks`                                           | 중복 가입, 증명 재사용, 공개 입력 변경이 거절되는지 시연한다    |
-| `npm run sepolia:prepare` → `deploy:sepolia` → `release:sepolia` | Sepolia 원장 배포 ([배포](docs/deploy.md))                      |
-| `npm run build:vercel`                                           | Vercel 결과물(`.vercel/output`)을 만든다                        |
+| 명령                                                             | 내용                                                                                                |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `docker compose up --build -d`                                   | Docker로 Anvil, API, 웹을 실행한다                                                                  |
+| `npm run dev`                                                    | Node로 Anvil, API, 웹을 실행한다                                                                    |
+| `npm test`                                                       | 실제 회로·EVM·API 통합 검사와 저장소·잠금 검사                                                      |
+| `npm run contracts:test`                                         | 원장의 단계·권한 검사 (Foundry)                                                                     |
+| `npm run build`                                                  | 타입 검사와 웹 빌드                                                                                 |
+| `npm run demo -- --api <API 주소> --rpc <RPC 주소>`              | 시연 데이터를 API로 채운다(진단 3회, 관리자 승인, 확정한 가입 2건). 결과는 `.local/demo/v5/`에 둔다 |
+| `npm run sepolia:prepare` → `deploy:sepolia` → `release:sepolia` | Sepolia 원장 배포 ([배포](docs/deploy.md))                                                          |
+| `npm run build:vercel`                                           | Vercel 결과물(`.vercel/output`)을 만든다                                                            |
 
 화면 규칙과 디자인 토큰은 [DESIGN.md](DESIGN.md), 작업 규칙은 [AGENTS.md](AGENTS.md)에 있다.
