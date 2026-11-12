@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import {
   createPublicClient,
   createWalletClient,
@@ -47,6 +47,8 @@ test(
   "실제 회로·EVM·API·독립 검증으로 MVP 전체 경로를 검증한다",
   { timeout: 180_000 },
   async (t) => {
+    // 새로 받은 저장소에는 .local이 없다.
+    mkdirSync(".local", { recursive: true, mode: 0o700 });
     const directory = mkdtempSync(".local/test-");
     const node = spawn(
       foundryBinary("anvil"),
