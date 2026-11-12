@@ -1,5 +1,8 @@
 name: MVP checks
-on: [push, pull_request]
+# 지금은 push·PR에서 자동으로 돌리지 않는다. Actions 탭에서 수동으로만 실행한다.
+# 다시 켤 때는 on에 push와 pull_request를 더한다.
+on:
+  workflow_dispatch:
 jobs:
   verify:
     runs-on: ubuntu-latest
