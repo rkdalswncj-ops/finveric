@@ -5,6 +5,7 @@ import {
   DEMO_CUSTOMER_NO,
   DEMO_PRODUCTS,
   DEMO_RULE,
+  recordingHash,
   type LedgerError,
 } from "@finveric/core";
 import { LEDGER_ERROR_CODES, type ErrorCode } from "@finveric/core/errors";
@@ -27,8 +28,11 @@ import {
   type HealthResponse,
   type IssueApiKeyRequest,
   type OpenSaleRequest,
+  type SaleDto,
+  type SaleStatus,
   type SubscribeRequest,
   type TamperRequest,
+  type TraceDto,
 } from "@finveric/core/api";
 
 export const TAGS = [
@@ -76,10 +80,164 @@ export type Operation = {
 };
 
 const arrayOf = (items: object) => ({ type: "array", items });
-const sale = (description: string) => ({
-  200: { description, schema: saleSchema },
-});
 const [els] = DEMO_PRODUCTS;
+
+// ── 판매 건 응답 예시 ───────────────────────────────────────
+// 경로마다 그 결과 상태의 예시를 둔다. 없으면 문서 화면이 스키마의 첫 값으로 예시를 만들어서 모든 응답이 status: draft로 보인다.
+// 시연 고객(3회차, 관리자 승인 필요)이 고난도 ELS(부적합, 녹취·숙려 대상)에 가입하는 흐름이다.
+// 숙려 시간은 시연 값 60초다. 원장 거래 기록의 `detail`(거래 영수증)은 길어서 예시에서 뺀다.
+const SALE_ID =
+  "4271985206413397846153087021933850614795261143808975106625139452705981023416";
+const CUSTOMER_REF =
+  "0x22ef294e95072e3238b53449794664bb8486aa7ab7f0da7ffe0a389c59bdba5a";
+/** 신청 시각(2026-11-13T05:00:00Z, 초). 다른 시각은 여기서 센다. */
+const OPENED_AT = 1_794_546_000;
+const SUBSCRIBED_AT = OPENED_AT + 120;
+const CONFIRMED_AT = SUBSCRIBED_AT + 90;
+const iso = (seconds: number) => new Date(seconds * 1000).toISOString();
+
+const approvalTrace: TraceDto = {
+  id: "0f6b2c1e-4d7a-4e3b-9c58-1a2d3e4f5a01",
+  at: iso(OPENED_AT + 60),
+  saleId: SALE_ID,
+  customerRef: CUSTOMER_REF,
+  source: "approver",
+  action: "관리자 승인 서명",
+  status: "confirmed",
+  detail: { attempt: 3 },
+};
+/** 원장 거래 기록. `n`은 기록 순서다. 거래 해시는 예시 값이다. */
+const ledgerTrace = (
+  n: number,
+  source: string,
+  action: string,
+  event: string,
+  at: number,
+): TraceDto => ({
+  id: `0f6b2c1e-4d7a-4e3b-9c58-1a2d3e4f5a0${n}`,
+  at: iso(at),
+  source,
+  action,
+  status: "confirmed",
+  saleId: SALE_ID,
+  customerRef: CUSTOMER_REF,
+  txHash: recordingHash(`예시 거래 ${action}`),
+  blockNumber: String(20 + n),
+  event,
+});
+const subscribeTrace = ledgerTrace(
+  2,
+  "customer",
+  "subscribe",
+  "SaleSubscribed",
+  SUBSCRIBED_AT,
+);
+const confirmTrace = ledgerTrace(
+  3,
+  "customer",
+  "confirm",
+  "EnrollmentConfirmed",
+  CONFIRMED_AT,
+);
+/** 원장 getSale 결과. status는 1 청약, 2 확정, 3 철회다. */
+const chainSale = (
+  status: 1 | 2 | 3,
+  at: { confirmedAt?: number; withdrawnAt?: number; settledAt?: number } = {},
+): NonNullable<SaleDto["chain"]> => ({
+  customerRef: BigInt(CUSTOMER_REF).toString(),
+  productId: els.id,
+  recordingHash: recordingHash("예시 녹취록"),
+  amount: "10000000",
+  productVersion: els.document.version,
+  attempt: 3,
+  explanationSeconds: 180,
+  suitable: false,
+  protectedSale: true,
+  higherRiskConfirmed: true,
+  approved: true,
+  status,
+  subscribedAt: String(SUBSCRIBED_AT),
+  confirmedAt: String(at.confirmedAt ?? 0),
+  withdrawnAt: String(at.withdrawnAt ?? 0),
+  settledAt: String(at.settledAt ?? 0),
+});
+/** 판매 건 예시. 필드 순서는 실제 응답(`apps/api/src/modules/records.ts`)과 같다. */
+const saleExample = (
+  status: SaleStatus,
+  traces: TraceDto[],
+  chain?: NonNullable<SaleDto["chain"]>,
+): SaleDto => ({
+  id: SALE_ID,
+  customerRef: CUSTOMER_REF,
+  productId: els.id,
+  productVersion: els.document.version,
+  amount: 10_000_000,
+  createdAt: iso(OPENED_AT),
+  status,
+  latestAttempt: 3,
+  approvalRequired: true,
+  ...(traces.includes(approvalTrace) ? { approvedAttempt: 3 } : {}),
+  suitable: false,
+  protectedSale: true,
+  ...(chain ? { coolingEndsAt: SUBSCRIBED_AT + 60 } : {}),
+  settled: chain ? chain.settledAt !== "0" : false,
+  ...(chain ? { chain } : {}),
+  submissionPending: false,
+  traces,
+});
+const SALE_EXAMPLES = {
+  draft: saleExample("draft", []),
+  approved: saleExample("draft", [approvalTrace]),
+  abandoned: saleExample("abandoned", [
+    {
+      id: "0f6b2c1e-4d7a-4e3b-9c58-1a2d3e4f5a09",
+      at: iso(OPENED_AT + 60),
+      saleId: SALE_ID,
+      customerRef: CUSTOMER_REF,
+      source: "판매 채널",
+      action: "가입 중단",
+      status: "confirmed",
+    },
+  ]),
+  subscribed: saleExample(
+    "subscribed",
+    [approvalTrace, subscribeTrace],
+    chainSale(1),
+  ),
+  confirmed: saleExample(
+    "confirmed",
+    [approvalTrace, subscribeTrace, confirmTrace],
+    chainSale(2, { confirmedAt: CONFIRMED_AT }),
+  ),
+  withdrawn: saleExample(
+    "withdrawn",
+    [
+      approvalTrace,
+      subscribeTrace,
+      ledgerTrace(3, "customer", "withdraw", "SaleWithdrawn", CONFIRMED_AT),
+    ],
+    chainSale(3, { withdrawnAt: CONFIRMED_AT }),
+  ),
+  settled: saleExample(
+    "confirmed",
+    [
+      approvalTrace,
+      subscribeTrace,
+      confirmTrace,
+      ledgerTrace(
+        4,
+        "infrastructure",
+        "recordSettlement",
+        "SettlementRecorded",
+        CONFIRMED_AT + 60,
+      ),
+    ],
+    chainSale(2, { confirmedAt: CONFIRMED_AT, settledAt: CONFIRMED_AT + 60 }),
+  ),
+} satisfies Record<string, SaleDto>;
+const sale = (description: string, example: SaleDto) => ({
+  200: { description, schema: saleSchema, example },
+});
 /**
  * 원장 거래를 보내는 경로의 오류. `ledger`는 그 원장 함수가 거절할 수 있는 오류 이름이다(contracts/src/FundLedger.sol).
  * 미확정 거래, 영수증 대기, 거래 제출 실패, 영수증의 이벤트 누락도 함께 생긴다.
@@ -95,7 +253,7 @@ const sends = (...ledger: LedgerError[]): ErrorCode[] => [
 
 /** 경로 값 예시. 이름이 같으면 모든 경로에 쓴다. */
 export const PARAMETER_EXAMPLES: Record<string, string> = {
-  id: "4271985206413397846153087021933850614795261143808975106625139452705981023416",
+  id: SALE_ID,
   customerNo: DEMO_CUSTOMER_NO,
   kind: "receipt",
 };
@@ -171,7 +329,7 @@ export const OPERATIONS: Record<string, Operation> = {
     summary: "가입 신청",
     description:
       "고객과 상품으로 청약 전 신청(초안)을 만듭니다. 상품의 최신 설명서 버전을 씁니다. 원장 거래는 보내지 않습니다.",
-    responses: sale("만든 판매 건(status: draft)"),
+    responses: sale("만든 판매 건(status: draft)", SALE_EXAMPLES.draft),
     errors: ["PRODUCT_NOT_REGISTERED", "STORED_RECORD_MISMATCH"],
     example: {
       productId: els.id,
@@ -184,7 +342,10 @@ export const OPERATIONS: Record<string, Operation> = {
     summary: "판매 건 조회",
     description:
       "판매 건의 상태, 적합 여부, 승인 필요 여부, 처리 기록을 돌려줍니다. 청약 뒤의 상태는 원장에서 읽습니다.",
-    responses: sale("판매 건"),
+    responses: sale(
+      "판매 건. 예시는 숙려 중인 청약입니다(status: subscribed).",
+      SALE_EXAMPLES.subscribed,
+    ),
     errors: ["SALE_NOT_FOUND", "STORED_RECORD_MISMATCH"],
   },
   "POST /api/sales/:id/action/subscribe": {
@@ -193,7 +354,10 @@ export const OPERATIONS: Record<string, Operation> = {
     summary: "청약",
     description:
       "고객 키로 청약 거래를 보냅니다. 부적합이면 `higherRiskConfirmed`가 true여야 합니다. 녹취·숙려 대상이면 `recordingConsent`가 true여야 하고, 서버가 녹취록 지문을 기록합니다. 최신 회차가 3 이상이면 관리자 승인(`approveSale`)이 먼저 필요합니다. 조건이 빠지면 409와 함께 `code`로 이유를 알립니다: `DIAGNOSIS_REQUIRED`, `HIGHER_RISK_CONFIRMATION_REQUIRED`, `APPROVAL_REQUIRED`, `RECORDING_CONSENT_REQUIRED`, `PRODUCT_VERSION_CHANGED`, `SALE_ABANDONED`. 이미 청약한 건은 거래를 다시 보내지 않습니다.",
-    responses: sale("청약한 판매 건(status: subscribed)"),
+    responses: sale(
+      "청약한 판매 건(status: subscribed)",
+      SALE_EXAMPLES.subscribed,
+    ),
     errors: [
       "SALE_NOT_FOUND",
       "APPROVAL_REQUIRED",
@@ -223,7 +387,10 @@ export const OPERATIONS: Record<string, Operation> = {
     summary: "최종 확인",
     description:
       "고객 키로 가입을 확정합니다. 녹취·숙려 대상은 `coolingEndsAt`이 지나야 합니다. 그전에는 원장이 `TooEarly`로 거절합니다. 이미 확정한 건은 거래를 다시 보내지 않습니다.",
-    responses: sale("확정한 판매 건(status: confirmed)"),
+    responses: sale(
+      "확정한 판매 건(status: confirmed)",
+      SALE_EXAMPLES.confirmed,
+    ),
     errors: [
       "SALE_NOT_FOUND",
       ...sends("TooEarly", "InvalidState", "Unauthorized"),
@@ -235,7 +402,10 @@ export const OPERATIONS: Record<string, Operation> = {
     tag: "판매 채널 연동",
     summary: "청약 철회",
     description: "최종 확인 전의 청약을 고객 키로 철회합니다.",
-    responses: sale("철회한 판매 건(status: withdrawn)"),
+    responses: sale(
+      "철회한 판매 건(status: withdrawn)",
+      SALE_EXAMPLES.withdrawn,
+    ),
     errors: [
       "SALE_NOT_FOUND",
       "WITHDRAW_NOT_ALLOWED",
@@ -248,7 +418,10 @@ export const OPERATIONS: Record<string, Operation> = {
     summary: "신청 중단",
     description:
       "청약 전 신청을 중단합니다. 원장 거래는 없습니다. 이미 기록한 진단 회차는 원장에 남습니다.",
-    responses: sale("중단한 판매 건(status: abandoned)"),
+    responses: sale(
+      "중단한 판매 건(status: abandoned)",
+      SALE_EXAMPLES.abandoned,
+    ),
     errors: ["SALE_NOT_FOUND", "SALE_ALREADY_SUBSCRIBED", "STORED_RECORD_MISMATCH"],
   },
   "GET /api/sales/:id/export/:kind": {
@@ -324,7 +497,11 @@ export const OPERATIONS: Record<string, Operation> = {
     description:
       "모든 판매 건을 돌려줍니다. 판매사 콘솔의 판매·검토 화면이 씁니다.",
     responses: {
-      200: { description: "판매 건 목록", schema: arrayOf(saleSchema) },
+      200: {
+        description: "판매 건 목록",
+        schema: arrayOf(saleSchema),
+        example: [SALE_EXAMPLES.confirmed],
+      },
     },
     errors: ["STORED_RECORD_MISMATCH"],
   },
@@ -334,7 +511,10 @@ export const OPERATIONS: Record<string, Operation> = {
     summary: "관리자 승인",
     description:
       "최신 회차가 3 이상인 고객의 청약 전에 승인자 키로 승인 서명을 만듭니다. 서명은 청약 거래에 들어갑니다. 고객이 다시 진단하면 새로 승인해야 합니다.",
-    responses: sale("승인한 판매 건(approvedAttempt 포함)"),
+    responses: sale(
+      "승인한 판매 건(status: draft, approvedAttempt 포함)",
+      SALE_EXAMPLES.approved,
+    ),
     errors: [
       "SALE_NOT_FOUND",
       "APPROVAL_NOT_NEEDED",
@@ -349,7 +529,10 @@ export const OPERATIONS: Record<string, Operation> = {
     summary: "결제 기록",
     description:
       "확정한 건의 결제 완료를 업무 인프라 키로 원장에 기록합니다. 이미 기록했으면 거래를 다시 보내지 않습니다.",
-    responses: sale("결제를 기록한 판매 건(settled: true)"),
+    responses: sale(
+      "결제를 기록한 판매 건(status: confirmed, settled: true)",
+      SALE_EXAMPLES.settled,
+    ),
     errors: [
       "SALE_NOT_FOUND",
       "SETTLEMENT_NOT_ALLOWED",

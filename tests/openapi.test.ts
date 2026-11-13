@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PUBLIC_PATHS } from "../apps/api/src/app.ts";
 import { offlineApp } from "./offline-app.ts";
+import { responseChecker } from "./openapi-check.ts";
 import { OPERATIONS, TAGS } from "../apps/api/src/docs/operations.ts";
 import {
   ERROR_CODES,
@@ -241,6 +242,36 @@ test("OpenAPI 3.1 문서가 등록한 모든 경로를 분류와 operationId로 
     assert.ok(message.split(". ").length >= 2, `${code}: 원인과 다음 행동`);
     assert.match(description, /다\.$/, `${code}: 설명`);
   }
+});
+
+test("성공 응답 예시는 응답 스키마와 맞고, 판매 건 예시는 설명에 적은 상태다", async (t) => {
+  const app = await offlineApp(t);
+  const spec = (await app.inject({ url: "/api/openapi.json" })).json();
+  const docs = responseChecker(spec);
+  const sales: string[] = [];
+  for (const [path, item] of Object.entries<any>(spec.paths))
+    for (const [method, op] of Object.entries<any>(item))
+      for (const [status, response] of Object.entries<any>(op.responses)) {
+        const media = response.content?.["application/json"];
+        if (Number(status) >= 300 || media?.example === undefined) continue;
+        // 문서에 없는 필드가 있어도 실패한다(openapi-check.ts).
+        docs.check(method, path, Number(status), media.example);
+        if (media.schema.$ref !== "#/components/schemas/Sale") continue;
+        // 문서 화면은 예시가 없으면 스키마의 첫 값(draft)을 보여 준다. 판매 건 응답은 모두 예시가 있어야 한다.
+        const expected = /status: (\w+)/.exec(response.description)?.[1];
+        assert.ok(expected, `${op.operationId}: 설명에 status 없음`);
+        assert.equal(media.example.status, expected, op.operationId);
+        sales.push(op.operationId);
+      }
+  const saleResponses = Object.values<any>(spec.paths).flatMap((item) =>
+    Object.values<any>(item).filter(
+      (op) =>
+        op.responses[200]?.content?.["application/json"]?.schema.$ref ===
+        "#/components/schemas/Sale",
+    ),
+  );
+  assert.equal(sales.length, saleResponses.length);
+  assert.ok(sales.length >= 8, sales.join(", "));
 });
 
 test("오류 code는 이름이 하나뿐이고, 공통 오류이거나 어떤 경로의 문서에 있다", async (t) => {

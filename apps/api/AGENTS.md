@@ -65,7 +65,7 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
   - 목차 위에 검색 칸이 있다. 요약, 경로, 메서드, operationId로 목차를 거른다. `/`나 Ctrl·⌘+K로 초점을 옮기고, Esc로 지운다. 결과 수는 화면 낭독기가 읽는다.
   - 분류마다 API 목록(메서드, 요약, 경로, 인증)으로 시작한다. 경로 제목 옆에 인증 배지(공개, 접근 코드, 접근 코드 · API 키)를 둔다.
   - 요청 예시는 curl, Node.js(`fetch`), Python(`requests`)이다. 고른 언어는 화면 전체에 적용하고 `localStorage`에 기억한다. 인증 헤더는 분류로 정한다. `판매 채널 연동`은 `$FINVERIC_API_KEY`, 나머지는 `$FINVERIC_ACCESS_CODE`, 공개 경로는 헤더가 없다. 본문은 `operations.ts`의 요청 예시다.
-  - 응답 예시는 상태 코드마다 탭으로 보인다. 응답에 `example`이 있으면 그 값을 쓴다. 없으면 응답 스키마에서 만든다: `example`·`examples`, `enum[0]`, `const`, 형식(`date-time`)과 정규식, 경로 값 예시(같은 정규식), 배열은 항목 하나. 오류 응답은 그 경로의 대표 `code` 예시다. 만든 값이 업무와 어긋나면 `operations.ts`의 성공 응답에 `example`을 넣는다(예: `GET /api/health`의 503).
+  - 응답 예시는 상태 코드마다 탭으로 보인다. 응답에 `example`이 있으면 그 값을 쓴다. 없으면 응답 스키마에서 만든다: `example`·`examples`, `enum[0]`, `const`, 형식(`date-time`)과 정규식, 경로 값 예시(같은 정규식), 배열은 항목 하나. 오류 응답은 그 경로의 대표 `code` 예시다. 만든 값이 업무와 어긋나면 `operations.ts`의 성공 응답에 `example`을 넣는다(예: `GET /api/health`의 503). 판매 건 응답은 모두 결과 상태의 예시(`SALE_EXAMPLES`)를 쓴다. 넣지 않으면 스키마의 첫 값이라 모든 판매 건이 `status: draft`로 보인다. 설명에는 `status: <값>`을 적는다.
   - 경로마다 "이 API의 오류" 표(HTTP 상태, `code`, 메시지)를 둔다. `x-errors`에서 공통이 아닌 `code`를 상태 순서로 보여 주고, 공통 오류는 표 아래 한 줄에 둔다. `code`는 오류 코드 표의 그 행으로 연결한다.
   - 오류 코드 표는 `x-error-types`, `x-error-codes`, `x-ledger-errors`로 그린다. 표 하나를 `type`으로 묶는다. 묶음 머리에 `type`, HTTP 상태, 뜻, 다음 행동을, 행마다 `code`, HTTP 상태, 설명, 메시지를 둔다. 공통 오류에는 "공통" 배지를 단다. 원장 오류 표(`ledgerError`, `code`, 뜻과 다음 행동)는 따로 둔다. 설명의 `### 오류 코드` 묶음은 화면에 따로 보이지 않는다. 설명 안의 `type`, `code`, `ledgerError`, operationId 이름은 그 항목으로 연결한다.
 - 문서 화면은 외부 파일과 CDN을 쓰지 않는다. Vercel 함수 번들에 문자열로 들어간다. 색, 글자 크기(`--type-*`), 반경은 DESIGN.md 토큰을 그대로 쓴다. `apps/web/src/shared/theme.css`를 가져올 수 없으므로 값을 `STYLE`의 `:root`에 옮겨 둔다. 토큰을 바꾸면 두 곳을 함께 고친다.
@@ -124,7 +124,7 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
 
 - `tests/mvp.test.ts`: 실제 회로·EVM·API·독립 검증, 위험 신호, 공유 저장소 인스턴스, 재시작 복구.
 - `tests/store.test.ts`: 잠금, 만료, 오류 노출, 출처, Vercel 주소 변환.
-- `tests/openapi.test.ts`: 문서가 등록한 모든 경로를 operationId·태그로 설명하는지, 공개 경로, 문서 화면, 오류 코드 표(`x-error-types`·`x-error-codes`·`x-ledger-errors`), 경로별 오류(`x-errors`)와 예시, `code` 이름(하나뿐, `UPPER_SNAKE_CASE`, 공통이거나 어떤 경로의 문서에 있음), 4xx 상태 코드와 `type`·`code`.
+- `tests/openapi.test.ts`: 문서가 등록한 모든 경로를 operationId·태그로 설명하는지, 공개 경로, 문서 화면, 오류 코드 표(`x-error-types`·`x-error-codes`·`x-ledger-errors`), 경로별 오류(`x-errors`)와 예시, 성공 응답 예시(응답 스키마와 맞는지, 판매 건 예시의 `status`가 설명과 같은지), `code` 이름(하나뿐, `UPPER_SNAKE_CASE`, 공통이거나 어떤 경로의 문서에 있음), 4xx 상태 코드와 `type`·`code`.
 - `tests/keys.test.ts`: API 키 발급·저장(해시만), 범위(403), 폐기(401), 개수 제한, 키별 요청 한도. 모든 응답을 문서의 응답 스키마와 대조한다.
 - `tests/mvp.test.ts`는 모든 API 응답을 `/api/openapi.json`의 응답 스키마와 대조한다(`tests/openapi-check.ts`). 문서에 없는 필드도 실패다. 오류 응답에 `type`이나 `code`가 없어도 실패다. 오류 응답의 `code`가 그 경로의 `x-errors`에 없거나, `type`·상태가 오류 코드 표와 달라도 실패다.
 - 함수 번들: `NETWORK=local npm run build:vercel` 뒤 임시 디렉터리에서 로컬 Anvil로 번들 핸들러를 호출해 확인한다.
