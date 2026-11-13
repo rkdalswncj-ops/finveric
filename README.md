@@ -179,7 +179,7 @@ npm run dev
 
 - 시연 전에는 [QA 체크리스트](docs/qa.md)로 화면을 점검한다. 발견한 문제는 GitHub 이슈(`QA 이슈` 템플릿)로 남기고 차수 기록에 이슈 번호를 적는다.
 - `main` 브랜치에 커밋하고 push한다. 검사는 로컬에서 `npm run contracts:test`, `npm test`, `npm run build`로 돌린다. GitHub Actions 검사(증명 키 생성, 원장 검사, 통합 검사, 빌드)는 지금 자동으로 돌리지 않는다. 필요하면 Actions 탭에서 수동으로 실행한다.
-- 결정을 바꾸면 [결정 기록(ADR)](docs/adr/)을 추가한다.
+- 되돌리기 어렵고, 맥락 없이는 의아하고, 대안 중에 고른 결정만 [결정 기록(ADR)](docs/adr/)으로 남긴다. 기준은 [docs/AGENTS.md](docs/AGENTS.md#adr)에 있다.
 - 영역별 작업 규칙은 각 폴더의 `AGENTS.md`에 있다.
 
 ### 실제 처리와 모의 처리
