@@ -28,6 +28,8 @@ colors:
   selection: "#DCE8FF"
   selection-foreground: "#173E91"
   scrollbar: "#848E9A"
+  method-post: "#6D28D9"
+  method-post-surface: "#F3EEFF"
   shadow: "#191F282E"
   overlay: "#191F2873"
 typography:
@@ -152,7 +154,7 @@ YAML의 색상을 [shadcn/ui 테마 변수](https://ui.shadcn.com/docs/theming)�
 - `Badge`와 `Notice`의 `tone`은 `neutral`, `info`, `success`, `warning`, `danger` 다섯 가지다(`apps/web/src/shared/components.tsx`의 `Tone`). 색 이름(`blue` 등)은 쓰지 않는다.
 - 선택한 행과 고른 기록은 `primary-surface` 바탕에 더해 왼쪽 3px `primary` 막대로 표시한다. 현재 메뉴도 같은 막대를 쓴다. 가로 메뉴(640px 이하)에서는 아래 막대, 증권사 앱의 탭 막대에서는 위 막대다. 색만으로 상태를 나타내지 않는다.
 
-`primary-surface`는 선택한 행, 현재 메뉴, 파란 배지, 처리 중·대기 상자의 바탕이다. `product-fund`, `product-elb`와 각 `-surface`는 증권사 앱 예시의 상품 유형 기호에만 쓴다. 펀드 기호는 `success`와 색상이 겹치지 않는 청록이다. ELS 기호는 `primary`를 쓴다. `selection`은 끌어서 고른 글자, `scrollbar`는 스크롤 막대에 쓴다. `scrollbar`는 `muted` 바탕에서 3:1 이상이다. `shadow`는 떠 있는 요소(콘솔의 오류 알림, 아래 동작 막대)와 표 스크롤 가장자리의 그림자, `overlay`는 확인 창 뒤의 덮개다. 색 값은 `apps/web/src/shared/theme.css`의 `:root`에만 둔다.
+`primary-surface`는 선택한 행, 현재 메뉴, 파란 배지, 처리 중·대기 상자의 바탕이다. `product-fund`, `product-elb`와 각 `-surface`는 증권사 앱 예시의 상품 유형 기호에만 쓴다. 펀드 기호는 `success`와 색상이 겹치지 않는 청록이다. ELS 기호는 `primary`를 쓴다. `selection`은 끌어서 고른 글자, `scrollbar`는 스크롤 막대에 쓴다. `scrollbar`는 `muted` 바탕에서 3:1 이상이다. `shadow`는 떠 있는 요소(콘솔의 오류 알림, 아래 동작 막대)와 표 스크롤 가장자리의 그림자, `overlay`는 확인 창 뒤의 덮개다. `method-post`와 `method-post-surface`는 API 문서의 POST 배지에만 쓴다. GET 배지는 `primary`다. 메서드에는 상태 색을 쓰지 않는다. 색 값은 `apps/web/src/shared/theme.css`의 `:root`에만 둔다. API 문서만 쓰는 메서드 색은 `apps/api/src/docs/page.ts`의 `:root`에 둔다.
 
 ## Typography
 

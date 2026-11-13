@@ -17,6 +17,9 @@ const STYLE = `
   --primary-foreground: #ffffff;
   --primary-hover: #1d4ed8;
   --primary-surface: #edf3ff;
+  /* 메서드 색. GET은 primary를 쓰고 POST는 보라다. 상태 색(성공·주의·실패)과 겹치지 않는다. */
+  --method-post: #6d28d9;
+  --method-post-surface: #f3eeff;
   --ring: #1d4ed8;
   --success: #116149;
   --success-surface: #eaf6ef;
@@ -306,7 +309,7 @@ li code.op-index-path { background: none; padding: 0; }
 .block { margin-top: 20px; }
 .block > h4 { font-size: var(--type-detail); color: var(--muted-foreground); font-weight: 600; margin-bottom: 8px; }
 
-/* 메서드는 종류다. 상태 색(성공·주의)을 쓰지 않고 두 메서드 모두 파란 안내 색이다. */
+/* 메서드는 종류다. 상태 색(성공·주의·실패)을 쓰지 않는다. GET(읽기)은 파랑, POST(기록을 바꾸는 요청)는 보라다. */
 .method {
   display: inline-block;
   font: 600 var(--type-caption)/1 var(--mono);
@@ -314,6 +317,10 @@ li code.op-index-path { background: none; padding: 0; }
   border-radius: 5px;
   background: var(--primary-surface);
   color: var(--primary);
+}
+.method.post {
+  background: var(--method-post-surface);
+  color: var(--method-post);
 }
 /* 필수·선택과 인증 표시는 종류다. 중립 배지에 굵기와 아이콘으로만 구분한다. */
 .badge {
@@ -1190,7 +1197,7 @@ const SCRIPT = String.raw`
     return h("section", { class: "op", id: id, "aria-labelledby": id + "-title", "data-spy": "" },
       h("div", { class: "op-main" },
         h("div", { class: "op-head" },
-          h("span", { class: "method" }, method.toUpperCase()),
+          h("span", { class: "method " + method.toLowerCase() }, method.toUpperCase()),
           h("code", { class: "path" }, pathParts(path))),
         h("div", { class: "op-title" },
           h("h3", { id: id + "-title" }, h("a", { href: "#" + id }, op.summary || path)),
@@ -1225,7 +1232,7 @@ const SCRIPT = String.raw`
       group.tag.description ? h("p", null, inline(group.tag.description)) : null,
       h("ul", { class: "op-index", "aria-label": group.tag.name + " API 목록" }, group.ops.map(function (item) {
         return h("li", null, h("a", { href: "#op-" + item.op.operationId, class: "jump" },
-          h("span", { class: "method" }, item.method.toUpperCase()),
+          h("span", { class: "method " + item.method.toLowerCase() }, item.method.toUpperCase()),
           h("span", { class: "op-index-text" },
             h("span", { class: "op-index-summary" }, item.op.summary),
             h("code", { class: "op-index-path" }, pathParts(item.path))),
@@ -1446,7 +1453,7 @@ const SCRIPT = String.raw`
         h("ul", { "aria-labelledby": "toc-" + i }, g.ops.map(function (item) {
           var text = [item.method, item.path, item.op.summary, item.op.operationId].join(" ").toLowerCase();
           return h("li", { "data-search": text }, h("a", { href: "#op-" + item.op.operationId },
-            h("span", { class: "method" }, item.method.toUpperCase()),
+            h("span", { class: "method " + item.method.toLowerCase() }, item.method.toUpperCase()),
             h("span", null, item.op.summary)));
         })));
     })));
