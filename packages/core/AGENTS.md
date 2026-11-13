@@ -8,11 +8,11 @@
 | `src/encoding.ts` | FIELD, 정렬한 JSON(`canonical`), bigint JSON                                                                              |
 | `src/rules.ts`    | 진단 기준 원문, 검사, 기준 해시, 판정, 시연 기준 v1                                                                       |
 | `src/products.ts` | 상품 설명서, 지문, 적합·녹취 대상 계산, 시연 상품                                                                         |
-| `src/abi.ts`      | 원장 v5 ABI와 원장 오류 문구                                                                                              |
+| `src/abi.ts`      | 원장 v5 ABI와 원장 오류 문구. 판매사 API·콘솔용 `LEDGER_ERRORS`(합니다체), 고객용 `CUSTOMER_LEDGER_ERRORS`(해요체)        |
 | `src/signals.ts`  | 위험 신호 5종과 기준값                                                                                                    |
 | `src/ledger.ts`   | 원장 이벤트 읽기(`readLedger`). 감독기관 화면과 위험 신호가 쓴다                                                          |
 | `src/verify.ts`   | 독립 검증(`verifySale`). 결과는 일치·불일치·기록 없음이다. 검사 설명의 말투는 `voice`(기본 해요체, 감독기관은 합니다체)다 |
-| `src/api.ts`      | 판매사 API 계약(DTO, 요청 JSON Schema, 문서 전용 응답 스키마)                                                             |
+| `src/api.ts`      | 판매사 API 계약(DTO, 요청 JSON Schema, 문서 전용 응답 스키마, 오류 `code` 표 `ERROR_CODES`)                               |
 
 - `index.ts`는 `encoding`, `rules`, `products`, `abi`, `signals`를 다시 내보낸다. `ledger.ts`, `verify.ts`, `api.ts`는 각 파일에서 import한다.
 - `encoding.ts`, `rules.ts`, `products.ts`, `abi.ts`, `signals.ts`는 `index.ts`를 값으로 import하지 않는다. 순환 import가 생긴다.

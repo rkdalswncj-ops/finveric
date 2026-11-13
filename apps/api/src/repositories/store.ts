@@ -110,7 +110,7 @@ export class RedisStore implements SaleStore {
     // Upstash 오류 본문에는 저장소 주소가 들어갈 수 있다. 우리가 쓴 문장만 내보낸다.
     if (!response.ok || body.error)
       throw new CodedError(
-        "판매 기록 저장소에 연결하지 못했습니다.",
+        "판매 기록 저장소에 연결하지 못했습니다. 잠시 뒤 다시 요청하세요.",
         "unavailable",
       );
     return body.result;
@@ -128,7 +128,10 @@ export class RedisStore implements SaleStore {
   }
   async write(data: string) {
     if (!this.owner)
-      throw new Error("판매 기록은 잠금 안에서만 저장할 수 있습니다.");
+      throw new CodedError(
+        "판매 기록은 잠금 안에서만 저장할 수 있습니다. 잠시 뒤 다시 요청하세요.",
+        "unavailable",
+      );
     const written = await this.command([
       "EVAL",
       WRITE_IF_OWNER,
@@ -159,8 +162,9 @@ export class RedisStore implements SaleStore {
       ]);
       if (result === "OK") break;
       if (Date.now() >= deadline)
-        throw new Error(
-          "다른 요청을 처리하고 있어요. 잠시 후 다시 시도해 주세요.",
+        throw new CodedError(
+          "다른 요청을 처리하고 있습니다. 잠시 뒤 다시 요청하세요.",
+          "unavailable",
         );
       await new Promise((resolve) =>
         setTimeout(resolve, 200 + Math.random() * 300),

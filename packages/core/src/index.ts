@@ -65,7 +65,9 @@ export const CUSTOMER_NO_PATTERN = /^[A-Za-z0-9-]{1,32}$/;
  */
 export function customerRefFor(secret: Hex, customerNo: string): Hex {
   if (!CUSTOMER_NO_PATTERN.test(customerNo))
-    throw new Error("고객 번호 형식을 확인해 주세요.");
+    throw new Error(
+      "고객 번호 형식이 맞지 않습니다. 영문, 숫자, 하이픈으로 32자 안에서 보내세요.",
+    );
   return fieldHex(
     BigInt(keccak256(concat([secret, stringToHex(customerNo)]))) % FIELD,
   );
@@ -113,7 +115,9 @@ export function proofInput(
   context: DiagnosisContext,
 ) {
   if (!answersFit(rule, answers))
-    throw new Error("답변이 진단 기준의 선택지 범위를 벗어났어요.");
+    throw new Error(
+      "답변이 진단 기준의 선택지 범위를 벗어났습니다. 문항마다 기준의 선택지 하나를 고르세요.",
+    );
   const fields = ruleFields(rule).map(String);
   const chunk = (q: number) => fields.slice(q * 16, q * 16 + 16);
   const option = (offset: number) =>

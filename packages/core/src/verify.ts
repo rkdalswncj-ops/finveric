@@ -107,14 +107,18 @@ export async function requireDeployment(
     client.getCode({ address: dep.verifier }),
   ]);
   if (chainId !== dep.chainId)
-    throw new Error("지정 RPC의 네트워크가 다릅니다.");
+    throw new Error(
+      "지정 RPC의 네트워크가 배포 설정과 다릅니다. 검증 설정의 RPC 주소를 확인하세요.",
+    );
   if (
     !ledgerCode ||
     !verifierCode ||
     keccak256(ledgerCode) !== dep.ledgerCodeHash ||
     keccak256(verifierCode) !== dep.verifierCodeHash
   )
-    throw new Error("컨트랙트 코드가 고정한 배포 설정과 다릅니다.");
+    throw new Error(
+      "컨트랙트 코드가 고정한 배포 설정과 다릅니다. 검증 설정의 원장 주소와 RPC를 확인하세요.",
+    );
 }
 
 const same = (a?: string, b?: string) =>
@@ -144,7 +148,9 @@ export async function verifySale(
   const say = (haeyo: string, hapnida: string) =>
     options.voice === "hapnida" ? hapnida : haeyo;
   if (!/^[1-9][0-9]{0,76}$/.test(saleId) || BigInt(saleId) >= FIELD)
-    throw new Error("판매 ID 형식을 확인하세요.");
+    throw new Error(
+      "판매 ID 형식이 맞지 않습니다. 숫자로만 된 판매 ID를 입력하세요.",
+    );
   const client = options.client ?? ledgerClient(dep);
   await requireDeployment(client, dep);
   const snapshot =

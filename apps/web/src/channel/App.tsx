@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Route, Routes, useLocation, useNavigate } from "react-router";
-import {
-  LEDGER_ERRORS,
-  type LedgerError,
-} from "../../../../packages/core/src/index.ts";
+import { CUSTOMER_LEDGER_ERRORS } from "../../../../packages/core/src/index.ts";
 import type {
   ConfigDto,
   CustomerDto,
+  ErrorCode,
   ExportKind,
   ExportResponse,
   OpenSaleRequest,
@@ -44,40 +42,68 @@ import { Records } from "./screens/Records.tsx";
 /** 진행 중인 가입 신청 번호. 탭마다 따로 보관한다. */
 const DRAFT_KEY = "finveric-draft";
 
-/** 원장 거절 이유 중 고객에게 다르게 알리는 것. 나머지는 원장 오류 문구(LEDGER_ERRORS)를 그대로 쓴다. */
-const CUSTOMER_REJECTIONS: Partial<Record<LedgerError, string>> = {
-  TooEarly:
-    "숙려기간이 아직 끝나지 않았어요. 남은 시간이 지나면 다시 눌러 주세요.",
-};
 const UNAVAILABLE =
   "지금은 처리하지 못했어요. 잠시 후 다시 시도해 주세요. 계속 안 되면 판매사에 문의해 주세요.";
 
 /**
- * 오류를 고객에게 보여 줄 문장으로 바꾼다. API 응답의 `code`로 고른다.
+ * API 오류의 `code`별 고객 문장(해요체). 다음에 할 일을 함께 쓴다.
+ * 원장 거절(`rejected`)은 원장 오류 이름으로 `CUSTOMER_LEDGER_ERRORS`에서 고른다.
+ */
+const CUSTOMER_MESSAGES: Readonly<
+  Record<Exclude<ErrorCode, "rejected"> | "offline", string>
+> = {
+  offline: "서버에 연결하지 못했어요. 연결을 확인하고 화면을 새로 고쳐 주세요.",
+  invalid_input:
+    "요청을 처리하지 못했어요. 화면을 새로 고친 뒤 다시 시도해 주세요.",
+  unauthorized: "접근 코드를 확인해 주세요.",
+  forbidden: "지금은 처리하지 못했어요. 계속 안 되면 판매사에 문의해 주세요.",
+  not_found: "가입 기록을 찾지 못했어요. 내 가입에서 다시 골라 주세요.",
+  rate_limited: "요청이 많아요. 1분 뒤 다시 시도해 주세요.",
+  not_ready:
+    "지금은 가입할 수 없어요. 판매사가 상품을 준비하고 있어요. 잠시 후 다시 시도해 주세요.",
+  needs_diagnosis: "투자성향 진단을 먼저 해 주세요.",
+  needs_higher_risk:
+    "투자성향에 맞지 않는 상품이에요. 추가 위험을 확인해야 가입할 수 있어요.",
+  needs_approval:
+    "판매사 관리자 승인이 필요해요. 승인되면 이 화면에서 바로 청약할 수 있어요.",
+  needs_recording:
+    "이 상품은 가입 과정을 녹취해요. 녹취에 동의해야 가입할 수 있어요.",
+  product_changed:
+    "상품 설명서가 바뀌었어요. 상품을 다시 골라 새로 가입해 주세요.",
+  wrong_state: "가입 상태가 바뀌었어요. 화면에서 지금 상태를 확인해 주세요.",
+  limit_reached: UNAVAILABLE,
+  pending:
+    "요청을 보냈어요. 처리를 확인하는 데 시간이 걸리고 있어요. 잠시 후 다시 시도해 주세요.",
+  unavailable: UNAVAILABLE,
+};
+
+/**
+ * 오류를 고객에게 보여 줄 문장으로 바꾼다. API 응답의 `code`로만 고른다. API 문장(`error`)은 보이지 않는다.
+ * 모르는 `code`나 `code`가 없는 응답은 `unavailable` 문장이다. 없는 경로(404)도 같다.
  * 원장·거래·영수증 같은 말과 판매사 콘솔에서만 할 수 있는 안내를 고객에게 보이지 않는다.
- * `code`가 없는 업무 규칙 오류는 API 문장을 그대로 쓴다.
+ * 화면이 직접 던진 오류(해요체)만 그 문장을 그대로 쓴다.
  */
 function customerMessage(error: unknown) {
   if (!(error instanceof ApiError))
     return error instanceof Error && /^[가-힣]/.test(error.message)
       ? error.message
       : UNAVAILABLE;
-  switch (error.code) {
-    case "offline":
-      return "서버에 연결하지 못했어요. 연결을 확인하고 화면을 새로 고쳐 주세요.";
-    case "pending":
-      return "요청을 보냈어요. 처리를 확인하는 데 시간이 걸리고 있어요. 잠시 후 다시 시도해 주세요.";
-    case "unavailable":
-      return UNAVAILABLE;
-    case "rejected":
-      return error.ledgerError
-        ? (CUSTOMER_REJECTIONS[error.ledgerError] ??
-            LEDGER_ERRORS[error.ledgerError])
-        : UNAVAILABLE;
-    default:
-      return error.message;
-  }
+  const { code, ledgerError, status } = error;
+  if (code === "rejected")
+    return ledgerError && Object.hasOwn(CUSTOMER_LEDGER_ERRORS, ledgerError)
+      ? CUSTOMER_LEDGER_ERRORS[ledgerError]
+      : UNAVAILABLE;
+  if (code === "not_found" && status === 404) return UNAVAILABLE;
+  return code && Object.hasOwn(CUSTOMER_MESSAGES, code)
+    ? CUSTOMER_MESSAGES[code]
+    : UNAVAILABLE;
 }
+
+/**
+ * 화면에 보여 줄 오류. 닫기 버튼 없이 지운다: 다음 처리를 시작할 때, 경로가 바뀔 때.
+ * 읽기 실패(`load`)는 다음 읽기가 성공해도 지운다. 처리 실패 뒤 바로 다시 읽는 것은 지우지 않는다.
+ */
+type Failure = { message: string; load?: boolean };
 
 /** 화면이 부르는 처리. 실패하면 오류를 보여 주고 undefined를 돌려준다. */
 export type Run = <T>(
@@ -92,8 +118,12 @@ export type Run = <T>(
 export function App() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [error, setError] = useState("");
-  const deployment = useDeployment(setError);
+  const [failure, setFailure] = useState<Failure>();
+  const showError = useCallback(
+    (message: string) => setFailure({ message }),
+    [],
+  );
+  const deployment = useDeployment(showError);
   const [config, setConfig] = useState<ConfigDto>();
   const configRef = useRef<ConfigDto>(undefined);
   const [rules, setRules] = useState<RuleEntryDto[]>([]);
@@ -134,12 +164,29 @@ export function App() {
     setSales(newSales);
     setCustomer(newCustomer);
     setLoad("ready");
+    // 읽기에 성공하면 앞선 읽기 실패의 오류를 지운다. 처리 실패의 오류는 그대로 둔다.
+    setFailure((current) => (current?.load ? undefined : current));
   }, []);
   /** 화면을 막지 않고 다시 읽는다. 승인 대기·숙려 화면이 쓴다. */
   const refresh = useCallback(() => reload().catch(() => undefined), [reload]);
+  /**
+   * 판매 건 하나만 다시 읽는다. 승인 대기처럼 몇 초마다 확인하는 화면이 쓴다.
+   * 전체를 다시 읽으면 요청 4번이라 요청 한도(분당 120번)를 빨리 쓴다.
+   */
+  const refreshSale = useCallback(
+    (id: string) =>
+      api<SaleDto>(`/sales/${id}`)
+        .then((next) =>
+          setSales((list) =>
+            list.map((sale) => (sale.id === next.id ? next : sale)),
+          ),
+        )
+        .catch(() => undefined),
+    [],
+  );
   useEffect(() => {
     reload().catch((e: unknown) => {
-      setError(customerMessage(e));
+      setFailure({ message: customerMessage(e), load: true });
       noteAccess(e);
       // 처음 읽기에 실패하면 빈 화면이 "불러오고 있어요"에 머물지 않게 한다.
       setLoad((current) => (current === "loading" ? "failed" : current));
@@ -157,18 +204,23 @@ export function App() {
       window.removeEventListener("focus", onVisible);
     };
   }, [refresh]);
+  // 화면을 옮기면 앞 화면의 오류를 지운다.
+  const route = location.pathname + location.search;
+  useEffect(() => {
+    setFailure(undefined);
+  }, [route]);
 
   const run: Run = async (name, operation) => {
     if (busy) return undefined;
     setBusy(name);
-    setError("");
+    setFailure(undefined);
     try {
       const result = await operation?.();
       await reload();
       setAccessError("");
       return result;
     } catch (e) {
-      setError(customerMessage(e));
+      setFailure({ message: customerMessage(e) });
       noteAccess(e);
       await refresh();
       return undefined;
@@ -268,8 +320,7 @@ export function App() {
         tone: deployment ? "success" : "warning",
         text: networkName(deployment),
       }}
-      error={error}
-      dismissError={() => setError("")}
+      error={failure?.message}
     >
       {config?.requiresToken && (
         <AccessCodeForm
@@ -321,6 +372,7 @@ export function App() {
               action={action}
               abandon={abandon}
               refresh={refresh}
+              refreshSale={refreshSale}
               download={download}
               finish={() => setDraft("")}
             />

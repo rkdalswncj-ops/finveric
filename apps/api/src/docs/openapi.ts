@@ -4,9 +4,12 @@
 // 응답 스키마는 문서에만 넣는다. 경로의 schema.response에 넣으면 직렬화에 쓰여 필드가 빠진다.
 import type { FastifyDynamicSwaggerOptions } from "@fastify/swagger";
 import {
+  ERROR_CODES,
   errorResponseSchema,
   type ErrorResponse,
 } from "../../../../packages/core/src/api.ts";
+import { LEDGER_ERRORS } from "../../../../packages/core/src/index.ts";
+import { HTTP_ERRORS, ledgerRejectionMessage } from "../errors.ts";
 import {
   API_KEY_ID_EXAMPLE,
   CHANNEL_TAG,
@@ -105,24 +108,30 @@ export function openApiOptions(
           "### 출처 검사",
           "POST 요청에 `Origin` 헤더가 있으면 출처를 검사합니다. API와 같은 도메인, `WEB_ORIGIN`에 등록한 출처, 로컬 개발 서버(5173 포트)만 받습니다. 다른 출처는 403을 돌려줍니다. 서버 간 호출처럼 `Origin` 헤더가 없으면 검사하지 않습니다.",
           "### 오류",
-          '오류 본문은 `{ "error": "<한국어 문장>", "code": "<이유>", "ledgerError": "<원장 오류 이름>" }`입니다. `error`는 항상 있습니다. 화면에는 `error`를 그대로 보여 주거나, `code`로 고객용 문장을 고릅니다.',
+          '오류 본문은 `{ "error": "<한국어 문장>", "code": "<이유>", "ledgerError": "<원장 오류 이름>" }`입니다. `error`와 `code`는 모든 오류 응답에 있습니다.',
+          "`error`는 판매사 개발자와 판매사 콘솔이 읽는 합니다체 문장입니다. 원인과 다음 행동을 적습니다. 고객 화면에는 `error`를 그대로 보여 주지 않습니다. `code`(원장 거절이면 `ledgerError`도)로 고객용 문장을 고릅니다. 모르는 `code`는 `unavailable`처럼 다룹니다.",
           [
             "- 400: 경로 값이나 본문이 스키마와 다르거나, 본문이 올바른 JSON이 아닙니다.",
             "- 401: 접근 코드가 없거나 다릅니다. 또는 없는 API 키, 폐기한 API 키입니다.",
             "- 403: 허용하지 않은 출처입니다. 또는 API 키로 부를 수 없는 경로입니다.",
             "- 404: 없는 경로입니다.",
-            "- 409: 업무 규칙이나 원장이 요청을 거절했습니다. RPC·저장소 연결 실패도 409입니다.",
+            "- 409: 업무 규칙이나 원장이 요청을 거절했습니다. 없는 판매 건, RPC·저장소 연결 실패도 409입니다. `code`로 이유를 나눕니다.",
             "- 413: 본문이 64KB를 넘습니다.",
             "- 415: 본문 형식(`Content-Type`)이 JSON이 아닙니다.",
             "- 429: 같은 API 키로, 키가 없으면 같은 IP에서 1분에 120번을 넘게 요청했습니다.",
-            "- 503: `GET /api/health`의 점검이 실패했습니다.",
+            "- 503: `GET /api/health`의 점검이 실패했습니다. Vercel 함수가 시작 검사에 실패해도 503입니다.",
           ].join("\n"),
-          [
-            "- `code: \"pending\"`: 앞선 원장 거래의 영수증을 아직 받지 못했습니다. 잠시 뒤 다시 요청합니다.",
-            "- `code: \"unavailable\"`: RPC·저장소 연결이 실패했거나 처리를 끝내지 못했습니다. 잠시 뒤 다시 요청합니다.",
-            "- `code: \"rejected\"`: 원장이 요청을 거절했습니다. `ledgerError`에 원장 오류 이름(예: `TooEarly`)이 있습니다. 이름을 모르면 `ledgerError`가 없습니다.",
-            "- `code` 없음: 업무 규칙 오류(예: 진단 전 청약)입니다. `error` 문장에 이유와 다음 행동이 있습니다.",
-          ].join("\n"),
+          "`code`의 값과 HTTP 상태는 다음과 같습니다.",
+          Object.entries(ERROR_CODES)
+            .map(
+              ([code, { status, meaning }]) =>
+                `- \`${code}\` (${status.join("·")}): ${meaning}`,
+            )
+            .join("\n"),
+          "`ledgerError`의 값과 이유는 다음과 같습니다.",
+          Object.entries(LEDGER_ERRORS)
+            .map(([name, reason]) => `- \`${name}\`: ${reason}`)
+            .join("\n"),
           "### 값 형식",
           "원장의 uint256 값(커밋먼트, 블록 번호, 원장 시각 등)은 10진수 문자열입니다. 판매 ID도 10진수 문자열입니다. 해시와 주소는 `0x`로 시작하는 16진수입니다. 응답에 없는 선택 필드는 키를 넣지 않습니다.",
         ].join("\n\n"),
@@ -168,37 +177,34 @@ function finish(spec: Spec, publicPaths: ReadonlySet<string>) {
   const byId = new Map(
     Object.values(OPERATIONS).map((op) => [op.operationId, op]),
   );
-  const error = (description: string, example: string | ErrorResponse) => ({
+  const error = (description: string, example: ErrorResponse) => ({
     description,
-    content: json(
-      components.ref(errorResponseSchema),
-      typeof example === "string" ? { error: example } : example,
-    ),
+    content: json(components.ref(errorResponseSchema), example),
   });
   const errors = {
     BadRequest: error(
-      "경로 값이나 본문이 스키마와 다릅니다. 본문이 올바른 JSON이 아닌 경우도 포함합니다.",
-      "입력 형식과 허용 범위를 확인하세요.",
+      "경로 값이나 본문이 스키마와 다릅니다. 본문이 올바른 JSON이 아닌 경우도 포함합니다. `code`는 `invalid_input`입니다.",
+      HTTP_ERRORS.badRequest,
     ),
     Unauthorized: error(
-      "접근 코드가 없거나 다릅니다. 또는 API 키가 없는 키이거나 폐기한 키입니다. 접근 코드는 서버에 설정한 경우에만 검사하고, API 키는 보내면 항상 검사합니다.",
-      "접근 코드를 확인하세요.",
+      "접근 코드가 없거나 다릅니다. 또는 API 키가 없는 키이거나 폐기한 키입니다. 접근 코드는 서버에 설정한 경우에만 검사하고, API 키는 보내면 항상 검사합니다. `code`는 `unauthorized`입니다.",
+      HTTP_ERRORS.accessCode,
     ),
     Forbidden: error(
-      "POST 요청의 `Origin` 헤더 출처가 API와 같은 도메인도 아니고 허용 목록(`WEB_ORIGIN`)에도 없습니다. 또는 API 키로 `판매 채널 연동` 밖의 경로를 불렀습니다.",
-      "API 키로는 판매 채널 연동 API만 부를 수 있습니다.",
+      "POST 요청의 `Origin` 헤더 출처가 API와 같은 도메인도 아니고 허용 목록(`WEB_ORIGIN`)에도 없습니다. 또는 API 키로 `판매 채널 연동` 밖의 경로를 불렀습니다. `code`는 `forbidden`입니다.",
+      HTTP_ERRORS.apiKeyScope,
     ),
     Conflict: error(
-      "업무 규칙이나 원장이 요청을 거절했습니다. RPC·저장소 연결 실패도 포함합니다. `error`에 이유를 적습니다. `code`와 `ledgerError`로 이유를 나눕니다.",
+      "업무 규칙이나 원장이 요청을 거절했습니다. 없는 판매 건, RPC·저장소 연결 실패도 포함합니다. `error`에 이유와 다음 행동을 적습니다. `code`와 `ledgerError`로 이유를 나눕니다.",
       {
-        error: "원장이 요청을 거절했어요. 숙려기간이 아직 지나지 않았어요.",
+        error: ledgerRejectionMessage("TooEarly"),
         code: "rejected",
         ledgerError: "TooEarly",
       },
     ),
     TooManyRequests: error(
-      "같은 API 키로, 키가 없으면 같은 IP에서 1분에 120번을 넘게 요청했습니다.",
-      "요청이 너무 많습니다. 1분 뒤 다시 시도하세요.",
+      "같은 API 키로, 키가 없으면 같은 IP에서 1분에 120번을 넘게 요청했습니다. `code`는 `rate_limited`입니다.",
+      HTTP_ERRORS.rateLimited,
     ),
   };
   const shared = (name: keyof typeof errors) => ({

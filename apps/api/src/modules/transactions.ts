@@ -109,7 +109,7 @@ export async function send(
       trace.status = "failed";
       svc.repository.save();
       throw new CodedError(
-        "성공 영수증에서 이번 요청의 이벤트를 찾을 수 없습니다.",
+        "성공 영수증에서 이번 요청의 이벤트를 찾을 수 없습니다. 온체인 처리 기록에서 거래를 확인하세요.",
         "unavailable",
       );
     }

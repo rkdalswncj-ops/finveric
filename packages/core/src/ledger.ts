@@ -106,7 +106,7 @@ export async function readLedgerLogs(dep: Deployment, client: LedgerReader) {
   const start = BigInt(dep.blockNumber);
   if (latest - start > MAX_SCAN_BLOCKS)
     throw new Error(
-      "조회 범위를 초과했어요. 배포 설정의 시작 블록을 확인하세요.",
+      "조회 범위를 초과했습니다. 배포 설정의 시작 블록을 확인하세요.",
     );
   const events = ledgerAbi.filter((item) => item.type === "event");
   const logs = [];

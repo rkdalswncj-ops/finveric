@@ -1,7 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router";
 import { ExternalLink, House, Layers, type LucideIcon } from "lucide-react";
-import { Button } from "./button.tsx";
 import { Badge, Notice, type Tone } from "./components.tsx";
 import { focusPageTitle, useFocusRescue } from "./focus.ts";
 import s from "./ui.module.css";
@@ -27,6 +26,7 @@ export type ExternalItem = { label: string; icon: LucideIcon; href: string };
  * links는 "처음 화면" 아래에 작은 링크로 둔다. 새 탭으로 연다.
  * 문서 제목은 "화면 · app · FINVERIC"이다. 경로가 바뀌면 맨 위로 가고 화면 제목(h1)에 초점을 옮긴다.
  * 상태 줄(role="status")은 늘 그려 둔다. 처리 중에는 busy를 보인다. 처리가 끝난 뒤의 notice는 화면 낭독기만 읽는다.
+ * 오류 알림(error)은 본문 위에 붙어 있다. 닫기 버튼은 없다. 앱이 다음 처리, 경로 이동, 다시 읽기 성공 때 지운다.
  */
 export function Shell({
   home,
@@ -39,7 +39,6 @@ export function Shell({
   badge,
   foot,
   error,
-  dismissError,
   notice,
   busy,
   children,
@@ -54,7 +53,6 @@ export function Shell({
   badge: { tone: Tone; text: string };
   foot?: { title: string; text: string };
   error?: string;
-  dismissError?: () => void;
   notice?: string;
   busy?: string;
   children: ReactNode;
@@ -180,11 +178,6 @@ export function Shell({
           {error && (
             <div role="alert" className={s.alert}>
               <Notice tone="danger">{error}</Notice>
-              {dismissError && (
-                <Button variant="ghost" onClick={dismissError}>
-                  닫기
-                </Button>
-              )}
             </div>
           )}
           {/* 처리 중 표시는 누른 버튼의 회전 표시 하나다. 이 줄은 글자만 보인다. */}

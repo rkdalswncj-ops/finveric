@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { MAX_ACTIVE_API_KEYS } from "../packages/core/src/api.ts";
+import { HTTP_ERRORS } from "../apps/api/src/errors.ts";
 import { offlineStack } from "./offline-app.ts";
 import { responseChecker } from "./openapi-check.ts";
 
@@ -95,7 +96,7 @@ test("API 키는 판매 채널 연동 API만 부르고, 폐기하면 401이다",
   // 판매 채널 연동: 인증과 범위를 통과하고 업무 오류(409)로 끝난다.
   const channel = await inject({ url: CHANNEL_URL, headers: bearer(key) });
   assert.equal(channel.statusCode, 409);
-  assert.deepEqual(channel.json(), { error: "판매 건을 찾을 수 없습니다." });
+  assert.equal(channel.json().code, "not_found");
 
   // 판매사 콘솔 API는 키로 부를 수 없다. 키로 새 키를 만들 수도 없다.
   for (const request of [
@@ -106,13 +107,13 @@ test("API 키는 판매 채널 연동 API만 부르고, 폐기하면 401이다",
   ]) {
     const res = await inject({ ...request, headers: bearer(key) });
     assert.equal(res.statusCode, 403, request.url);
-    assert.deepEqual(res.json(), {
-      error: "API 키로는 판매 채널 연동 API만 부를 수 있습니다.",
-    });
+    assert.deepEqual(res.json(), HTTP_ERRORS.apiKeyScope);
   }
 
   // 접근 코드도 키도 없으면 401이다.
-  assert.equal((await inject({ url: CHANNEL_URL })).statusCode, 401);
+  const anonymous = await inject({ url: CHANNEL_URL });
+  assert.equal(anonymous.statusCode, 401);
+  assert.deepEqual(anonymous.json(), HTTP_ERRORS.accessCode);
 
   // 마지막 사용 시각이 남는다.
   const used = (
@@ -129,9 +130,7 @@ test("API 키는 판매 채널 연동 API만 부르고, 폐기하면 401이다",
   assert.ok(revoked.json().revokedAt);
   const after = await inject({ url: CHANNEL_URL, headers: bearer(key) });
   assert.equal(after.statusCode, 401);
-  assert.deepEqual(after.json(), {
-    error: "API 키를 확인하세요. 폐기했거나 없는 키입니다.",
-  });
+  assert.deepEqual(after.json(), HTTP_ERRORS.apiKey);
 });
 
 test("접근 코드를 설정하지 않아도 보낸 API 키는 확인한다", async (t) => {
@@ -141,6 +140,7 @@ test("접근 코드를 설정하지 않아도 보낸 API 키는 확인한다", a
     headers: bearer(`fvk_${"A".repeat(32)}`),
   });
   assert.equal(unknown.statusCode, 401);
+  assert.equal(unknown.json().code, "unauthorized");
   const { key } = await issue(inject, "개발 서버");
   assert.equal(
     (await inject({ url: "/api/keys", headers: bearer(key) })).statusCode,
@@ -148,6 +148,13 @@ test("접근 코드를 설정하지 않아도 보낸 API 키는 확인한다", a
   );
   // 헤더가 없으면 로컬 개발처럼 열려 있다.
   assert.equal((await inject({ url: "/api/keys" })).statusCode, 200);
+  // 없는 키는 폐기할 수 없다.
+  const missing = await inject({
+    method: "POST",
+    url: `/api/keys/key_${"0".repeat(12)}/revoke`,
+  });
+  assert.equal(missing.statusCode, 409);
+  assert.equal(missing.json().code, "not_found");
 });
 
 test(`사용 중인 API 키는 ${MAX_ACTIVE_API_KEYS}개까지다`, async (t) => {
@@ -161,6 +168,7 @@ test(`사용 중인 API 키는 ${MAX_ACTIVE_API_KEYS}개까지다`, async (t) =>
     payload: { name: "하나 더" },
   });
   assert.equal(over.statusCode, 409);
+  assert.equal(over.json().code, "limit_reached");
   assert.match(over.json().error, /20개까지/);
   await inject({ method: "POST", url: `/api/keys/${keys[0].id}/revoke` });
   await issue(inject, "하나 더");
@@ -171,6 +179,7 @@ test(`사용 중인 API 키는 ${MAX_ACTIVE_API_KEYS}개까지다`, async (t) =>
     payload: { name: "   " },
   });
   assert.equal(blank.statusCode, 400);
+  assert.equal(blank.json().code, "invalid_input");
 });
 
 test("요청 한도는 API 키마다 센다", async (t) => {
@@ -181,7 +190,9 @@ test("요청 한도는 API 키마다 센다", async (t) => {
   for (let i = 0; i < 121; i++)
     last = await inject({ url: CHANNEL_URL, headers: bearer(first.key) });
   assert.equal(last?.statusCode, 429);
+  assert.deepEqual(last?.json(), HTTP_ERRORS.rateLimited);
   // 같은 IP라도 다른 키는 따로 센다.
   const other = await inject({ url: CHANNEL_URL, headers: bearer(second.key) });
   assert.equal(other.statusCode, 409);
+  assert.equal(other.json().code, "not_found");
 });

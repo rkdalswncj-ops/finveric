@@ -4,6 +4,7 @@ import type {
   TamperRequest,
   TamperResponse,
 } from "../../../../packages/core/src/api.ts";
+import { CodedError } from "../errors.ts";
 import type { FundService } from "../service.ts";
 import {
   LedgerRejection,
@@ -20,7 +21,10 @@ export async function tamper(
 ): Promise<TamperResponse> {
   const ref = customerRef(svc, customerNo);
   if (attempt > (await readAttemptCount(svc, ref)))
-    throw new Error("아직 기록하지 않은 회차예요. 기록한 회차를 골라 주세요.");
+    throw new CodedError(
+      "아직 기록하지 않은 회차입니다. 이미 기록한 회차를 고르세요.",
+      "wrong_state",
+    );
   const recorded = await readDiagnosis(svc, ref, attempt);
   // 투자성향을 한 단계 올리고 권유 가능 등급을 한 단계 넓힌 결과로 바꾸려 한다.
   const profile = Math.min(5, recorded.profile + 1);
@@ -47,8 +51,9 @@ export async function tamper(
     if (!(error instanceof LedgerRejection)) {
       trace.status = "failed";
       svc.repository.save();
-      throw new Error(
-        "원장 시뮬레이션을 하지 못했어요. RPC 연결을 확인하세요.",
+      throw new CodedError(
+        "원장 시뮬레이션을 하지 못했습니다. RPC 연결을 확인하세요.",
+        "unavailable",
       );
     }
     trace.status = "failed";
@@ -66,7 +71,7 @@ export async function tamper(
   svc.repository.save();
   return {
     rejected: false,
-    reason: "원장이 변경 요청을 거절하지 않았어요. 원장 버전을 확인하세요.",
+    reason: "원장이 변경 요청을 거절하지 않았습니다. 원장 버전을 확인하세요.",
     customerRef: ref,
     attempt,
   };

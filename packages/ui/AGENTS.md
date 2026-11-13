@@ -4,7 +4,7 @@
 
 | 파일                      | 내용                                                                                                                                                                                                           |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/Shell.tsx`           | 사이드 메뉴, 상단 막대, 오류 알림, 상태 줄(`Shell`, `NavGroup`). `entryHref`는 진입 화면 링크, `links`는 그 아래의 새 탭 링크, `foot`은 선택. 문서 제목과 경로가 바뀔 때의 초점을 맡는다                       |
+| `src/Shell.tsx`           | 사이드 메뉴, 상단 막대, 오류 알림(닫기 버튼 없음), 상태 줄(`Shell`, `NavGroup`). `entryHref`는 진입 화면 링크, `links`는 그 아래의 새 탭 링크, `foot`은 선택. 문서 제목과 경로가 바뀔 때의 초점을 맡는다       |
 | `src/components.tsx`      | `Badge`, `Notice`(색은 `Tone`), `Heading`, `Empty`, `Facts`, `TransactionFacts`, `AccessCodeForm`, `FieldError`(입력 칸 오류), `TableScroll`(가로 스크롤 표), `Stat`(요약 수치 카드), `ConfirmDialog`(확인 창) |
 | `src/focus.ts`            | 초점 이동: 화면 제목으로(`focusPageTitle`), 구역 제목으로(`focusElement`), 누른 요소가 사라졌을 때(`useFocusRescue`)                                                                                           |
 | `src/button.tsx`          | `Button`. 누를 수 없는 상태는 `busy`(처리 중), `blocked`(아직 누를 수 없음), `disabled`(정말 쓸 수 없음)                                                                                                       |

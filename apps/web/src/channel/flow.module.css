@@ -3,13 +3,18 @@
 /*
  * 단계 머리글과 동작 막대의 높이. 글자 크기 설정(rem)을 따라 커진다.
  * 단계 머리글: 위 여백 4px + 이전·중단 줄 + 진행 막대 4px.
- * 동작 막대: 위아래 여백 16px + 위 테두리 1px + 버튼 + 사이 4px + 진행 안내 한 줄.
+ * 동작 막대: 위아래 여백 16px + 위 테두리 1px + 버튼 + 사이 4px + 아래 줄(처리 중 안내 한 줄, 오류면 오류 세 줄).
  */
 :global(html) {
   --step-header-height: calc(8px + max(44px, var(--type-detail) * 1.6));
+  --action-line-height: calc(var(--type-caption) * 1.6);
   --action-bar-height: calc(
-    21px + max(56px, var(--type-body) * 1.5 + 22px) + var(--type-caption) * 1.6
+    21px + max(56px, var(--type-body) * 1.5 + 22px) + var(--action-line-height)
   );
+}
+/* 오류는 320px 너비에서 세 줄까지 간다. 고정한 막대가 본문 끝을 가리지 않게 그만큼 자리를 잡는다. */
+:global(html):has(.failed) {
+  --action-line-height: calc(var(--type-detail) * 1.6 * 3);
 }
 /* 단계 머리글이 있으면 위에 붙은 요소가 그만큼 높다(frame.module.css의 scroll-padding). */
 :global(html):has(.stepHeader) {
@@ -110,12 +115,29 @@
 .actionBar > button {
   width: 100%;
 }
+/* 버튼 아래 줄. 처리 중 안내 한 줄의 자리를 늘 잡아 둔다. */
+.actionLine {
+  min-height: calc(var(--type-caption) * 1.6);
+}
 .actionStatus {
-  min-height: 18px;
   margin: 0;
   color: var(--muted-foreground);
   font-size: var(--type-caption);
   text-align: center;
+}
+/* 처리 오류. 색과 함께 주의 아이콘과 문장으로 알린다. 한 줄이면 가운데, 여러 줄이면 왼쪽 정렬이다. */
+.actionError {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--destructive);
+  font-size: var(--type-detail);
+}
+.actionError svg {
+  flex: none;
+  margin-top: calc((var(--type-detail) * 1.6 - 16px) / 2);
 }
 @media (max-width: 640px) and (min-height: 560px) {
   .actionSpacer {

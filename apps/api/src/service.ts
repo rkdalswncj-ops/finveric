@@ -24,6 +24,7 @@ import {
   FileStore,
   type SaleStore,
 } from "./repositories/store.ts";
+import { CodedError } from "./errors.ts";
 import { SaleRepository } from "./repositories/sales.ts";
 import {
   readChainId,
@@ -113,7 +114,9 @@ export class FundService {
         "증명 키와 배포한 Verifier가 다릅니다. 같은 키로 원장을 다시 배포하세요.",
       );
     if ((await readChainId(this)) !== this.dep.chainId)
-      throw new Error("RPC 네트워크가 배포 설정과 다릅니다.");
+      throw new Error(
+        "RPC 네트워크가 배포 설정과 다릅니다. RPC 주소와 배포 설정을 확인하세요.",
+      );
     if ((await readCodeHash(this, this.dep.ledger)) !== this.dep.ledgerCodeHash)
       throw new Error(
         "원장이 없거나 배포 설정과 코드가 다릅니다. 원장을 다시 배포하세요.",
@@ -123,7 +126,9 @@ export class FundService {
       readCoolingPeriod(this),
     ]);
     if (version !== 5n || Number(cooling) !== this.dep.coolingPeriod)
-      throw new Error("원장 버전이나 숙려 시간이 배포 설정과 다릅니다.");
+      throw new Error(
+        "원장 버전이나 숙려 시간이 배포 설정과 다릅니다. 원장을 다시 배포하세요.",
+      );
     // 잠금 안에서 복구한다. 그래야 다른 인스턴스가 처리 중인 기록을 중단된 기록으로 보지 않는다.
     await this.exclusive(() => this.reconcile(true));
   }
@@ -204,7 +209,10 @@ export class FundService {
         await settlement.settle(this, record);
         break;
       default:
-        throw new Error("지원하지 않는 동작입니다.");
+        throw new CodedError(
+          "지원하지 않는 판매 건 동작입니다. API 문서에서 동작 이름을 확인하세요.",
+          "invalid_input",
+        );
     }
     return this.publicSale(record);
   }

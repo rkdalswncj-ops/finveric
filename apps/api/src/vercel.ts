@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { FastifyInstance } from "fastify";
+import type { ErrorResponse } from "../../../packages/core/src/api.ts";
 import { FundService } from "./service.ts";
 import { createApp } from "./app.ts";
 
@@ -50,7 +51,11 @@ export default async function handler(
   } catch (error) {
     res.statusCode = 503;
     res.setHeader("content-type", "application/json; charset=utf-8");
-    res.end(JSON.stringify({ error: safeMessage(error) }));
+    const body: ErrorResponse = {
+      error: safeMessage(error),
+      code: "unavailable",
+    };
+    res.end(JSON.stringify(body));
     return;
   }
   req.url = normalizeApiUrl(req.url);

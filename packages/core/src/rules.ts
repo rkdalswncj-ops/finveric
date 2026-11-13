@@ -235,7 +235,9 @@ export function evaluateRule(
   answers: readonly number[],
 ): Evaluation {
   if (!answersFit(doc, answers))
-    throw new Error("답변이 진단 기준의 선택지 범위를 벗어났어요.");
+    throw new Error(
+      "답변이 진단 기준의 선택지 범위를 벗어났습니다. 문항마다 기준의 선택지 하나를 고르세요.",
+    );
   const chosen = answers.map((answer, q) => doc.questions[q].choices[answer]);
   const score = chosen.reduce((sum, choice) => sum + choice.score, 0);
   const profile = 1 + doc.thresholds.filter((min) => score >= min).length;

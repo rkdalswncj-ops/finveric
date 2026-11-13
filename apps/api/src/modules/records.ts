@@ -13,6 +13,7 @@ import type {
   SaleStatus,
   SaleView,
 } from "../../../../packages/core/src/api.ts";
+import { CodedError } from "../errors.ts";
 import type { FundService } from "../service.ts";
 import type { StoredSale } from "../repositories/sales.ts";
 import {
@@ -93,7 +94,10 @@ async function subscribedRecord(svc: FundService, id: string) {
     await reconcile(svc);
   const chain = await readSale(svc, record.id);
   if (chain.status === 0)
-    throw new Error("청약하면 증명서와 원본을 받을 수 있어요.");
+    throw new CodedError(
+      "청약하지 않은 판매 건입니다. 청약한 뒤에 증명서와 원본을 받을 수 있습니다.",
+      "wrong_state",
+    );
   return { record, chain };
 }
 const confirmedTx = (record: StoredSale, action: string) =>
@@ -110,7 +114,11 @@ export async function receipt(
   const product = storedProduct(svc, chain.productId, chain.productVersion);
   const diagnosis = await readDiagnosis(svc, record.customerRef, chain.attempt);
   const subscribeTx = confirmedTx(record, "subscribe");
-  if (!subscribeTx) throw new Error("청약 거래 기록을 찾을 수 없어요.");
+  if (!subscribeTx)
+    throw new CodedError(
+      "판매 기록에서 확정한 청약 거래를 찾을 수 없습니다. 온체인 처리 기록에서 청약 거래를 확인하세요.",
+      "not_found",
+    );
   const confirmTx =
     chain.status === 2 ? confirmedTx(record, "confirm") : undefined;
   return {
@@ -148,8 +156,9 @@ export async function original(
           entry.commitment === onchain.commitment.toString(),
       );
     if (!stored)
-      throw new Error(
-        `진단 원본을 판매 기록에서 찾을 수 없어요. ${attempt}회차가 없어요.`,
+      throw new CodedError(
+        `판매 기록에 ${attempt}회차 진단 원본이 없습니다. 판매 기록 저장소가 같은 원장의 기록인지 확인하세요.`,
+        "unavailable",
       );
     attempts.push({
       attempt,

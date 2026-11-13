@@ -8,6 +8,7 @@ import {
   type RuleDocument,
   type Trace,
 } from "../../../../packages/core/src/index.ts";
+import { CodedError } from "../errors.ts";
 import { FileStore, type SaleStore } from "./store.ts";
 
 /** 서버만 보관하는 처리 기록. */
@@ -107,7 +108,11 @@ export class SaleRepository {
   }
   find(id: string) {
     const record = this.data.sales.find((s) => s.id === id);
-    if (!record) throw new Error("판매 건을 찾을 수 없습니다.");
+    if (!record)
+      throw new CodedError(
+        "판매 건을 찾을 수 없습니다. 판매 ID를 확인하세요.",
+        "not_found",
+      );
     return record;
   }
   add(record: StoredSale) {

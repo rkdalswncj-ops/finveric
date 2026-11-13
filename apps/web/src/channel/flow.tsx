@@ -1,7 +1,7 @@
 // 증권사 앱 예시의 단계 화면 부품: 단계 머리글, 아래 동작 막대, 가입 시작. 확인 창은 packages/ui의 ConfirmDialog다.
-import { useState, type ReactNode } from "react";
+import { useContext, useLayoutEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import { ChevronLeft } from "lucide-react";
+import { AlertTriangle, ChevronLeft } from "lucide-react";
 import type { ProductEntryDto } from "../../../../packages/core/src/api.ts";
 import { Button } from "../../../../packages/ui/src/button.tsx";
 import { ConfirmDialog } from "../../../../packages/ui/src/components.tsx";
@@ -10,6 +10,7 @@ import {
   saleProduct,
   type Sale,
 } from "../../../../packages/ui/src/sales.ts";
+import { ErrorSlot } from "./Frame.tsx";
 import s from "./flow.module.css";
 
 /**
@@ -121,6 +122,7 @@ export function PrimaryAction({
  * 아래 동작 막대. 화면 높이가 넉넉하면 좁은 화면에서는 탭 막대 바로 위에 고정하고,
  * 넓은 화면에서는 본문 끝에 두되 스크롤하면 탭 막대 위에 붙는다. 짧은 화면에서는 본문 끝에 둔다(flow.module.css).
  * 주요 동작은 하나만 둔다. 처리 중 안내는 버튼 아래 한 줄이다. 자리를 미리 잡아 화면이 움직이지 않는다.
+ * 처리 오류(`ErrorSlot`)도 같은 자리에 보인다. 고객이 방금 누른 버튼 바로 아래다. 닫기 버튼은 없다.
  */
 export function ActionBar({
   children,
@@ -129,14 +131,28 @@ export function ActionBar({
   children: ReactNode;
   busy?: string;
 }) {
+  const { error, attach } = useContext(ErrorSlot);
+  // 그리기 전에 알린다. Frame이 본문 위에 같은 오류를 잠깐 그리지 않는다.
+  useLayoutEffect(attach, [attach]);
   return (
     <>
       <div className={s.actionSpacer} aria-hidden="true" />
-      <div className={s.actionBar}>
+      <div className={error ? `${s.actionBar} ${s.failed}` : s.actionBar}>
         {children}
-        <p className={s.actionStatus} role="status">
-          {busy ? `${busy} · 잠시만 기다려 주세요` : ""}
-        </p>
+        {/* 오류 줄과 처리 중 줄은 늘 그려 둔다. 화면 낭독기가 바뀐 문장을 읽는다. 비어 있으면 높이가 없다. */}
+        <div className={s.actionLine}>
+          <p className={s.actionError} role="alert">
+            {error ? (
+              <>
+                <AlertTriangle size={16} aria-hidden="true" />
+                <span>{error}</span>
+              </>
+            ) : null}
+          </p>
+          <p className={s.actionStatus} role="status">
+            {busy && !error ? `${busy} · 잠시만 기다려 주세요` : ""}
+          </p>
+        </div>
       </div>
     </>
   );

@@ -1,4 +1,12 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Link, useLocation } from "react-router";
 import {
   BadgeCheck,
@@ -7,7 +15,6 @@ import {
   FileText,
   LayoutGrid,
 } from "lucide-react";
-import { Button } from "../../../../packages/ui/src/button.tsx";
 import {
   Badge,
   Notice,
@@ -27,6 +34,15 @@ const TABS = [
   { path: channel.records, label: "내 가입", icon: FileText },
   { path: channel.verify, label: "기록 확인", icon: BadgeCheck },
 ];
+/**
+ * 처리 오류를 보여 줄 자리. 동작 막대(`ActionBar`)가 있으면 막대가 주요 버튼 아래 줄에 오류를 보여 준다.
+ * `attach`는 동작 막대가 그려져 있다고 알린다. 동작 막대가 없으면 Frame이 본문 맨 위에 오류 알림을 둔다.
+ */
+export const ErrorSlot = createContext<{
+  error: string;
+  attach: () => () => void;
+}>({ error: "", attach: () => () => undefined });
+
 /** 탭이 맡는 경로. 상품 상세는 상품 탭에 속한다. */
 const tabOf = (pathname: string) =>
   pathname === channel.fund ? channel.catalog : pathname;
@@ -36,14 +52,14 @@ const tabOf = (pathname: string) =>
  * 앱 머리글(증권사 이름 또는 뒤로 가기), 최대 480px 한 열의 본문, 아래 탭 막대로 이뤄진다.
  * 탭을 옮겨도 진행 중인 가입은 그대로다(App의 신청 번호와 가입 화면의 세션 보관).
  * 화면이 바뀌면 맨 위로 가고 화면 제목에 초점을 옮긴다. 문서 제목은 "화면 · 증권사 이름 · 증권사 앱 예시"다.
+ * 오류는 떠 있지 않고 화면 흐름 안에 둔다(`ErrorSlot`). 닫기 버튼은 없다. App이 다음 처리, 경로 이동, 다시 읽기 성공 때 지운다.
  */
 export function Frame({
   firm,
   title,
   back,
   network,
-  error,
-  dismissError,
+  error = "",
   children,
 }: {
   firm: string;
@@ -51,7 +67,6 @@ export function Frame({
   back?: { to: string; label: string };
   network: { tone: Tone; text: string };
   error?: string;
-  dismissError: () => void;
   children: ReactNode;
 }) {
   const { pathname, search } = useLocation();
@@ -59,6 +74,13 @@ export function Frame({
   const page = title ?? TABS.find((tab) => tab.path === current)?.label;
   const main = useRef<HTMLElement>(null);
   const firstRoute = useRef(true);
+  /** 그려져 있는 동작 막대 수. 0이면 오류를 본문 맨 위에 둔다. */
+  const [bars, setBars] = useState(0);
+  const attach = useCallback(() => {
+    setBars((count) => count + 1);
+    return () => setBars((count) => count - 1);
+  }, []);
+  const slot = useMemo(() => ({ error, attach }), [error, attach]);
   useFocusRescue(main);
   useEffect(() => {
     document.title = [page, firm, "증권사 앱 예시"].filter(Boolean).join(" · ");
@@ -95,17 +117,13 @@ export function Frame({
           <strong>{title ?? firm}</strong>
         </header>
         <main id="content" ref={main} className={f.main}>
-          {children}
-        </main>
-        {/* 오류는 본문 위에 띄운다. 본문이 밀려 움직이지 않는다. 처리 중 표시는 각 화면의 동작 자리에 둔다. */}
-        {error && (
-          <div role="alert" className={f.toast}>
-            <Notice tone="danger">{error}</Notice>
-            <Button variant="ghost" onClick={dismissError}>
-              닫기
-            </Button>
+          {/* 동작 막대가 없는 화면(첫 읽기 실패 등)의 오류. 떠 있지 않아 아무것도 가리지 않는다.
+              알림 자리는 늘 그려 둔다. 화면 낭독기가 새로 들어온 문장을 읽는다. */}
+          <div role="alert" className={f.alert}>
+            {error && !bars && <Notice tone="danger">{error}</Notice>}
           </div>
-        )}
+          <ErrorSlot.Provider value={slot}>{children}</ErrorSlot.Provider>
+        </main>
         <nav className={f.tabs} aria-label="앱 메뉴">
           {TABS.map((tab) => {
             const active = current === tab.path;

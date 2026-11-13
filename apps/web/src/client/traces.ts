@@ -44,7 +44,10 @@ export function traceGroup(trace: TraceDto): TraceGroup {
   return "diagnosis";
 }
 
-/** 실패 기록 중 원장이 사용자 정의 오류로 거절한 경우의 오류 이름과 이유. */
+/**
+ * 실패 기록 중 원장이 사용자 정의 오류로 거절한 경우의 오류 이름과 이유.
+ * 오류 이름을 알면 core의 이유 문장(합니다체)을 쓴다. 예전 기록에 남은 문장(`reason`)의 말투와 관계없이 같은 문장이 된다.
+ */
 export function ledgerRejection(trace: TraceDto) {
   const detail = trace.detail as
     { error?: string; reason?: string } | undefined;
@@ -57,9 +60,10 @@ export function ledgerRejection(trace: TraceDto) {
   return error || detail.reason
     ? {
         error,
-        reason:
-          detail.reason ??
-          (error ? LEDGER_ERRORS[error] : "원장이 거절했어요."),
+        reason: error
+          ? LEDGER_ERRORS[error]
+          : (detail.reason ??
+            "원장이 거절했습니다. 필수 기록과 현재 단계를 확인하세요."),
       }
     : undefined;
 }

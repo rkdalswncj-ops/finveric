@@ -11,6 +11,7 @@ import type {
   DiagnoseRequest,
   DiagnosisView,
 } from "../../../../packages/core/src/api.ts";
+import { CodedError } from "../errors.ts";
 import type { FundService } from "../service.ts";
 import type { StoredDiagnosis } from "../repositories/sales.ts";
 import { readAttemptCount, readDiagnosis } from "../gateways/ledger.ts";
@@ -80,7 +81,10 @@ export async function diagnose(
   const ref = customerRef(svc, customerNo);
   const rule = await latestRule(svc);
   if (!answersFit(rule.document, answers))
-    throw new Error("모든 문항에 진단 기준의 선택지 중 하나로 답해 주세요.");
+    throw new CodedError(
+      "답변이 최신 진단 기준과 맞지 않습니다. 최신 기준의 문항마다 선택지 번호 하나를 보내세요.",
+      "invalid_input",
+    );
   await ensureNoPending(svc);
   const attempt = (await readAttemptCount(svc, ref)) + 1;
   const salt = randomField();
@@ -106,11 +110,14 @@ export async function diagnose(
       proven.signals.limit !== BigInt(expected.limit) ||
       proven.signals.elderly !== (expected.elderly ? 1n : 0n)
     )
-      throw new Error("판정이 다릅니다.");
+      throw new Error("증명의 판정이 서버 판정과 다릅니다.");
   } catch {
     proofTrace.status = "failed";
     svc.repository.save();
-    throw new Error("진단 증명을 만들지 못했어요. 다시 시도해 주세요.");
+    throw new CodedError(
+      "진단 증명을 만들지 못했습니다. 잠시 뒤 진단을 다시 요청하세요.",
+      "unavailable",
+    );
   }
   proofTrace.status = "confirmed";
   // 공개 신호만 남긴다. 답변·임의값·총점은 넣지 않는다.

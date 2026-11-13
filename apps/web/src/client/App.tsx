@@ -118,11 +118,21 @@ export type Run = <T>(
   done?: string,
 ) => Promise<T | undefined>;
 
+/**
+ * 화면에 보여 줄 오류. 닫기 버튼 없이 지운다: 다음 처리를 시작할 때, 경로가 바뀔 때.
+ * 읽기 실패(`load`)는 다음 읽기가 성공해도 지운다. 처리 실패 뒤 바로 다시 읽는 것은 지우지 않는다.
+ */
+type Failure = { message: string; load?: boolean };
+
 export function App() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [error, setError] = useState("");
-  const deployment = useDeployment(setError, DEPLOYMENT_ERROR.institution);
+  const [failure, setFailure] = useState<Failure>();
+  const showError = useCallback(
+    (message: string) => setFailure({ message }),
+    [],
+  );
+  const deployment = useDeployment(showError, DEPLOYMENT_ERROR.institution);
   const [config, setConfig] = useState<ConfigDto>();
   const configRef = useRef<ConfigDto>(undefined);
   const [rules, setRules] = useState<RuleEntryDto[]>([]);
@@ -170,12 +180,14 @@ export function App() {
     setCustomer(newCustomer);
     setApiKeys(newKeys);
     setLoad("ready");
+    // 읽기에 성공하면 앞선 읽기 실패의 오류를 지운다. 처리 실패의 오류는 그대로 둔다.
+    setFailure((current) => (current?.load ? undefined : current));
   }, []);
   /** 화면을 막지 않고 다시 읽는다. */
   const refresh = useCallback(() => reload().catch(() => undefined), [reload]);
   useEffect(() => {
     reload().catch((e: Error) => {
-      setError(e.message);
+      setFailure({ message: e.message, load: true });
       noteAccess(e);
       // 처음 읽기에 실패하면 빈 표가 "불러오고 있습니다"에 머물지 않게 한다.
       setLoad((current) => (current === "loading" ? "failed" : current));
@@ -194,16 +206,28 @@ export function App() {
     };
   }, [refresh]);
   // 오래 걸리는 처리(증명 생성, 거래 영수증) 중에도 처리 기록을 갱신한다.
+  // 처리 기록만 읽는다. 전체를 2초마다 다시 읽으면 분당 180번이라 요청 한도(120번)를 넘는다.
   useEffect(() => {
     if (!busy) return;
-    const timer = setInterval(() => void refresh(), 2000);
+    const timer = setInterval(
+      () =>
+        void api<TraceDto[]>("/traces")
+          .then(setTraces)
+          .catch(() => undefined),
+      2000,
+    );
     return () => clearInterval(timer);
-  }, [busy, refresh]);
+  }, [busy]);
+  // 화면을 옮기면 앞 화면의 오류를 지운다.
+  const route = location.pathname + location.search;
+  useEffect(() => {
+    setFailure(undefined);
+  }, [route]);
 
   const run: Run = async (name, operation, done) => {
     if (busy) return undefined;
     setBusy(name);
-    setError("");
+    setFailure(undefined);
     setNotice("");
     try {
       const result = await operation?.();
@@ -212,7 +236,12 @@ export function App() {
       if (done) setNotice(done);
       return result;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "처리를 완료하지 못했습니다.");
+      setFailure({
+        message:
+          e instanceof Error
+            ? e.message
+            : "처리를 완료하지 못했습니다. 잠시 뒤 다시 시도하세요.",
+      });
       noteAccess(e);
       await refresh();
       return undefined;
@@ -251,8 +280,7 @@ export function App() {
         tone: deployment ? "success" : "warning",
         text: networkName(deployment),
       }}
-      error={error}
-      dismissError={() => setError("")}
+      error={failure?.message}
       notice={notice}
       busy={busy}
     >

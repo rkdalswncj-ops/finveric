@@ -48,6 +48,7 @@ import {
 import type {
   CustomerDto,
   DiagnosisDto,
+  ErrorCode,
   ErrorResponse,
   SaleDto,
 } from "../packages/core/src/api.ts";
@@ -197,13 +198,25 @@ test(
       assert.equal(response.statusCode, 200, response.body);
       return response.json() as T;
     };
-    const rejectBody = async (path: string, status: number, body?: object) => {
+    /** 거절 응답의 상태 코드와 `code`를 확인한다. 연동 앱은 문장 대신 `code`로 안내를 고른다. */
+    const rejectBody = async (
+      path: string,
+      status: number,
+      code: ErrorCode,
+      body?: object,
+    ) => {
       const response = await call(path, body);
       assert.equal(response.statusCode, status, response.body);
-      return response.json() as ErrorResponse;
+      const failure = response.json() as ErrorResponse;
+      assert.equal(failure.code, code, response.body);
+      return failure;
     };
-    const reject = async (path: string, status: number, body?: object) =>
-      (await rejectBody(path, status, body)).error;
+    const reject = async (
+      path: string,
+      status: number,
+      code: ErrorCode,
+      body?: object,
+    ) => (await rejectBody(path, status, code, body)).error;
     const blockNumber = () => client.getBlockNumber({ cacheTime: 0 });
     const diagnose = (answers: number[]) =>
       request<DiagnosisDto>(`/customers/${CUSTOMER}/diagnose`, { answers });
@@ -236,21 +249,26 @@ test(
       "기준 등록 전 진단·신청과 형식이 틀린 입력을 거절한다",
       async () => {
         assert.match(
-          await reject(`/customers/${CUSTOMER}/diagnose`, 409, {
+          await reject(`/customers/${CUSTOMER}/diagnose`, 409, "not_ready", {
             answers: ANSWERS[0],
           }),
           /진단 기준을 먼저 등록/,
         );
-        await reject("/sales", 409, {
+        await reject("/sales", 409, "not_ready", {
           productId: els.id,
           customerNo: CUSTOMER,
         });
-        await reject(`/customers/${CUSTOMER}/diagnose`, 400, { answers: [5] });
-        await reject(`/customers/C_0001/diagnose`, 400, { answers: [0] });
-        await reject("/sales", 400, {
+        await reject(`/customers/${CUSTOMER}/diagnose`, 400, "invalid_input", {
+          answers: [5],
+        });
+        await reject(`/customers/C_0001/diagnose`, 400, "invalid_input", {
+          answers: [0],
+        });
+        await reject("/sales", 400, "invalid_input", {
           productId: "0x01",
           customerNo: CUSTOMER,
         });
+        await reject("/sales/123", 409, "not_found");
         const rules = await request("/rules");
         assert.equal(rules.length, 1);
         assert.equal(rules[0].registered, false);
@@ -307,6 +325,11 @@ test(
     await t.test(
       "새 설명서 버전은 다음 버전 번호로 쌓이고 이전 버전을 남긴다",
       async () => {
+        // 새 버전을 등록하기 전에 만든 신청은 청약할 수 없다(product_changed).
+        const stale = await request<SaleDto>("/sales", {
+          productId: fund.id,
+          customerNo: "C-0002",
+        });
         const entry = await request("/products", {
           document: {
             ...fund.document,
@@ -315,6 +338,16 @@ test(
           },
         });
         assert.equal(entry.product.version, 2);
+        await reject(
+          `/sales/${stale.id}/action/subscribe`,
+          409,
+          "product_changed",
+          {
+            explanationSeconds: 60,
+            higherRiskConfirmed: false,
+            recordingConsent: false,
+          },
+        );
         const products = await request("/products");
         const fundVersions = products.filter(
           (p: { product: { id: string } }) => p.product.id === fund.id,
@@ -331,13 +364,13 @@ test(
             [2, true],
           ],
         );
-        await reject("/products", 400, {
+        await reject("/products", 400, "invalid_input", {
           document: {
             ...fund.document,
             cards: fund.document.cards.slice(0, 4),
           },
         });
-        await reject("/products", 400, {
+        await reject("/products", 400, "invalid_input", {
           document: { ...fund.document, riskGrade: 7 },
         });
       },
@@ -377,10 +410,10 @@ test(
               { singleThread: true },
             ),
           );
-        await reject(`/customers/${CUSTOMER}/diagnose`, 409, {
+        await reject(`/customers/${CUSTOMER}/diagnose`, 409, "invalid_input", {
           answers: [3, 0, 0, 0, 0, 0],
         });
-        await reject(`/customers/${CUSTOMER}/diagnose`, 409, {
+        await reject(`/customers/${CUSTOMER}/diagnose`, 409, "invalid_input", {
           answers: [0, 0, 0],
         });
         assert.equal(
@@ -432,6 +465,17 @@ test(
         assert.equal(draft.status, "draft");
         assert.equal(draft.customerRef, ref);
         assert.equal(draft.latestAttempt, 0);
+        const subscribeBody = {
+          explanationSeconds: 60,
+          higherRiskConfirmed: true,
+          recordingConsent: true,
+        };
+        await reject(
+          `/sales/${draft.id}/action/subscribe`,
+          409,
+          "needs_diagnosis",
+          subscribeBody,
+        );
         const first = await diagnose(ANSWERS[0]);
         assert.deepEqual(
           [first.attempt, first.profile, first.limit, first.elderly],
@@ -439,13 +483,21 @@ test(
         );
         firstTx = first.txHash;
         gas.recordDiagnosis = await gasOf(first.txHash);
+        // 3회차 미만이면 관리자 승인 대상이 아니다.
+        await reject(
+          `/sales/${draft.id}/action/approve`,
+          409,
+          "wrong_state",
+          {},
+        );
         const abandoned = await action(draft.id, "abandon");
         assert.equal(abandoned.status, "abandoned");
-        await reject(`/sales/${draft.id}/action/subscribe`, 409, {
-          explanationSeconds: 60,
-          higherRiskConfirmed: true,
-          recordingConsent: true,
-        });
+        await reject(
+          `/sales/${draft.id}/action/subscribe`,
+          409,
+          "wrong_state",
+          subscribeBody,
+        );
 
         const sale = await request<SaleDto>("/sales", {
           productId: els.id,
@@ -513,7 +565,10 @@ test(
         assert.equal(result.rejected, true);
         assert.equal(result.error, "InvalidAttempt");
         assert.match(result.reason, /회차/);
-        await reject("/demo/tamper", 409, { customerNo: CUSTOMER, attempt: 9 });
+        await reject("/demo/tamper", 409, "wrong_state", {
+          customerNo: CUSTOMER,
+          attempt: 9,
+        });
         assert.equal(await blockNumber(), before);
         const recorded = await request<CustomerDto>(`/customers/${CUSTOMER}`);
         assert.equal(recorded.diagnoses[1].profile, 4);
@@ -614,30 +669,44 @@ test(
           recordingConsent: true,
         };
         assert.match(
-          await reject(`/sales/${saleId}/action/subscribe`, 409, body),
+          await reject(
+            `/sales/${saleId}/action/subscribe`,
+            409,
+            "needs_approval",
+            body,
+          ),
           /관리자 승인/,
         );
         const approved = await action(saleId, "approve");
         assert.equal(approved.approvalRequired, true);
         assert.equal(approved.approvedAttempt, 3);
         assert.match(
-          await reject(`/sales/${saleId}/action/subscribe`, 409, {
-            ...body,
-            higherRiskConfirmed: false,
-          }),
+          await reject(
+            `/sales/${saleId}/action/subscribe`,
+            409,
+            "needs_higher_risk",
+            { ...body, higherRiskConfirmed: false },
+          ),
           /추가 위험 확인/,
         );
         assert.match(
-          await reject(`/sales/${saleId}/action/subscribe`, 409, {
-            ...body,
-            recordingConsent: false,
-          }),
+          await reject(
+            `/sales/${saleId}/action/subscribe`,
+            409,
+            "needs_recording",
+            { ...body, recordingConsent: false },
+          ),
           /녹취/,
         );
-        await reject(`/sales/${saleId}/action/subscribe`, 400, {
-          ...body,
-          explanationSeconds: 0,
-        });
+        await reject(
+          `/sales/${saleId}/action/subscribe`,
+          400,
+          "invalid_input",
+          {
+            ...body,
+            explanationSeconds: 0,
+          },
+        );
         assert.equal(await blockNumber(), before);
         const subscribed = await action(saleId, "subscribe", body);
         assert.equal(subscribed.status, "subscribed");
@@ -671,6 +740,7 @@ test(
         const tooEarly = await rejectBody(
           `/sales/${saleId}/action/confirm`,
           409,
+          "rejected",
           {},
         );
         assert.match(tooEarly.error, /숙려기간/);
@@ -697,7 +767,12 @@ test(
           )?.txHash,
         );
         // 확정한 건은 철회할 수 없다. 같은 확인 요청은 거래를 다시 보내지 않는다.
-        await reject(`/sales/${saleId}/action/withdraw`, 409, {});
+        await reject(
+          `/sales/${saleId}/action/withdraw`,
+          409,
+          "wrong_state",
+          {},
+        );
         const repeated = await blockNumber();
         await action(saleId, "confirm");
         assert.equal(await blockNumber(), repeated);
@@ -715,7 +790,7 @@ test(
         bondId = bond.id;
         assert.equal(bond.suitable, true);
         assert.equal(bond.protectedSale, false);
-        await reject(`/sales/${bond.id}/action/settle`, 409, {});
+        await reject(`/sales/${bond.id}/action/settle`, 409, "wrong_state", {});
         await action(bond.id, "approve");
         const subscribed = await action(bond.id, "subscribe", {
           explanationSeconds: 45,
@@ -747,7 +822,12 @@ test(
           (await action(withdrawn.id, "withdraw")).status,
           "withdrawn",
         );
-        await reject(`/sales/${withdrawn.id}/action/confirm`, 409, {});
+        await reject(
+          `/sales/${withdrawn.id}/action/confirm`,
+          409,
+          "wrong_state",
+          {},
+        );
       },
     );
 

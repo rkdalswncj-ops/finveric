@@ -72,7 +72,11 @@ export async function latestProduct(
   id: Hex,
 ): Promise<Product> {
   const version = await readLatestProductVersion(svc, id);
-  if (version === 0) throw new Error("이 상품을 먼저 원장에 등록하세요.");
+  if (version === 0)
+    throw new CodedError(
+      "원장에 등록하지 않은 상품입니다. 판매사 콘솔에서 상품을 먼저 등록하세요.",
+      "not_ready",
+    );
   return storedProduct(svc, id, version);
 }
 export function storedProduct(svc: FundService, id: Hex, version: number) {
@@ -85,7 +89,7 @@ export function storedProduct(svc: FundService, id: Hex, version: number) {
     );
   if (!entry)
     throw new CodedError(
-      "원장의 상품 설명서 원문을 판매 기록에서 찾을 수 없습니다.",
+      "원장의 상품 설명서 원문을 판매 기록에서 찾을 수 없습니다. 판매 기록 저장소가 같은 원장의 기록인지 확인하세요.",
       "unavailable",
     );
   return entry.product;
@@ -104,7 +108,10 @@ export async function registerProduct(
   const doc: ProductDocument = { ...document, version };
   const errors = validateProduct(doc);
   if (errors.length)
-    throw new Error(`상품 설명서를 확인하세요. ${errors.join(" ")}`);
+    throw new CodedError(
+      `상품 설명서를 고친 뒤 다시 등록하세요. ${errors.join(" ")}`,
+      "invalid_input",
+    );
   const product = defineProduct(doc);
   const stored: StoredProduct = { product };
   svc.repository.addProduct(stored);

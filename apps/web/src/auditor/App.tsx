@@ -33,9 +33,12 @@ const PAGES: { path: string; label: string; icon: LucideIcon }[] = [
 ];
 const groups: NavGroup[] = [{ label: "감독기관", items: PAGES }];
 
+/**
+ * 감독기관 화면의 오류는 각 화면이 화면 안에 보여 준다(원장 줄, 분쟁 조회, 보고서). Shell의 오류 알림은 쓰지 않는다.
+ * 화면의 오류는 다음 대조·다시 읽기를 시작할 때, 경로가 바뀌어 화면이 바뀔 때 사라진다.
+ */
 export function App() {
   const location = useLocation();
-  const [error, setError] = useState("");
   // 검증 설정을 읽지 못하면 원장 줄과 각 화면의 원장 영역이 오류를 보여 준다(useLedger). 알림을 따로 띄우지 않는다.
   const [configFailed, setConfigFailed] = useState(false);
   const onConfigError = useCallback(() => setConfigFailed(true), []);
@@ -62,8 +65,6 @@ export function App() {
             : "Anvil 테스트 원장"
           : "원장 설정 대기",
       }}
-      error={error}
-      dismissError={() => setError("")}
     >
       <Routes>
         <Route

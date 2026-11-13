@@ -56,7 +56,7 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
     throw new ApiError(
       typeof failure.error === "string" && failure.error
         ? failure.error
-        : "요청을 완료하지 못했습니다.",
+        : "요청을 완료하지 못했습니다. 잠시 뒤 다시 시도하세요.",
       failure.code,
       failure.ledgerError,
       response.status,

@@ -24,7 +24,7 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
 | `src/docs/operations.ts`      | 경로별 operationId, 분류(태그), 요약, 설명, 성공 응답, 요청 예시                                                                  |
 | `src/docs/page.ts`            | `/api/docs` 화면. HTML·CSS·JS를 한 문자열로 둔다                                                                                  |
 | `src/service.ts`              | `FundService`: 실행 맥락, 시작 검사. 업무 메서드는 모듈로 넘긴다                                                                  |
-| `src/errors.ts`               | `CodedError`: 오류 응답에 `code`(`pending`·`unavailable`·`rejected`)를 싣는 오류. 모든 계층이 던질 수 있다                        |
+| `src/errors.ts`               | `CodedError`: 오류 응답에 `code`를 싣는 오류. 모든 계층이 던진다. 경로 밖의 고정 오류(`HTTP_ERRORS`), 원장 거절 문장              |
 | `src/modules/rules.ts`        | 소비자보호 담당: 진단 기준 버전 등록과 조회, 최신 기준                                                                            |
 | `src/modules/products.ts`     | 소비자보호 담당: 상품 설명서 버전 등록과 조회, 시연 기준·상품 일괄 등록                                                           |
 | `src/modules/customers.ts`    | 판매 채널: 고객 가명 ID, 진단 회차(증명 생성 → 판매사 키로 기록)                                                                  |
@@ -57,7 +57,7 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
 - 태그는 하는 일로 정한다. 증권사 앱이 고객 한 명을 처리할 때 부르면 `판매 채널 연동`, 판매사 직원이 콘솔에서 쓰면 `판매사 콘솔`, 상태 확인과 문서는 `시스템`이다.
 - 판매 건 동작은 동작마다 경로가 따로 있다(`/api/sales/:id/action/<동작>`). 동작마다 태그가 다르기 때문이다.
 - 응답 스키마는 문서 전용이다. 경로의 `schema.response`에 넣지 않는다. 넣으면 응답 직렬화가 바뀌고, 문서 생성이 실패한다. 응답 스키마는 `packages/core/src/api.ts`에 두고 `operations.ts`에서 가리킨다.
-- 공통 오류(400·401·403·409·429)와 인증 표시는 `src/docs/openapi.ts`가 더한다. 오류 응답을 바꾸면 이 파일의 설명도 고친다.
+- 공통 오류(400·401·403·409·429)와 인증 표시는 `src/docs/openapi.ts`가 더한다. 오류 응답을 바꾸면 이 파일의 설명도 고친다. `code` 목록은 `packages/core/src/api.ts`의 `ERROR_CODES`에서, 공통 오류의 예시는 `HTTP_ERRORS`에서 만든다.
 - 문서 화면은 외부 파일과 CDN을 쓰지 않는다. Vercel 함수 번들에 문자열로 들어간다. 색, 글자 크기(`--type-*`), 반경은 DESIGN.md 토큰을 그대로 쓴다. `packages/ui/src/theme.css`를 가져올 수 없으므로 값을 `STYLE`의 `:root`에 옮겨 둔다. 토큰을 바꾸면 두 곳을 함께 고친다.
 
 ## 원장 거래
@@ -89,13 +89,17 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
 ## 오류와 비밀 값
 
 - 응답 오류는 우리가 쓴 한국어 문장만 내보낸다. RPC와 Redis 오류에는 주소와 토큰이 들어갈 수 있다. 오류 처리기는 한글로 시작하고 `http`가 없는 문장만 그대로 내보낸다. `API 키는…`처럼 영문으로 시작하는 문장은 일반 오류 문장으로 바뀐다.
-- 오류 응답에는 이유를 기계가 읽는 `code`를 함께 넣을 수 있다. `{ error, code?, ledgerError? }`다(`ErrorResponse`). 연동 앱은 `code`로 고객용 문장을 고른다. 문장은 판매사 콘솔이 그대로 보여 준다.
+- 모든 오류 응답은 `{ error, code, ledgerError? }`다(`ErrorResponse`). `code`는 이유를 기계가 읽는 값이다. 값, HTTP 상태, 뜻은 `packages/core/src/api.ts`의 `ERROR_CODES`에 있다. 연동 앱과 증권사 앱 예시는 `code`로 고객 문장을 고른다. 판매사 콘솔은 `error`를 그대로 보여 준다.
+- `error` 문장은 합니다체로 쓴다. 판매사 개발자와 콘솔 담당이 읽는다. 원인과 다음 행동을 함께 쓴다. 예: "투자성향에 맞지 않는 상품입니다. 고객에게 부적합 사실을 알리고 추가 위험 확인을 받아야 청약할 수 있습니다." 고객용 문장(해요체)은 API에 두지 않는다.
+- 모듈, 리포지토리, 게이트웨이는 `CodedError`(`src/errors.ts`)를 던진다. 오류 처리기(`app.ts`)가 `code`와 `ledgerError`를 응답에 옮긴다.
+  - 업무 규칙 오류도 맞는 `code`를 쓴다. 예: 진단 전 청약은 `needs_diagnosis`, 지금 상태에서 할 수 없는 동작은 `wrong_state`, 없는 판매 건은 `not_found`.
   - `pending`: 앞선 원장 거래의 영수증이 아직 없다(미확정 거래, 영수증 대기).
-  - `unavailable`: RPC·저장소 연결 실패, 처리를 끝내지 못함. 우리가 쓰지 않은 오류 문장을 바꿀 때도 이 값이다.
-  - `rejected`: 원장이 거절했다(`LedgerRejection`). 원장 오류 이름을 알면 `ledgerError`(예: `TooEarly`)를 넣는다.
-  - 업무 규칙 오류(예: 진단 전 청약)에는 `code`를 넣지 않는다.
-- `code`를 넣으려면 `CodedError`(`src/errors.ts`)를 던진다. 오류 처리기(`app.ts`)가 응답에 옮긴다. 값을 더하면 `packages/core/src/api.ts`의 `ERROR_CODES`와 `src/docs/openapi.ts`의 설명을 함께 고친다.
-- 업무 오류는 409다. Fastify와 플러그인이 정한 4xx(잘못된 JSON 400, 본문 초과 413, 본문 형식 415, 요청 한도 429)는 상태 코드를 유지한다. 없는 경로는 404다.
+  - `unavailable`: RPC·저장소 연결 실패, 처리를 끝내지 못함, 판매 기록과 원장이 어긋남.
+  - `rejected`: 원장이 거절했다(`LedgerRejection`). 원장 오류 이름을 알면 `ledgerError`(예: `TooEarly`)를 넣는다. 문장은 `ledgerRejectionMessage()`와 core의 `LEDGER_ERRORS`(합니다체)다.
+- `code`가 없는 오류는 오류 처리기가 `unavailable`로 보낸다. 우리가 쓴 문장이면 그 문장을, 아니면 일반 문장(`HTTP_ERRORS.unavailable`)을 보낸다.
+- 경로 밖의 오류(접근 코드·API 키 401, 범위·출처 403, 없는 경로 404, Fastify와 플러그인의 4xx)는 `HTTP_ERRORS`의 문장과 `code`를 쓴다.
+- `code`를 더하거나 바꾸면 `ERROR_CODES`, 증권사 앱 예시의 `customerMessage()`(`apps/web/src/channel/App.tsx`), 이 파일을 함께 고친다.
+- 업무 오류는 409다. 없는 판매 건과 API 키도 409(`not_found`)다. Fastify와 플러그인이 정한 4xx(잘못된 JSON 400, 본문 초과 413, 본문 형식 415, 요청 한도 429)는 상태 코드를 유지한다. 없는 경로는 404다.
 - 공개 조회와 로그에 답변·총점·임의값·고객 번호·개인키·승인 서명을 넣지 않는다. 고객은 가명 ID로만 표시한다.
 - 고객 가명 ID 비밀값은 `CUSTOMER_REF_SECRET`이다. 없으면 판매사 키에서 만든다. 비밀값을 바꾸면 같은 고객의 회차가 이어지지 않는다.
 
@@ -110,7 +114,7 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
 
 - `tests/mvp.test.ts`: 실제 회로·EVM·API·독립 검증, 위험 신호, 공유 저장소 인스턴스, 재시작 복구.
 - `tests/store.test.ts`: 잠금, 만료, 오류 노출, 출처, Vercel 주소 변환.
-- `tests/openapi.test.ts`: 문서가 등록한 모든 경로를 operationId·태그로 설명하는지, 공개 경로, 문서 화면, 4xx 상태 코드.
+- `tests/openapi.test.ts`: 문서가 등록한 모든 경로를 operationId·태그로 설명하는지, 공개 경로, 문서 화면, 4xx 상태 코드와 `code`.
 - `tests/keys.test.ts`: API 키 발급·저장(해시만), 범위(403), 폐기(401), 개수 제한, 키별 요청 한도. 모든 응답을 문서의 응답 스키마와 대조한다.
-- `tests/mvp.test.ts`는 모든 API 응답을 `/api/openapi.json`의 응답 스키마와 대조한다(`tests/openapi-check.ts`). 문서에 없는 필드도 실패다.
+- `tests/mvp.test.ts`는 모든 API 응답을 `/api/openapi.json`의 응답 스키마와 대조한다(`tests/openapi-check.ts`). 문서에 없는 필드도 실패다. 오류 응답에 `code`가 없어도 실패다.
 - 함수 번들: `NETWORK=local npm run build:vercel` 뒤 임시 디렉터리에서 로컬 Anvil로 번들 핸들러를 호출해 확인한다.

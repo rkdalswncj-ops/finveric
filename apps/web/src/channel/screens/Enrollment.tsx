@@ -152,6 +152,7 @@ export function Enrollment({
   action,
   abandon,
   refresh,
+  refreshSale,
   download,
   finish,
 }: {
@@ -166,6 +167,7 @@ export function Enrollment({
   action: (id: string, name: SaleAction, label: string) => unknown;
   abandon: () => unknown;
   refresh: () => unknown;
+  refreshSale: (id: string) => unknown;
   download: (id: string, kind: ExportKind) => unknown;
   finish: () => void;
 }) {
@@ -234,10 +236,11 @@ export function Enrollment({
     sale.approvedAttempt !== sale.latestAttempt;
   // 관리자 승인을 기다리는 동안 판매 건을 다시 읽는다. 승인은 판매사 콘솔(다른 탭)이 API로 기록한다.
   useEffect(() => {
-    if (!waitingApproval) return;
-    const timer = setInterval(() => void refresh(), 3000);
+    if (!waitingApproval || !sale) return;
+    const id = sale.id;
+    const timer = setInterval(() => void refreshSale(id), 3000);
     return () => clearInterval(timer);
-  }, [waitingApproval, refresh]);
+  }, [waitingApproval, sale?.id, refreshSale]);
 
   // 단계가 바뀌면 화면 맨 위에서 시작하고, 새 단계 제목으로 초점을 옮긴다.
   const stepKey = [

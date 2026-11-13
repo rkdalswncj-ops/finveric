@@ -9,7 +9,7 @@ import {
   type ErrorResponse,
 } from "../../../packages/core/src/api.ts";
 import { openApiOptions } from "./docs/openapi.ts";
-import { CodedError } from "./errors.ts";
+import { CodedError, HTTP_ERRORS } from "./errors.ts";
 import { CHANNEL_TAG, tagOf } from "./docs/operations.ts";
 import { FundService } from "./service.ts";
 import { customerRoutes } from "./routes/customers.ts";
@@ -97,20 +97,16 @@ export async function createApp(service = new FundService()) {
     if (supplied.startsWith(API_KEY_PREFIX)) {
       // API 키: 증권사 앱 서버가 쓴다. 접근 코드 설정과 관계없이 항상 확인한다.
       if (!(await service.authenticateApiKey(supplied)))
-        return reply
-          .code(401)
-          .send({ error: "API 키를 확인하세요. 폐기했거나 없는 키입니다." });
+        return reply.code(401).send(HTTP_ERRORS.apiKey);
       const url = req.routeOptions.url;
       if (url && tagOf(req.method, url) !== CHANNEL_TAG)
-        return reply.code(403).send({
-          error: "API 키로는 판매 채널 연동 API만 부를 수 있습니다.",
-        });
+        return reply.code(403).send(HTTP_ERRORS.apiKeyScope);
     } else if (token) {
       // 접근 코드: 판매사 콘솔과 증권사 앱 예시가 쓴다. 모든 경로를 부를 수 있다.
       const given = Buffer.from(supplied);
       const expected = Buffer.from(token);
       if (given.length !== expected.length || !timingSafeEqual(given, expected))
-        return reply.code(401).send({ error: "접근 코드를 확인하세요." });
+        return reply.code(401).send(HTTP_ERRORS.accessCode);
     }
     if (
       req.method === "POST" &&
@@ -118,7 +114,7 @@ export async function createApp(service = new FundService()) {
       req.headers.origin !== sameSiteOrigin(req.headers) &&
       !origins.includes(req.headers.origin)
     )
-      return reply.code(403).send({ error: "허용하지 않은 출처입니다." });
+      return reply.code(403).send(HTTP_ERRORS.origin);
   });
   app.setSerializerCompiler(() => (value) => json(value));
   app.addHook("preSerialization", async (_req, _reply, payload) =>
@@ -126,40 +122,39 @@ export async function createApp(service = new FundService()) {
   );
   app.setErrorHandler((error, _req, reply) => {
     if (error && typeof error === "object" && "validation" in error)
-      return reply
-        .code(400)
-        .send({ error: "입력 형식과 허용 범위를 확인하세요." });
+      return reply.code(400).send(HTTP_ERRORS.badRequest);
     // Fastify와 플러그인이 정한 4xx(잘못된 JSON 400, 본문 초과 413, 본문 형식 415, 요청 한도 429)는 상태 코드를 유지한다.
     const status = (error as { statusCode?: number } | undefined)?.statusCode;
-    if (status === 429)
-      return reply
-        .code(429)
-        .send({ error: "요청이 너무 많습니다. 1분 뒤 다시 시도하세요." });
     if (status && status >= 400 && status < 500)
       return reply
         .code(status)
-        .send({ error: "입력 형식과 허용 범위를 확인하세요." });
-    const message =
-      error instanceof Error ? error.message : "처리를 완료하지 못했습니다.";
+        .send(
+          status === 429
+            ? HTTP_ERRORS.rateLimited
+            : status === 413
+              ? HTTP_ERRORS.bodyTooLarge
+              : status === 415
+                ? HTTP_ERRORS.unsupportedMediaType
+                : HTTP_ERRORS.badRequest,
+        );
+    const message = error instanceof Error ? error.message : "";
     // Errors from RPC providers may contain credential-bearing URLs. Only return our authored messages.
     const authored = /^[가-힣]/.test(message) && !message.includes("http");
-    // 우리가 쓰지 않은 오류는 RPC·저장소 실패로 본다(`unavailable`). 업무 규칙 오류에는 code가 없다.
+    // 모든 오류 응답에 code가 있다. 모듈은 CodedError를 던진다.
+    // code가 없는 오류는 RPC·저장소 실패나 처리하지 못한 오류로 본다(`unavailable`).
     const body: ErrorResponse = !authored
-      ? {
-          error: "서버 연결과 온체인 처리 기록을 확인하세요.",
-          code: "unavailable",
-        }
+      ? HTTP_ERRORS.unavailable
       : error instanceof CodedError
         ? {
             error: message,
             code: error.code,
             ...(error.ledgerError ? { ledgerError: error.ledgerError } : {}),
           }
-        : { error: message };
+        : { error: message, code: "unavailable" };
     reply.code(409).send(body);
   });
   app.setNotFoundHandler((_req, reply) =>
-    reply.code(404).send({ error: "없는 API 경로입니다." }),
+    reply.code(404).send(HTTP_ERRORS.notFound),
   );
   // 경로는 업무별 플러그인이다. 모두 /api 아래에 등록한다.
   // 위에서 등록한 훅(접근 코드·출처 검사), 직렬화, 오류 처리를 플러그인이 물려받는다.

@@ -3,6 +3,11 @@ import assert from "node:assert/strict";
 import { PUBLIC_PATHS } from "../apps/api/src/app.ts";
 import { offlineApp } from "./offline-app.ts";
 import { OPERATIONS, TAGS } from "../apps/api/src/docs/operations.ts";
+import { HTTP_ERRORS } from "../apps/api/src/errors.ts";
+import { ERROR_CODES, type ErrorCode } from "../packages/core/src/api.ts";
+
+/** 해요체 끝맺음. API 오류 문장은 합니다체(지시는 "-세요")로 쓴다. */
+const HAEYO = /(어|아|에|해|예|워|돼|봐)요[.?!]|주세요/;
 
 /** printRoutes 결과에서 `METHOD /경로` 목록을 만든다. HEAD·OPTIONS는 Fastify와 CORS가 만든 경로다. */
 function registeredRoutes(tree: string) {
@@ -136,6 +141,23 @@ test("OpenAPI 3.1 문서가 등록한 모든 경로를 분류와 operationId로 
     spec.components.responses.Conflict.content["application/json"].schema.$ref,
     "#/components/schemas/Error",
   );
+  // 모든 오류 응답에 code가 있다. 문서는 모든 code와 HTTP 상태를 설명한다.
+  const errorSchema = spec.components.schemas.Error;
+  assert.deepEqual(errorSchema.required, ["error", "code"]);
+  assert.deepEqual(errorSchema.properties.code.enum, Object.keys(ERROR_CODES));
+  for (const [name, response] of Object.entries<any>(
+    spec.components.responses,
+  )) {
+    const example = response.content["application/json"].example;
+    assert.ok(example.code in ERROR_CODES, `${name}: 예시에 code 없음`);
+    assert.match(example.error, /^[가-힣]/, name);
+    assert.doesNotMatch(example.error, HAEYO, name);
+  }
+  for (const [code, { status }] of Object.entries(ERROR_CODES))
+    assert.ok(
+      spec.info.description.includes(`\`${code}\` (${status.join("·")})`),
+      `API 설명에 ${code} 없음`,
+    );
 });
 
 test("API 문서 화면은 외부 파일 없이 한 HTML로 열린다", async (t) => {
@@ -171,26 +193,89 @@ test("접근 코드를 설정해도 상태 확인·설정·API 문서는 열리�
     payload: {},
   });
   assert.equal(missing.statusCode, 404);
-  assert.deepEqual(missing.json(), { error: "없는 API 경로입니다." });
+  assert.deepEqual(missing.json(), HTTP_ERRORS.notFound);
 });
 
-test("잘못된 JSON 본문과 요청 한도 초과는 409가 아니라 원래 상태 코드다", async (t) => {
+/** 응답의 상태 코드와 `code`를 확인한다. 문장은 우리가 쓴 합니다체 문장이다. */
+function assertError(
+  response: { statusCode: number; json(): any; body: string },
+  status: number,
+  code: ErrorCode,
+) {
+  assert.equal(response.statusCode, status, response.body);
+  const body = response.json();
+  assert.equal(body.code, code, response.body);
+  assert.match(body.error, /^[가-힣]/, response.body);
+  assert.doesNotMatch(body.error, HAEYO, response.body);
+  assert.deepEqual(Object.keys(body).sort(), ["code", "error"]);
+}
+
+test("Fastify·플러그인·접근 검사의 오류도 원래 상태 코드와 code를 보낸다", async (t) => {
+  process.env.DEMO_TOKEN = "docs-test-token-32-characters-0000000";
+  t.after(() => delete process.env.DEMO_TOKEN);
   const app = await offlineApp(t);
-  const broken = await app.inject({
-    method: "POST",
-    url: "/api/sales",
-    headers: { "content-type": "application/json" },
-    payload: "{",
-  });
-  assert.equal(broken.statusCode, 400);
-  assert.deepEqual(broken.json(), {
-    error: "입력 형식과 허용 범위를 확인하세요.",
-  });
+  const auth = { authorization: `Bearer ${process.env.DEMO_TOKEN}` };
+  const post = (headers: Record<string, string>, payload: string) =>
+    app.inject({ method: "POST", url: "/api/sales", headers, payload });
+  const json = { ...auth, "content-type": "application/json" };
+
+  // 잘못된 JSON 400, 스키마 400, 본문 초과 413, 본문 형식 415.
+  assertError(await post(json, "{"), 400, "invalid_input");
+  assertError(await post(json, "{}"), 400, "invalid_input");
+  assertError(
+    await post(json, JSON.stringify({ name: "x".repeat(70_000) })),
+    413,
+    "invalid_input",
+  );
+  assertError(
+    await post({ ...auth, "content-type": "application/xml" }, "<x/>"),
+    415,
+    "invalid_input",
+  );
+  // 접근 코드 401, API 키 401, 허용하지 않은 출처 403, API 키 범위 403, 없는 경로 404.
+  assertError(await app.inject({ url: "/api/sales" }), 401, "unauthorized");
+  assertError(
+    await app.inject({
+      url: "/api/sales",
+      headers: { authorization: `Bearer fvk_${"A".repeat(32)}` },
+    }),
+    401,
+    "unauthorized",
+  );
+  assertError(
+    await post(
+      { ...json, origin: "https://other.example" },
+      JSON.stringify({
+        productId: `0x${"1".repeat(64)}`,
+        customerNo: "C-0001",
+      }),
+    ),
+    403,
+    "forbidden",
+  );
+  assertError(
+    await app.inject({ url: "/api/nothing", headers: auth }),
+    404,
+    "not_found",
+  );
+  // 업무 오류: 없는 판매 건은 409 not_found다(원장을 읽기 전에 끝난다).
+  assertError(
+    await app.inject({ url: "/api/sales/1/export/receipt", headers: auth }),
+    409,
+    "not_found",
+  );
+  // 요청 한도 429. 같은 IP의 요청을 센다.
   let last;
   for (let i = 0; i < 121; i++)
     last = await app.inject({ url: "/api/openapi.json" });
-  assert.equal(last?.statusCode, 429);
-  assert.deepEqual(last?.json(), {
-    error: "요청이 너무 많습니다. 1분 뒤 다시 시도하세요.",
-  });
+  assertError(last!, 429, "rate_limited");
+});
+
+test("우리가 쓰지 않은 오류는 RPC 문장을 숨기고 unavailable로 보낸다", async (t) => {
+  // offline 스택의 RPC는 닫힌 포트다. 원장을 읽는 경로는 viem 오류로 끝난다.
+  const app = await offlineApp(t);
+  const failed = await app.inject({ url: "/api/rules" });
+  assertError(failed, 409, "unavailable");
+  assert.deepEqual(failed.json(), HTTP_ERRORS.unavailable);
+  assert.doesNotMatch(failed.body, /127\.0\.0\.1|http/);
 });

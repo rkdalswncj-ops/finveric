@@ -164,7 +164,7 @@ export const OPERATIONS: Record<string, Operation> = {
     tag: "판매 채널 연동",
     summary: "청약",
     description:
-      "고객 키로 청약 거래를 보냅니다. 부적합이면 `higherRiskConfirmed`가 true여야 합니다. 녹취·숙려 대상이면 `recordingConsent`가 true여야 하고, 서버가 녹취록 지문을 기록합니다. 최신 회차가 3 이상이면 관리자 승인(`approveSale`)이 먼저 필요합니다.",
+      "고객 키로 청약 거래를 보냅니다. 부적합이면 `higherRiskConfirmed`가 true여야 합니다. 녹취·숙려 대상이면 `recordingConsent`가 true여야 하고, 서버가 녹취록 지문을 기록합니다. 최신 회차가 3 이상이면 관리자 승인(`approveSale`)이 먼저 필요합니다. 조건이 빠지면 409와 함께 `code`로 이유를 알립니다: `needs_diagnosis`, `needs_higher_risk`, `needs_approval`, `needs_recording`, `product_changed`, `wrong_state`(중단한 신청). 이미 청약한 건은 거래를 다시 보내지 않습니다.",
     responses: sale("청약한 판매 건(status: subscribed)"),
     example: {
       explanationSeconds: 180,

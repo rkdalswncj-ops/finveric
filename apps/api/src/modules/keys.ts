@@ -7,6 +7,7 @@ import {
   type ApiKeyDto,
   type IssuedApiKeyDto,
 } from "../../../../packages/core/src/api.ts";
+import { CodedError } from "../errors.ts";
 import type { StoredApiKey } from "../repositories/sales.ts";
 import type { FundService } from "../service.ts";
 
@@ -36,10 +37,15 @@ export function listApiKeys(svc: FundService): ApiKeyDto[] {
 /** 새 키를 발급한다. 키 원문은 이 응답에만 있다. */
 export function issueApiKey(svc: FundService, name: string): IssuedApiKeyDto {
   const label = name.trim();
-  if (!label) throw new Error("키 이름을 입력하세요.");
+  if (!label)
+    throw new CodedError(
+      "키 이름이 비어 있습니다. 키를 쓰는 곳을 알 수 있는 이름을 보내세요.",
+      "invalid_input",
+    );
   if (svc.repository.apiKeys().filter(active).length >= MAX_ACTIVE_API_KEYS)
-    throw new Error(
-      `사용 중인 API 키는 ${MAX_ACTIVE_API_KEYS}개까지입니다. 쓰지 않는 키를 폐기하세요.`,
+    throw new CodedError(
+      `사용 중인 API 키는 ${MAX_ACTIVE_API_KEYS}개까지입니다. 쓰지 않는 키를 폐기한 뒤 발급하세요.`,
+      "limit_reached",
     );
   const key = API_KEY_PREFIX + randomBytes(24).toString("base64url");
   const stored: StoredApiKey = {
@@ -57,7 +63,11 @@ export function issueApiKey(svc: FundService, name: string): IssuedApiKeyDto {
 /** 키를 폐기한다. 이미 폐기한 키는 그대로 돌려준다. */
 export function revokeApiKey(svc: FundService, id: string): ApiKeyDto {
   const key = svc.repository.apiKeys().find((k) => k.id === id);
-  if (!key) throw new Error("찾을 수 없는 API 키입니다.");
+  if (!key)
+    throw new CodedError(
+      "찾을 수 없는 API 키입니다. 키 목록을 다시 읽어 키 ID를 확인하세요.",
+      "not_found",
+    );
   if (!key.revokedAt) {
     key.revokedAt = new Date().toISOString();
     svc.repository.save();
