@@ -19,7 +19,7 @@
 | 제품 정의(PRD)      | 개발           | [docs/prd.md](prd.md)                                                                         | v5 초안   |
 | 시장 조사           | 자료조사       | [docs/market-research.md](market-research.md)                                                 | 팀 조사 반영, 일부 미대조 |
 | 아키텍처·흐름 그림  | 개발           | [architecture.png](assets/architecture.png), [flow.png](assets/flow.png), [cover.png](assets/cover.png) | 완료      |
-| 화면 캡처 6장       | 개발           | [docs/assets/screens/](assets/screens/)                                                       | 완료      |
+| 화면 캡처 8장       | 개발           | [docs/assets/screens/](assets/screens/)                                                       | 완료      |
 | 발표 순서·시연 수치 | 개발           | [실행과 시연](runbook.md), [PRD 시연 시나리오](prd.md#기말-시연-시나리오)                     | 완료      |
 | QA 기록             | 모두           | [QA 기록](qa.md), GitHub 이슈(`QA 이슈` 템플릿)                                              | 0차 완료  |
 | 발표 PPT            | 발표 자료·영상 | `<공유 드라이브 링크>`                                                                        | 준비      |

@@ -54,12 +54,14 @@
 | 진입 화면                                                       | 진단 기준 (client)                                    |
 | --------------------------------------------------------------- | ----------------------------------------------------- |
 | ![진입 화면](docs/assets/screens/entry.png)                     | ![진단 기준](docs/assets/screens/client-rules.png)    |
-| **판매·검토 (client)**                                          | **기록 확인 (증권사 앱 예시)**                        |
-| ![판매·검토](docs/assets/screens/client-review.png)             | ![기록 확인](docs/assets/screens/client-verify.png)   |
+| **판매·검토 (client)**                                          | **API 문서**                                          |
+| ![판매·검토](docs/assets/screens/client-review.png)             | ![API 문서](docs/assets/screens/api-docs.png)         |
+| **적합성 확인 (증권사 앱 예시)**                                | **기록 확인 (증권사 앱 예시)**                        |
+| ![적합성 확인](docs/assets/screens/channel-enroll.png)          | ![기록 확인](docs/assets/screens/channel-verify.png)  |
 | **대시보드 (auditor)**                                          | **분쟁 조회 (auditor)**                               |
 | ![감독기관 대시보드](docs/assets/screens/auditor-dashboard.png) | ![분쟁 조회](docs/assets/screens/auditor-dispute.png) |
 
-증권사 앱 예시는 판매사 앱이 FINVERIC API로 만들 고객 화면의 예시다. 고객은 FINVERIC 화면을 직접 쓰지 않는다. 판매사 콘솔 사이드바 하단의 **증권사 앱 예시**와 **API 문서**는 새 탭으로 열린다. API 문서는 넓은 화면에서 메뉴, 설명, 요청·응답 예시의 3단으로 보인다. client와 auditor는 서로 링크하지 않는다. 사이드 메뉴의 `FINVERIC`과 **처음 화면**이 진입 화면으로 간다. 캡처는 로컬 Anvil 시연 원장에서 찍었다.
+증권사 앱 예시는 판매사 앱이 FINVERIC API로 만들 고객 화면의 예시다. 고객은 FINVERIC 화면을 직접 쓰지 않는다. 판매사 콘솔 사이드바 하단의 **증권사 앱 예시**와 **API 문서**는 새 탭으로 열린다. API 문서는 넓은 화면에서 메뉴, 설명, 요청·응답 예시의 3단으로 보인다. client와 auditor는 서로 링크하지 않는다. 사이드 메뉴의 `FINVERIC`과 **처음 화면**이 진입 화면으로 간다. 캡처는 로컬 Anvil 원장에 시연 데이터(진단 3회, 확정한 ELS·ELB 가입)를 채운 뒤 1440×900으로 찍었다.
 
 ## 🏭 아키텍처
 
