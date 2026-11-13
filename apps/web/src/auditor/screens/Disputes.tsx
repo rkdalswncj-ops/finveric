@@ -858,7 +858,7 @@ function DiagnosisPanel({
               <td>
                 {diagnosis.attempt}회차{" "}
                 {diagnosis.attempt === saleAttempt && (
-                  <Badge tone="info">청약 회차</Badge>
+                  <Badge tone="subscribed">청약 회차</Badge>
                 )}
               </td>
               <td>{profileLabel(diagnosis.profile)}</td>

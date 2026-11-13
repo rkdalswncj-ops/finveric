@@ -34,6 +34,7 @@ import {
   saleProduct,
   STATUS_KEYS,
   STATUS_LABELS,
+  STATUS_TONES,
   statusKey,
   type Sale,
   type StatusKey,
@@ -135,6 +136,7 @@ export function Review({
             count={count(key)}
             pressed={filter === key}
             onClick={() => setFilter(key)}
+            tone={key ? STATUS_TONES[key] : undefined}
           />
         ))}
       </div>
@@ -196,7 +198,7 @@ export function Review({
                     </td>
                     <td>
                       {awaitingApproval(record) ? (
-                        <Badge tone="info">승인 필요</Badge>
+                        <Badge tone="warning">승인 필요</Badge>
                       ) : record.chain?.approved ||
                         (record.status === "draft" &&
                           record.approvalRequired) ? (

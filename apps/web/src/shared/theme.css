@@ -29,6 +29,11 @@
   --warning-surface: #fff3d7;
   --destructive: #a32535;
   --destructive-surface: #fff1f1;
+  /* 판매 상태 전용 색. 확인 대기(보라)와 숙려 중(청록)은 다른 상태 색과 색상이 겹치지 않는다. */
+  --status-subscribed: #6d28d9;
+  --status-subscribed-surface: #f3eeff;
+  --status-cooling: #0e7490;
+  --status-cooling-surface: #e0f5fa;
   /* 상품 유형 기호(증권사 앱 예시의 상품 카드). ELS는 primary를 쓴다. 펀드 색은 success와 색상이 겹치지 않게 청록이다. */
   --product-fund: #0b777c;
   --product-fund-surface: #eaf5f5;

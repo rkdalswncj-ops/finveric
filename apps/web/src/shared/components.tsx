@@ -6,15 +6,25 @@ import s from "./ui.module.css";
 
 /**
  * 상태 색. 색은 상태를 뜻할 때만 쓴다. 종류(추가·삭제, 필수 등)는 neutral로 쓴다.
- * info는 처리를 기다리는 상태(승인 대기, 청약, 숙려 중)와 안내다.
+ * info는 신청 상태, 처리 기록의 대기(영수증 대기), 안내다.
  */
-export type Tone = "neutral" | "info" | "success" | "warning" | "danger";
+/** 배지·알림 색. `subscribed`와 `cooling`은 판매 상태(확인 대기, 숙려 중) 전용이다. */
+export type Tone =
+  | "neutral"
+  | "info"
+  | "success"
+  | "warning"
+  | "danger"
+  | "subscribed"
+  | "cooling";
 const TONE_CLASSES: Record<Tone, string> = {
   neutral: "",
   info: s.info,
   success: s.success,
   warning: s.warning,
   danger: s.danger,
+  subscribed: s.subscribed,
+  cooling: s.cooling,
 };
 
 export function Badge({
@@ -138,11 +148,14 @@ export function FilterChip({
   count,
   pressed,
   onClick,
+  tone,
 }: {
   label: string;
   count: number;
   pressed: boolean;
   onClick: () => void;
+  /** 상태 필터면 그 상태 배지와 같은 색 점을 이름 앞에 둔다. */
+  tone?: Tone;
 }) {
   const classes = [count === 0 && s.chipEmpty, pressed && s.chipActive]
     .filter(Boolean)
@@ -154,6 +167,12 @@ export function FilterChip({
       className={classes || undefined}
       onClick={onClick}
     >
+      {tone && (
+        <span
+          className={`${s.chipDot} ${TONE_CLASSES[tone] ?? ""}`}
+          aria-hidden
+        />
+      )}
       {label}{" "}
       <span className={s.chipCount}>{count.toLocaleString("ko-KR")}</span>
     </button>
@@ -181,7 +200,7 @@ export function TransactionFacts({
   return (
     <Facts
       rows={[
-        ["블록 번호", block ?? "확인 대기"],
+        ["블록 번호", block ?? "영수증 대기"],
         ["거래 해시", <code>{hash}</code>],
       ]}
     />

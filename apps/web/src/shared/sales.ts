@@ -87,11 +87,12 @@ export type StatusKey =
   | "cooling"
   | "confirmed"
   | "withdrawn";
+/** 필터 순서는 시간 순서다. 숙려 대상은 숙려 중을 지나 확인 대기가 된다. */
 export const STATUS_KEYS: StatusKey[] = [
   "draft",
   "approval",
-  "subscribed",
   "cooling",
+  "subscribed",
   "confirmed",
   "withdrawn",
   "abandoned",
@@ -100,20 +101,24 @@ export const STATUS_LABELS: Readonly<Record<StatusKey, string>> = {
   draft: "신청",
   approval: "승인 대기",
   abandoned: "중단",
-  subscribed: "청약",
+  // 청약을 원장에 기록했고 고객의 최종 확인을 기다린다. 청약은 행동 이름이라 상태 이름으로 쓰지 않는다.
+  subscribed: "확인 대기",
   cooling: "숙려 중",
   confirmed: "확정",
   withdrawn: "철회",
 };
-/** 처리를 기다리는 상태(승인 대기, 청약, 숙려 중)는 info, 끝났거나 멈춘 상태는 success(확정)나 neutral이다. */
+/**
+ * 판매 상태마다 다른 색이다. 진행 순서로 신청(파랑) → 승인 대기(주황, 직원이 처리할 일) → 숙려 중(청록) → 확인 대기(보라)
+ * → 확정(초록), 끝난 반대 결과는 철회(빨강), 청약 전에 멈춘 건은 중단(회색)이다. 이웃한 상태는 색상이 겹치지 않는다.
+ */
 export const STATUS_TONES: Readonly<Record<StatusKey, Tone>> = {
-  draft: "neutral",
-  approval: "info",
+  draft: "info",
+  approval: "warning",
   abandoned: "neutral",
-  subscribed: "info",
-  cooling: "info",
+  subscribed: "subscribed",
+  cooling: "cooling",
   confirmed: "success",
-  withdrawn: "neutral",
+  withdrawn: "danger",
 };
 /** 화면에 쓰는 판매 건 상태. 원장 상태에 승인 대기와 숙려 중을 더한다. */
 export function statusKey(sale: Sale, now: number): StatusKey {

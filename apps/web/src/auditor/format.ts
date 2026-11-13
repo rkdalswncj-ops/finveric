@@ -29,17 +29,17 @@ export const won = (amount: bigint) => `${amount.toLocaleString("ko-KR")}원`;
 export const percent = (part: number, whole: number) =>
   whole ? `${Math.round((part / whole) * 1000) / 10}%` : "—";
 
-/** 원장 판매 건 상태. 청약 뒤 최종 확인 전은 숙려 대상 여부와 관계없이 한 상태로 센다. */
+/** 원장 판매 건 상태. 청약 뒤 최종 확인 전은 숙려 중과 확인 대기를 나누지 않고 한 상태로 센다. */
 export const STATUS_LABELS: Readonly<Record<LedgerSaleStatus, string>> = {
-  subscribed: "청약·숙려 중",
+  subscribed: "숙려 중·확인 대기",
   confirmed: "가입 확정",
   withdrawn: "철회",
 };
-/** 처리를 기다리는 청약·숙려 중은 info, 끝난 확정은 success, 멈춘 철회는 neutral이다. */
+/** 판매 상태 색은 판매사 콘솔과 같다(`shared/sales.ts`의 `STATUS_TONES`). 확정 전은 확인 대기 색이다. */
 export const STATUS_TONES: Readonly<Record<LedgerSaleStatus, Tone>> = {
-  subscribed: "info",
+  subscribed: "subscribed",
   confirmed: "success",
-  withdrawn: "neutral",
+  withdrawn: "danger",
 };
 
 export const REFERENCE_LABELS: Readonly<

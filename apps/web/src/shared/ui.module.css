@@ -157,7 +157,7 @@
   color: var(--muted-foreground);
   white-space: nowrap;
 }
-/* 처리를 기다리는 상태(승인 대기, 청약, 숙려 중)와 안내 */
+/* 신청 상태, 처리 기록의 대기(영수증 대기), 안내 */
 .info {
   background: var(--primary-surface);
   color: var(--primary);
@@ -173,6 +173,15 @@
 .danger {
   background: var(--destructive-surface);
   color: var(--destructive);
+}
+/* 판매 상태 전용: 확인 대기, 숙려 중. */
+.subscribed {
+  background: var(--status-subscribed-surface);
+  color: var(--status-subscribed);
+}
+.cooling {
+  background: var(--status-cooling-surface);
+  color: var(--status-cooling);
 }
 .notice {
   padding: 14px 17px;
@@ -283,6 +292,36 @@
   padding: 7px 13px;
   font-size: var(--type-ui);
   text-decoration: none;
+}
+/* 상태 필터 칩의 색 점. 표의 상태 배지와 같은 색이다. 글자(상태 이름)가 뜻을 전하고 점은 찾기를 돕는다. */
+.chipDot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--muted-foreground);
+}
+.chipDot.info {
+  background: var(--primary);
+}
+.chipDot.warning {
+  background: var(--warning);
+}
+.chipDot.success {
+  background: var(--success);
+}
+.chipDot.danger {
+  background: var(--destructive);
+}
+.chipDot.subscribed {
+  background: var(--status-subscribed);
+}
+.chipDot.cooling {
+  background: var(--status-cooling);
+}
+/* 0건 칩의 점은 옅게 둔다. */
+.chips .chipEmpty .chipDot {
+  opacity: 0.4;
 }
 .chipCount {
   color: var(--muted-foreground);

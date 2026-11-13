@@ -369,14 +369,6 @@ export const SALE_VIEW_STATUSES = [
   "withdrawn",
 ] as const;
 export type SaleStatus = (typeof SALE_VIEW_STATUSES)[number];
-/** 판매 건 상태 문구. 청약 상태에서 `coolingEndsAt`이 남아 있으면 화면은 "숙려 중"으로 보여 준다. */
-export const SALE_STATUS_LABELS: Readonly<Record<SaleStatus, string>> = {
-  draft: "신청",
-  abandoned: "중단",
-  subscribed: "청약",
-  confirmed: "확정",
-  withdrawn: "철회",
-};
 
 /** 판매 건. 고객 번호·답변·임의값·서명 원문은 넣지 않는다. */
 export type SaleView = {
@@ -778,7 +770,8 @@ export const saleSchema = responseSchema<SaleDto>(
     createdAt: ISO_TIME,
     status: {
       enum: SALE_VIEW_STATUSES,
-      description: "draft·abandoned는 원장 밖의 신청, 나머지는 원장 상태",
+      description:
+        "draft는 청약 전 진행 중, abandoned는 청약 전 중단(둘 다 원장 밖). subscribed는 청약을 원장에 기록했고 최종 확인을 기다린다(녹취·숙려 대상은 coolingEndsAt까지 숙려 중). confirmed는 가입 확정, withdrawn은 철회다.",
     },
     latestAttempt: {
       type: "integer",

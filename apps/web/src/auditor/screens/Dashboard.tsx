@@ -71,7 +71,7 @@ function ledgerEvents(snapshot: LedgerSnapshot): LedgerEvent[] {
       name: "청약",
       subject,
       to,
-      tone: "neutral",
+      tone: "subscribed",
     });
     if (sale.confirmed)
       events.push({
@@ -87,7 +87,7 @@ function ledgerEvents(snapshot: LedgerSnapshot): LedgerEvent[] {
         name: "철회",
         subject,
         to,
-        tone: "neutral",
+        tone: "danger",
       });
     if (sale.settlement)
       events.push({
@@ -155,7 +155,7 @@ function Summary({
   const unsuitable = confirmed.filter((sale) => !sale.suitable).length;
   const stats = [
     { label: "가입 확정", value: confirmed.length, unit: "건" },
-    { label: "청약·숙려 중", value: subscribed.length, unit: "건" },
+    { label: "숙려 중·확인 대기", value: subscribed.length, unit: "건" },
     { label: "철회", value: withdrawn.length, unit: "건" },
     { label: "진단 회차", value: diagnoses.length, unit: "회" },
     { label: "고객 가명 ID", value: customers.length, unit: "명" },
@@ -309,7 +309,7 @@ function Summary({
                 확정
               </th>
               <th scope="col" className={s.numeric}>
-                청약·숙려 중
+                숙려 중·확인 대기
               </th>
               <th scope="col" className={s.numeric}>
                 철회

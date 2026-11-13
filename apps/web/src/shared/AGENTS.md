@@ -25,7 +25,7 @@
 - 표의 건수 열은 `Count`를 쓰고 열 제목(th)에 `numeric` 클래스를 단다. 건수가 있는 필터 칩은 `FilterChip`을 쓴다. 숫자 칸과 칩 건수에는 배지를 쓰지 않는다. 규칙은 DESIGN.md의 Typography와 Components다.
 - 요약 수치는 `Stat`을 쓴다. 열 수는 화면의 CSS 모듈이 `--stat-columns`로 정한다.
 - 입력 칸의 오류는 `FieldError`로 보여 준다. 입력 칸에 `aria-invalid`와 `aria-describedby`(오류 id)를 단다.
-- `Badge`와 `Notice`의 `tone`은 `Tone`(`neutral`, `info`, `success`, `warning`, `danger`)이다. 상태 색 표(`sales.ts`의 `STATUS_TONES` 등)도 `Tone`으로 적는다.
+- `Badge`와 `Notice`의 `tone`은 `Tone`(`neutral`, `info`, `success`, `warning`, `danger`, `subscribed`, `cooling`)이다. `subscribed`와 `cooling`은 확인 대기와 숙려 중 상태에만 쓴다. 상태 색 표(`sales.ts`의 `STATUS_TONES` 등)도 `Tone`으로 적는다. 상태 필터 칩은 `FilterChip`의 `tone`에 같은 값을 넘겨 색 점을 표시한다.
 - 두 페이지 이상이 쓰는 표시 계산과 요소만 둔다. 한 페이지만 쓰는 화면이나 업무 규칙은 여기에 두지 않는다. 그 페이지의 폴더(`apps/web/src/<페이지>/`)에 둔다. 판정과 계산은 `packages/core`에 둔다.
 - `api.ts`는 판매사 API 클라이언트다. auditor 페이지는 이 클라이언트로 GET만 보낸다.
 - API 응답을 해석하는 곳은 `api()` 하나다. 실패하면 `ApiError`를 던진다. `ApiError`는 응답의 `type`, `code`, `ledgerError`와 HTTP 상태를 갖는다. 서버에 닿지 못했거나 본문이 JSON이 아니면 `type`이 `offline`이고 `code`가 없다. 문장은 `OFFLINE_MESSAGE`(합니다체)다. 판매사 콘솔과 감독기관은 `message`(API 문장)를 보여 준다. 고객 화면은 `type`(필요하면 `code`)으로 고객 문장을 고른다.

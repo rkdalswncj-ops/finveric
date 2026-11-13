@@ -404,12 +404,16 @@ export function Enrollment({
               rows={[
                 [
                   "청약 기록",
-                  subscribeTx ? <code>{subscribeTx.txHash}</code> : "확인 대기",
+                  subscribeTx ? (
+                    <code>{subscribeTx.txHash}</code>
+                  ) : (
+                    "영수증 대기"
+                  ),
                 ],
                 ["청약 블록", subscribeTx?.blockNumber ?? "—"],
                 [
                   "최종 확인 기록",
-                  confirmTx ? <code>{confirmTx.txHash}</code> : "확인 대기",
+                  confirmTx ? <code>{confirmTx.txHash}</code> : "영수증 대기",
                 ],
                 ["최종 확인 블록", confirmTx?.blockNumber ?? "—"],
               ]}
@@ -430,7 +434,7 @@ export function Enrollment({
       stage: "최종 확인",
       label: "철회",
       title: "청약을 철회했어요",
-      badge: <Badge>철회</Badge>,
+      badge: <Badge tone="danger">철회</Badge>,
       content: (
         <p className={s.intro}>
           최종 확인 전에 철회해서 가입하지 않았어요. 철회 기록도 함께 보관돼요.
@@ -474,7 +478,9 @@ export function Enrollment({
         ? "가입 요청을 받았어요"
         : "마지막으로 가입 의사를 확인해요",
       badge: (
-        <Badge tone="info">{cooling ? "숙려 중" : "최종 확인 대기"}</Badge>
+        <Badge tone={cooling ? "cooling" : "subscribed"}>
+          {cooling ? "숙려 중" : "확인 대기"}
+        </Badge>
       ),
       content: (
         <>

@@ -73,7 +73,7 @@ export function Dashboard({
       unit: "건",
       note: failed
         ? "불러오지 못했습니다"
-        : `신청 ${drafts.length}건 · 청약·숙려 ${subscribed.length}건`,
+        : `신청 ${drafts.length}건 · 숙려 중·확인 대기 ${subscribed.length}건`,
       to: "/review",
     },
     {

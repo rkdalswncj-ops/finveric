@@ -153,7 +153,7 @@ export function Report({
               />
               <span>
                 판매 건 하나
-                <small>청약·숙려 중이거나 철회한 건도 고를 수 있습니다.</small>
+                <small>확정 전이거나 철회한 건도 고를 수 있습니다.</small>
               </span>
             </label>
           </fieldset>
@@ -323,7 +323,7 @@ function ReportSummary({
           ],
           [
             "원장 전체 판매 건",
-            `가입 확정 ${summary.sales.confirmed}건 · 청약·숙려 중 ${summary.sales.subscribed}건 · 철회 ${summary.sales.withdrawn}건`,
+            `가입 확정 ${summary.sales.confirmed}건 · 숙려 중·확인 대기 ${summary.sales.subscribed}건 · 철회 ${summary.sales.withdrawn}건`,
           ],
           [
             "위험 신호",
