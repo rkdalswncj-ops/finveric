@@ -63,33 +63,36 @@ export function Dashboard({
   const recent = [...sales]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 6);
+  const failed = load === "failed";
   // 처음 읽기에 실패하면 0 대신 "—"를 보여 준다. 0건이라고 읽히지 않게 한다.
-  const count = (value: number) => (load === "failed" ? "—" : value);
+  const count = (value: number) => (failed ? "—" : value);
   const stats = [
     {
-      label: "진행 중·숙려 중 청약",
+      label: "진행 중인 가입",
       value: count(drafts.length + subscribed.length),
-      note:
-        load === "failed"
-          ? "불러오지 못했습니다"
-          : `신청 ${drafts.length}건 · 청약 ${subscribed.length}건`,
+      unit: "건",
+      note: failed
+        ? "불러오지 못했습니다"
+        : `신청 ${drafts.length}건 · 청약·숙려 ${subscribed.length}건`,
       to: "/review",
     },
     {
       label: "가입 확정",
       value: count(confirmed.length),
-      note: "건",
+      unit: "건",
       to: "/review",
     },
     {
       label: "관리자 승인 대기",
       value: count(approvals.length),
+      unit: "건",
       note: "3회차 이상 진단한 고객의 신청",
       to: "/review",
     },
     {
       label: "위험 신호",
       value: count(signals.length),
+      unit: "건",
       note: "원장 기록 기준",
       to: "/signals",
     },

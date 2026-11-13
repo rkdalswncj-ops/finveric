@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import { AlertTriangle, FileText } from "lucide-react";
+import { AlertTriangle, ChevronRight, FileText } from "lucide-react";
 import { Button } from "./button.tsx";
 import s from "./ui.module.css";
 
@@ -82,22 +82,33 @@ export function Empty({
 /**
  * 요약 수치 카드. `.stats` 묶음 안에 둔다. `to`가 있으면 그 화면으로 가는 링크다.
  */
+/**
+ * 요약 수치 카드. 단위(`unit`)는 숫자 바로 뒤에 작게 붙인다. 숫자가 아니면(읽기 실패의 "—") 단위를 붙이지 않는다.
+ * `note`는 단위가 아닌 맥락(내역, 기준)만 적는다. `to`가 있으면 카드 전체가 링크이고 오른쪽 위에 이동 표시가 붙는다.
+ */
 export function Stat({
   label,
   value,
+  unit,
   note,
   to,
 }: {
   label: string;
-  value: ReactNode;
-  note: ReactNode;
+  value: number | string;
+  unit?: string;
+  note?: ReactNode;
   to?: string;
 }) {
+  const numeric = typeof value === "number";
   const body = (
     <>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{note}</small>
+      <span className={s.statLabel}>{label}</span>
+      <strong className={s.statValue}>
+        {numeric ? value.toLocaleString("ko-KR") : value}
+        {numeric && unit && <span className={s.statUnit}>{unit}</span>}
+      </strong>
+      {note && <small className={s.statNote}>{note}</small>}
+      {to && <ChevronRight className={s.statGo} size={16} aria-hidden />}
     </>
   );
   return to ? (

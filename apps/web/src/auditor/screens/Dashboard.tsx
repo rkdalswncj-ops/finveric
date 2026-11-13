@@ -111,6 +111,15 @@ function ledgerEvents(snapshot: LedgerSnapshot): LedgerEvent[] {
 }
 
 /** 감독기관 첫 화면. 원장 이벤트만으로 판매 현황을 집계한다. */
+/**
+ * 표의 건수 칸. 0은 옅게 보여 값이 있는 칸이 먼저 보이게 한다.
+ * `warn`은 0이 아닐 때 주의 색으로 강조한다(예: 부적합 확정). 뜻은 열 제목이 알린다.
+ */
+function Count({ value, warn }: { value: number; warn?: boolean }) {
+  const tone = value === 0 ? s.zero : warn ? s.warnCount : "";
+  return <td className={`${s.numeric} ${tone}`}>{value}</td>;
+}
+
 export function Dashboard({
   deployment,
   ledger,
@@ -209,42 +218,77 @@ function Summary({
           <Stat
             key={stat.label}
             label={stat.label}
-            value={stat.value.toLocaleString("ko-KR")}
-            note={stat.unit}
+            value={stat.value}
+            unit={stat.unit}
           />
         ))}
       </div>
       <div className={s.columns}>
-        <section className={s.panel} aria-labelledby="ratios">
-          <div className={s.panelTitle}>
-            <h2 id="ratios">판매 절차 지표</h2>
-          </div>
-          <p className={s.panelNote}>
-            원장의 진단·청약·확정 이벤트로 계산합니다.
-          </p>
-          {ratios.map((ratio) => (
-            <div key={ratio.label} className={s.ratio}>
-              <div>
-                <span>{ratio.label}</span>
-                <strong>{percent(ratio.part, ratio.whole)}</strong>
-              </div>
-              <div
-                className={s.bar}
-                role="img"
-                aria-label={`${ratio.label} ${percent(ratio.part, ratio.whole)}`}
-              >
-                <span
-                  style={{
-                    width: ratio.whole
-                      ? `${(ratio.part / ratio.whole) * 100}%`
-                      : 0,
-                  }}
-                />
-              </div>
-              <p>{ratio.note}</p>
+        <div className={s.stack}>
+          <section className={s.panel} aria-labelledby="ratios">
+            <div className={s.panelTitle}>
+              <h2 id="ratios">판매 절차 지표</h2>
             </div>
-          ))}
-        </section>
+            <p className={s.panelNote}>
+              원장의 진단·청약·확정 이벤트로 계산합니다.
+            </p>
+            {ratios.map((ratio) => (
+              <div key={ratio.label} className={s.ratio}>
+                <div>
+                  <span>{ratio.label}</span>
+                  <strong>{percent(ratio.part, ratio.whole)}</strong>
+                </div>
+                <div
+                  className={s.bar}
+                  role="img"
+                  aria-label={`${ratio.label} ${percent(ratio.part, ratio.whole)}`}
+                >
+                  <span
+                    style={{
+                      width: ratio.whole
+                        ? `${(ratio.part / ratio.whole) * 100}%`
+                        : 0,
+                    }}
+                  />
+                </div>
+                <p>{ratio.note}</p>
+              </div>
+            ))}
+          </section>
+          <TableScroll
+            as="section"
+            label="위험등급별 판매 건"
+            className={s.panel}
+          >
+            <table>
+              <caption className={s.tableCaption}>위험등급별 판매 건</caption>
+              <thead>
+                <tr>
+                  <th scope="col">위험등급</th>
+                  <th scope="col" className={s.numeric}>
+                    청약
+                  </th>
+                  <th scope="col" className={s.numeric}>
+                    확정
+                  </th>
+                  <th scope="col" className={s.numeric}>
+                    부적합 확정
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {byGrade.map((row) => (
+                  <tr key={row.grade}>
+                    <td>{gradeLabel(row.grade)}</td>
+                    <Count value={row.total} />
+                    <Count value={row.confirmed} />
+                    <Count value={row.unsuitable} warn />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableScroll>
+        </div>
         <section className={`${s.panel} ${s.pad}`} aria-labelledby="source">
           <h2 id="source">읽은 원장</h2>
           <Facts
@@ -275,85 +319,48 @@ function Summary({
           />
         </section>
       </div>
-      <div className={s.columns}>
-        <TableScroll as="section" label="상품별 판매 건" className={s.panel}>
-          <table>
-            <caption className={s.tableCaption}>상품별 판매 건</caption>
-            <thead>
-              <tr>
-                <th scope="col">상품</th>
-                <th scope="col">최신 위험등급</th>
-                <th scope="col" className={s.numeric}>
-                  청약
-                </th>
-                <th scope="col" className={s.numeric}>
-                  확정
-                </th>
-                <th scope="col" className={s.numeric}>
-                  청약·숙려 중
-                </th>
-                <th scope="col" className={s.numeric}>
-                  철회
-                </th>
+      <TableScroll
+        as="section"
+        label="상품별 판매 건"
+        className={`${s.panel} ${s.spaced}`}
+      >
+        <table>
+          <caption className={s.tableCaption}>상품별 판매 건</caption>
+          <thead>
+            <tr>
+              <th scope="col">상품</th>
+              <th scope="col">최신 위험등급</th>
+              <th scope="col" className={s.numeric}>
+                청약
+              </th>
+              <th scope="col" className={s.numeric}>
+                확정
+              </th>
+              <th scope="col" className={s.numeric}>
+                청약·숙려 중
+              </th>
+              <th scope="col" className={s.numeric}>
+                철회
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {byProduct.map((row) => (
+              <tr key={row.id}>
+                <td className={s.wrap}>{row.name}</td>
+                <td>{row.grade ? `${row.grade}등급` : "—"}</td>
+                <Count value={row.total} />
+                <Count value={row.confirmed} />
+                <Count value={row.subscribed} />
+                <Count value={row.withdrawn} />
               </tr>
-            </thead>
-            <tbody>
-              {byProduct.map((row) => (
-                <tr key={row.id}>
-                  <td className={s.wrap}>{row.name}</td>
-                  <td>{row.grade ? `${row.grade}등급` : "—"}</td>
-                  <td className={s.numeric}>{row.total}</td>
-                  <td className={s.numeric}>{row.confirmed}</td>
-                  <td className={s.numeric}>{row.subscribed}</td>
-                  <td className={s.numeric}>{row.withdrawn}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {byProduct.length === 0 && (
-            <p className={s.panelNote}>원장에 등록한 상품이 없습니다.</p>
-          )}
-        </TableScroll>
-        <TableScroll
-          as="section"
-          label="위험등급별 판매 건"
-          className={s.panel}
-        >
-          <table>
-            <caption className={s.tableCaption}>위험등급별 판매 건</caption>
-            <thead>
-              <tr>
-                <th scope="col">위험등급</th>
-                <th scope="col" className={s.numeric}>
-                  청약
-                </th>
-                <th scope="col" className={s.numeric}>
-                  확정
-                </th>
-                <th scope="col" className={s.numeric}>
-                  부적합 확정
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {byGrade.map((row) => (
-                <tr key={row.grade}>
-                  <td>{gradeLabel(row.grade)}</td>
-                  <td className={s.numeric}>{row.total}</td>
-                  <td className={s.numeric}>{row.confirmed}</td>
-                  <td className={s.numeric}>
-                    {row.unsuitable ? (
-                      <Badge tone="warning">{row.unsuitable}</Badge>
-                    ) : (
-                      0
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableScroll>
-      </div>
+            ))}
+          </tbody>
+        </table>
+        {byProduct.length === 0 && (
+          <p className={s.panelNote}>원장에 등록한 상품이 없습니다.</p>
+        )}
+      </TableScroll>
       <TableScroll as="section" label="최근 원장 이벤트" className={s.panel}>
         <div className={s.panelTitle}>
           <h2>최근 원장 이벤트</h2>

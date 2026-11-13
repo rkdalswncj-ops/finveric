@@ -517,9 +517,10 @@ caption.tableCaption {
   margin-bottom: 24px;
 }
 .stat {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
   padding: 20px;
   background: var(--card);
@@ -528,18 +529,35 @@ caption.tableCaption {
   color: inherit;
   text-decoration: none;
 }
-.stat span {
+.statLabel {
+  padding-inline-end: 24px;
   color: var(--muted-foreground);
   font-size: var(--type-ui);
 }
-.stat strong {
+/* 숫자와 단위는 한 덩어리로 읽힌다. 단위는 같은 기준선에 작고 옅게 붙인다. */
+.statValue {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
   font-size: var(--type-page);
   line-height: var(--type-line-display);
   font-variant-numeric: tabular-nums;
 }
-.stat small {
+.statUnit {
+  color: var(--muted-foreground);
+  font-size: var(--type-body);
+  font-weight: 600;
+}
+.statNote {
   color: var(--muted-foreground);
   font-size: var(--type-caption);
+}
+/* 링크 카드의 이동 표시. 터치 화면에도 누를 수 있음을 알린다. */
+.statGo {
+  position: absolute;
+  inset-block-start: 20px;
+  inset-inline-end: 16px;
+  color: var(--muted-foreground);
 }
 /* 표에서 고른 행. 옅은 바탕에 더해 첫 칸 왼쪽 막대로 표시한다. */
 .selectedRow {
@@ -597,6 +615,9 @@ p.fieldError {
   }
   a.stat:hover {
     border-color: var(--primary);
+  }
+  a.stat:hover .statGo {
+    color: var(--primary);
   }
 }
 @media (min-width: 1600px) {

@@ -72,6 +72,25 @@
   text-align: end;
   font-variant-numeric: tabular-nums;
 }
+/* 건수 0은 옅게 둔다. 값이 있는 칸이 먼저 보인다. */
+.zero {
+  color: var(--muted-foreground);
+}
+/* 0이 아닌 주의 건수(부적합 확정). 배지 대신 글자색과 굵기로 강조해 숫자 열의 모양을 맞춘다. */
+.warnCount {
+  color: var(--warning);
+  font-weight: 700;
+}
+/* 다음 패널과 띄운다. 그리드 밖에 홀로 놓인 패널에 쓴다. */
+.spaced {
+  margin-bottom: 24px;
+}
+/* 한 열에 패널을 위아래로 쌓는다. */
+.stack {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
 .wrap {
   white-space: normal;
   min-width: 220px;
