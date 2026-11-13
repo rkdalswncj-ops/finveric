@@ -8,11 +8,8 @@ import {
   type OriginalAttempt,
   type OriginalBundle,
   type Trace,
-} from "../../../../packages/core/src/index.ts";
-import type {
-  SaleStatus,
-  SaleView,
-} from "../../../../packages/core/src/api.ts";
+} from "@finveric/core";
+import type { SaleStatus, SaleView } from "@finveric/core/api";
 import { CodedError } from "../errors.ts";
 import type { FundService } from "../service.ts";
 import type { StoredSale } from "../repositories/sales.ts";

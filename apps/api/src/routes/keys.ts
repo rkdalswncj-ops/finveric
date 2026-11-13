@@ -5,7 +5,7 @@ import {
   issueApiKeyBodySchema,
   type ApiKeyParams,
   type IssueApiKeyRequest,
-} from "../../../../packages/core/src/api.ts";
+} from "@finveric/core/api";
 import type { FundService } from "../service.ts";
 
 export const keyRoutes: FastifyPluginAsync<{ service: FundService }> = async (

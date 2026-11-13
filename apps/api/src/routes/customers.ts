@@ -7,7 +7,7 @@ import {
   type CustomerParams,
   type DiagnoseRequest,
   type TamperRequest,
-} from "../../../../packages/core/src/api.ts";
+} from "@finveric/core/api";
 import type { FundService } from "../service.ts";
 
 export const customerRoutes: FastifyPluginAsync<{

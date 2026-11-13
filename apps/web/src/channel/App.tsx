@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Route, Routes, useLocation, useNavigate } from "react-router";
-import { CUSTOMER_LEDGER_ERRORS } from "../../../../packages/core/src/index.ts";
+import { CUSTOMER_LEDGER_ERRORS } from "@finveric/core";
 import type {
   ConfigDto,
   CustomerDto,
@@ -12,25 +12,13 @@ import type {
   RuleEntryDto,
   SaleAction,
   SaleDto,
-} from "../../../../packages/core/src/api.ts";
-import { Button } from "../../../../packages/ui/src/button.tsx";
-import {
-  api,
-  ApiError,
-  saveFile,
-  type LoadState,
-} from "../../../../packages/ui/src/api.ts";
-import {
-  AccessCodeForm,
-  Empty,
-} from "../../../../packages/ui/src/components.tsx";
-import { useDeployment } from "../../../../packages/ui/src/deployment.ts";
-import { networkName } from "../../../../packages/ui/src/format.ts";
-import {
-  findProduct,
-  latestProducts,
-  type Sale,
-} from "../../../../packages/ui/src/sales.ts";
+} from "@finveric/core/api";
+import { Button } from "../shared/button.tsx";
+import { api, ApiError, saveFile, type LoadState } from "../shared/api.ts";
+import { AccessCodeForm, Empty } from "../shared/components.tsx";
+import { useDeployment } from "../shared/deployment.ts";
+import { networkName } from "../shared/format.ts";
+import { findProduct, latestProducts, type Sale } from "../shared/sales.ts";
 import { Frame } from "./Frame.tsx";
 import { channel, fundPath } from "./links.ts";
 import { Catalog } from "./screens/Catalog.tsx";

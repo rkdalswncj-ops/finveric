@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { FastifyInstance } from "fastify";
-import type { ErrorResponse } from "../../../packages/core/src/api.ts";
+import type { ErrorResponse } from "@finveric/core/api";
 import { FundService } from "./service.ts";
 import { createApp } from "./app.ts";
 

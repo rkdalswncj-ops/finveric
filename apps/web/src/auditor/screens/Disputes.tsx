@@ -13,24 +13,18 @@ import {
   type Deployment,
   type EvidenceReceipt,
   type OriginalBundle,
-} from "../../../../../packages/core/src/index.ts";
-import type {
-  ConfigDto,
-  ExportResponse,
-} from "../../../../../packages/core/src/api.ts";
-import type {
-  LedgerDiagnosis,
-  LedgerSnapshot,
-} from "../../../../../packages/core/src/ledger.ts";
+} from "@finveric/core";
+import type { ConfigDto, ExportResponse } from "@finveric/core/api";
+import type { LedgerDiagnosis, LedgerSnapshot } from "@finveric/core/ledger";
 import {
   CHECK_NAMES,
   OUTCOME_LABELS,
   verifySale,
   type SaleVerification,
   type VerifyOutcome,
-} from "../../../../../packages/core/src/verify.ts";
-import { api } from "../../../../../packages/ui/src/api.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
+} from "@finveric/core/verify";
+import { api } from "../../shared/api.ts";
+import { Button } from "../../shared/button.tsx";
 import {
   AccessCodeForm,
   Badge,
@@ -40,9 +34,9 @@ import {
   Notice,
   TableScroll,
   type Tone,
-} from "../../../../../packages/ui/src/components.tsx";
-import { dateTime } from "../../../../../packages/ui/src/format.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "../../shared/components.tsx";
+import { dateTime } from "../../shared/format.ts";
+import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
 import { LedgerGate, LedgerLine } from "../components.tsx";
 import {

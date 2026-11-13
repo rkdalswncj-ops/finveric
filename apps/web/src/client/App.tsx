@@ -21,32 +21,15 @@ import type {
   SaleAction,
   SaleDto,
   TraceDto,
-} from "../../../../packages/core/src/api.ts";
-import { Button } from "../../../../packages/ui/src/button.tsx";
-import {
-  api,
-  ApiError,
-  type LoadState,
-} from "../../../../packages/ui/src/api.ts";
-import {
-  AccessCodeForm,
-  Empty,
-} from "../../../../packages/ui/src/components.tsx";
-import {
-  DEPLOYMENT_ERROR,
-  useDeployment,
-} from "../../../../packages/ui/src/deployment.ts";
-import { networkName } from "../../../../packages/ui/src/format.ts";
-import {
-  API_DOCS_HREF,
-  CHANNEL_APP_HREF,
-} from "../../../../packages/ui/src/links.ts";
-import type { Sale } from "../../../../packages/ui/src/sales.ts";
-import {
-  Shell,
-  type ExternalItem,
-  type NavGroup,
-} from "../../../../packages/ui/src/Shell.tsx";
+} from "@finveric/core/api";
+import { Button } from "../shared/button.tsx";
+import { api, ApiError, type LoadState } from "../shared/api.ts";
+import { AccessCodeForm, Empty } from "../shared/components.tsx";
+import { DEPLOYMENT_ERROR, useDeployment } from "../shared/deployment.ts";
+import { networkName } from "../shared/format.ts";
+import { API_DOCS_HREF, CHANNEL_APP_HREF } from "../shared/links.ts";
+import type { Sale } from "../shared/sales.ts";
+import { Shell, type ExternalItem, type NavGroup } from "../shared/Shell.tsx";
 import { ApiKeys } from "./screens/ApiKeys.tsx";
 import { Chain } from "./screens/Chain.tsx";
 import { Dashboard } from "./screens/Dashboard.tsx";

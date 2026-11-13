@@ -4,27 +4,16 @@ import {
   SIGNAL_LABELS,
   SIGNAL_THRESHOLDS,
   type SignalKind,
-} from "../../../../../packages/core/src/index.ts";
-import type {
-  CustomerDto,
-  ProductEntryDto,
-} from "../../../../../packages/core/src/api.ts";
-import type { LoadState } from "../../../../../packages/ui/src/api.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
-import {
-  Badge,
-  Heading,
-  TableScroll,
-} from "../../../../../packages/ui/src/components.tsx";
-import { short } from "../../../../../packages/ui/src/format.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "@finveric/core";
+import type { CustomerDto, ProductEntryDto } from "@finveric/core/api";
+import type { LoadState } from "../../shared/api.ts";
+import { Button } from "../../shared/button.tsx";
+import { Badge, Heading, TableScroll } from "../../shared/components.tsx";
+import { short } from "../../shared/format.ts";
+import ui from "../../shared/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
-import {
-  productName,
-  saleProduct,
-  type Sale,
-} from "../../../../../packages/ui/src/sales.ts";
+import { productName, saleProduct, type Sale } from "../../shared/sales.ts";
 import { saleSignals } from "../signals.ts";
 
 const s = { ...ui, ...client, ...local };

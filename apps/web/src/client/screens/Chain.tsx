@@ -1,27 +1,15 @@
 import { useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import { ExternalLink, RefreshCw } from "lucide-react";
-import type { Deployment } from "../../../../../packages/core/src/index.ts";
-import type {
-  ProductEntryDto,
-  TraceDto,
-} from "../../../../../packages/core/src/api.ts";
-import type { LoadState } from "../../../../../packages/ui/src/api.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
-import {
-  Badge,
-  Facts,
-  Heading,
-  Notice,
-} from "../../../../../packages/ui/src/components.tsx";
-import { dateTime, short } from "../../../../../packages/ui/src/format.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+import type { Deployment } from "@finveric/core";
+import type { ProductEntryDto, TraceDto } from "@finveric/core/api";
+import type { LoadState } from "../../shared/api.ts";
+import { Button } from "../../shared/button.tsx";
+import { Badge, Facts, Heading, Notice } from "../../shared/components.tsx";
+import { dateTime, short } from "../../shared/format.ts";
+import ui from "../../shared/ui.module.css";
 import local from "./operations.module.css";
-import {
-  productName,
-  saleProduct,
-  type Sale,
-} from "../../../../../packages/ui/src/sales.ts";
+import { productName, saleProduct, type Sale } from "../../shared/sales.ts";
 import {
   ledgerRejection,
   receiptEvents,

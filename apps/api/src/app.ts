@@ -3,11 +3,8 @@ import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import { timingSafeEqual } from "node:crypto";
-import { json } from "../../../packages/core/src/index.ts";
-import {
-  API_KEY_PREFIX,
-  type ErrorResponse,
-} from "../../../packages/core/src/api.ts";
+import { json } from "@finveric/core";
+import { API_KEY_PREFIX, type ErrorResponse } from "@finveric/core/api";
 import { openApiOptions } from "./docs/openapi.ts";
 import { CodedError, HTTP_ERRORS } from "./errors.ts";
 import { CHANNEL_TAG, tagOf } from "./docs/operations.ts";

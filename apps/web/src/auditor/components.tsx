@@ -1,11 +1,11 @@
 // 감독기관 화면이 함께 쓰는 원장 상태 줄과 대기·오류 표시.
 import type { ReactNode } from "react";
 import { LoaderCircle, RefreshCw } from "lucide-react";
-import type { LedgerSnapshot } from "../../../../packages/core/src/ledger.ts";
-import { Button } from "../../../../packages/ui/src/button.tsx";
-import { Notice } from "../../../../packages/ui/src/components.tsx";
-import { dateTime } from "../../../../packages/ui/src/format.ts";
-import ui from "../../../../packages/ui/src/ui.module.css";
+import type { LedgerSnapshot } from "@finveric/core/ledger";
+import { Button } from "../shared/button.tsx";
+import { Notice } from "../shared/components.tsx";
+import { dateTime } from "../shared/format.ts";
+import ui from "../shared/ui.module.css";
 import local from "./auditor.module.css";
 import type { Ledger } from "./useLedger.ts";
 

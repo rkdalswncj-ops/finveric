@@ -10,7 +10,7 @@ import {
   type Deployment,
   type ProductDocument,
   type RuleDocument,
-} from "../../../packages/core/src/index.ts";
+} from "@finveric/core";
 import type {
   DiagnoseRequest,
   OpenSaleRequest,
@@ -18,7 +18,7 @@ import type {
   SaleView,
   SubscribeRequest,
   TamperRequest,
-} from "../../../packages/core/src/api.ts";
+} from "@finveric/core/api";
 import {
   createStore,
   FileStore,

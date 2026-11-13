@@ -1,12 +1,6 @@
 // 오류 응답에 `code`를 싣는 오류와 고정 오류 문장. 모든 계층이 쓸 수 있다. 이 파일은 다른 계층을 import하지 않는다.
-import type {
-  ErrorCode,
-  ErrorResponse,
-} from "../../../packages/core/src/api.ts";
-import {
-  LEDGER_ERRORS,
-  type LedgerError,
-} from "../../../packages/core/src/index.ts";
+import type { ErrorCode, ErrorResponse } from "@finveric/core/api";
+import { LEDGER_ERRORS, type LedgerError } from "@finveric/core";
 
 /**
  * 이유를 기계가 읽을 수 있는 오류. 오류 처리기(`app.ts`)가 `error`, `code`, `ledgerError`를 응답에 넣는다.

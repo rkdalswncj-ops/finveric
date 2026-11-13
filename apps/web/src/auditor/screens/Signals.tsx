@@ -6,15 +6,11 @@ import {
   SIGNAL_THRESHOLDS,
   type Signal,
   type SignalKind,
-} from "../../../../../packages/core/src/index.ts";
-import type { LedgerSnapshot } from "../../../../../packages/core/src/ledger.ts";
-import {
-  Badge,
-  Heading,
-  TableScroll,
-} from "../../../../../packages/ui/src/components.tsx";
-import { dateTime } from "../../../../../packages/ui/src/format.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "@finveric/core";
+import type { LedgerSnapshot } from "@finveric/core/ledger";
+import { Badge, Heading, TableScroll } from "../../shared/components.tsx";
+import { dateTime } from "../../shared/format.ts";
+import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
 import { LedgerGate, LedgerLine } from "../components.tsx";
 import { customerPath, productName, salePath, short } from "../format.ts";

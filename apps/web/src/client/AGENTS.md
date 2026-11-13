@@ -12,7 +12,7 @@
 
 - 문구는 합니다체로 쓴다.
 - 사이드바 아래쪽에 "처음 화면", "증권사 앱 예시"(`/channel/`), "API 문서"(`/api/docs`)를 작은 링크로 둔다(`Shell`의 `links`). 뒤의 두 링크는 새 탭으로 열린다. 묶음 제목과 설명은 두지 않는다. 사이드바 아래 설명 블록(`foot`)도 두지 않는다.
-- 다른 페이지 주소는 `packages/ui/src/links.ts`를 쓴다. 고객 화면으로 가는 다른 링크(예: 판매·검토의 빈 목록 안내)도 같은 주소를 새 탭으로 연다.
+- 다른 페이지 주소는 `src/shared/links.ts`를 쓴다. 고객 화면으로 가는 다른 링크(예: 판매·검토의 빈 목록 안내)도 같은 주소를 새 탭으로 연다.
 - 이전 주소 `/client/channel/*`는 같은 탭에서 `/channel/*`로 보낸다(`ChannelRedirect`). 쿼리는 그대로 넘긴다. 공유한 링크와 이전 캡처의 주소가 쓴다.
 - 고객은 다른 탭(증권사 앱 예시)에서 가입한다. 콘솔은 탭으로 돌아오면(`visibilitychange`, `focus`) 자료를 다시 읽는다.
 - 3회차 이상 진단한 고객의 청약은 판매·검토의 "관리자 승인" 뒤에 한다. 증권사 앱 예시의 가입 화면은 승인을 API로 읽어 이어 간다. "준법"은 쓰지 않는다.
@@ -22,13 +22,13 @@
 ## 코드
 
 - 화면마다 `screens/` 아래 파일 하나를 둔다.
-- 진단 기준·상품 편집기는 처음 입력하거나 "원장에 등록"을 누른 뒤부터 검사 오류를 보여 준다. 바꾼 내용이 있으면 "편집 취소" 전에 `ConfirmDialog`(`packages/ui`)로 묻는다. 바뀐 것이 없으면 바로 닫는다.
+- 진단 기준·상품 편집기는 처음 입력하거나 "원장에 등록"을 누른 뒤부터 검사 오류를 보여 준다. 바꾼 내용이 있으면 "편집 취소" 전에 `ConfirmDialog`(`src/shared`)로 묻는다. 바뀐 것이 없으면 바로 닫는다.
 - 처음 읽기에 실패하면 빈 표는 "불러오지 못했습니다"를 보여 준다(`LoadState`의 `failed`).
 - API 키 화면은 키 원문을 발급 직후 한 번만 보여 준다. 원문을 상태 밖(sessionStorage, 주소, 로그)에 두지 않는다. 화면을 떠나면 원문은 사라진다.
 - API 키 폐기는 되돌릴 수 없다. `ConfirmDialog`로 먼저 묻는다. "취소"가 주요 버튼이고 처음 초점을 받는다.
 - 콘솔 화면만 쓰는 표시 요소는 `components.tsx`, 위험 신호 입력은 `signals.ts`, 처리 기록 이름·상태는 `traces.ts`에 둔다.
-- 증권사 앱 예시와 함께 쓰는 판매 건·상품·기준 표시 계산은 `packages/ui/src/sales.ts`에 둔다. 상태 배지와 핵심 설명 카드는 `packages/ui/src/sale-components.tsx`에 둔다. 다른 페이지 폴더에서 import하지 않는다.
+- 증권사 앱 예시와 함께 쓰는 판매 건·상품·기준 표시 계산은 `src/shared/sales.ts`에 둔다. 상태 배지와 핵심 설명 카드는 `src/shared/sale-components.tsx`에 둔다. 다른 페이지 폴더에서 import하지 않는다.
 - `App.tsx`가 기준, 상품, 판매 건, 처리 기록, 시연 고객의 회차를 한 번에 읽는다. 화면은 `run()`으로 처리를 부르고, 끝나면 모두 다시 읽는다. 시연 고객 번호는 `/api/config`의 `demoCustomer`를 쓴다.
 - `run(이름, 처리, 끝난 문장)`의 끝난 문장은 상태 줄에 들어가 화면 낭독기가 읽는다(예: "관리자 승인을 기록했습니다."). 누른 버튼이 처리 뒤에 사라지면 그 구역의 제목으로 초점을 옮긴다(`focusElement`).
-- API는 `packages/ui`의 `api()`로 부른다. 응답 타입과 요청 본문은 `packages/core/src/api.ts`의 DTO를 쓴다.
+- API는 `src/shared`의 `api()`로 부른다. 응답 타입과 요청 본문은 `@finveric/core/api`의 DTO를 쓴다.
 - 진단 기준 검사·판정(`validateRule`, `evaluateRule`, `ruleHash`), 상품 검사(`validateProduct`), 적합 판정(`isSuitable`), 위험 신호(`computeSignals`)는 `packages/core`를 쓴다. 화면에서 다시 구현하지 않는다.

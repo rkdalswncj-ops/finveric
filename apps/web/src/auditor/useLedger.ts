@@ -1,13 +1,13 @@
 // 감독기관 화면의 원장 읽기. 판매사 API 없이 지정 RPC에서 원장 v5 이벤트를 읽는다.
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Deployment } from "../../../../packages/core/src/index.ts";
+import type { Deployment } from "@finveric/core";
 import {
   ledgerClient,
   readLedger,
   type LedgerSnapshot,
-} from "../../../../packages/core/src/ledger.ts";
-import { requireDeployment } from "../../../../packages/core/src/verify.ts";
-import { DEPLOYMENT_ERROR } from "../../../../packages/ui/src/deployment.ts";
+} from "@finveric/core/ledger";
+import { requireDeployment } from "@finveric/core/verify";
+import { DEPLOYMENT_ERROR } from "../shared/deployment.ts";
 import { koreanError } from "./format.ts";
 
 export type Ledger = {

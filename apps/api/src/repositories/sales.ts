@@ -7,7 +7,7 @@ import {
   type Product,
   type RuleDocument,
   type Trace,
-} from "../../../../packages/core/src/index.ts";
+} from "@finveric/core";
 import { CodedError } from "../errors.ts";
 import { FileStore, type SaleStore } from "./store.ts";
 

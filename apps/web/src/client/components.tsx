@@ -4,15 +4,11 @@ import {
   PROFILE_NAMES,
   type ProductDocument,
   type RuleDocument,
-} from "../../../../packages/core/src/index.ts";
-import type { DiagnosisDto } from "../../../../packages/core/src/api.ts";
-import { Button } from "../../../../packages/ui/src/button.tsx";
-import {
-  Facts,
-  Notice,
-  TableScroll,
-} from "../../../../packages/ui/src/components.tsx";
-import { dateTime } from "../../../../packages/ui/src/format.ts";
+} from "@finveric/core";
+import type { DiagnosisDto } from "@finveric/core/api";
+import { Button } from "../shared/button.tsx";
+import { Facts, Notice, TableScroll } from "../shared/components.tsx";
+import { dateTime } from "../shared/format.ts";
 import {
   gradeName,
   issuerLabel,
@@ -20,8 +16,8 @@ import {
   productName,
   profileName,
   type ProductEntry,
-} from "../../../../packages/ui/src/sales.ts";
-import ui from "../../../../packages/ui/src/ui.module.css";
+} from "../shared/sales.ts";
+import ui from "../shared/ui.module.css";
 import local from "./client.module.css";
 
 const s = { ...ui, ...local };

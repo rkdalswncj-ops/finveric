@@ -9,11 +9,8 @@ import {
   TriangleAlert,
   type LucideIcon,
 } from "lucide-react";
-import {
-  DEPLOYMENT_ERROR,
-  useDeployment,
-} from "../../../../packages/ui/src/deployment.ts";
-import { Shell, type NavGroup } from "../../../../packages/ui/src/Shell.tsx";
+import { DEPLOYMENT_ERROR, useDeployment } from "../shared/deployment.ts";
+import { Shell, type NavGroup } from "../shared/Shell.tsx";
 import { Dashboard } from "./screens/Dashboard.tsx";
 import { Disputes } from "./screens/Disputes.tsx";
 import { Products } from "./screens/Products.tsx";

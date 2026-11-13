@@ -5,7 +5,7 @@ import {
   registerRuleBodySchema,
   type RegisterProductRequest,
   type RegisterRuleRequest,
-} from "../../../../packages/core/src/api.ts";
+} from "@finveric/core/api";
 import type { FundService } from "../service.ts";
 
 export const registryRoutes: FastifyPluginAsync<{

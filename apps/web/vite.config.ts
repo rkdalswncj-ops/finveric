@@ -21,8 +21,7 @@ const pages = {
  * 공개 검증 설정(deployment*.json). scripts/deploy.ts와 scripts/dev.ts가 이곳에 쓴다.
  * 격리한 검사 환경은 FINVERIC_DEPLOYMENT_DIR로 다른 디렉터리를 지정한다.
  */
-const sharedPublic =
-  process.env.FINVERIC_DEPLOYMENT_DIR ?? page("../../packages/ui/public");
+const deploymentDir = process.env.FINVERIC_DEPLOYMENT_DIR ?? page("./public");
 
 /**
  * 개발 서버를 배포와 같은 경로로 맞춘다.
@@ -41,7 +40,7 @@ function devServerPaths(): Plugin {
           return next();
         }
         const name = path.match(/^\/(deployment(?:-v[1-3])?\.json)$/)?.[1];
-        const file = name && `${sharedPublic}/${name}`;
+        const file = name && `${deploymentDir}/${name}`;
         if (!file || !existsSync(file)) return next();
         res.setHeader("content-type", "application/json; charset=utf-8");
         res.setHeader("cache-control", "no-store");

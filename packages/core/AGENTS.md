@@ -14,7 +14,12 @@
 | `src/verify.ts`   | 독립 검증(`verifySale`). 결과는 일치·불일치·기록 없음이다. 검사 설명의 말투는 `voice`(기본 해요체, 감독기관은 합니다체)다 |
 | `src/api.ts`      | 판매사 API 계약(DTO, 요청 JSON Schema, 문서 전용 응답 스키마, 오류 `code` 표 `ERROR_CODES`)                               |
 
-- `index.ts`는 `encoding`, `rules`, `products`, `abi`, `signals`를 다시 내보낸다. `ledger.ts`, `verify.ts`, `api.ts`는 각 파일에서 import한다.
+## 가져오기와 빌드
+
+- 패키지 이름으로 가져온다: `@finveric/core`(`index.ts`), `@finveric/core/api`, `@finveric/core/ledger`, `@finveric/core/verify`. 진입점은 `package.json`의 `exports`다. `../packages/core/src/...` 같은 상대 경로를 쓰지 않는다.
+- core는 빌드하지 않는다. `exports`가 원본 `.ts`를 가리킨다. API 개발·검사는 `tsx`, Vercel 함수는 `esbuild`, 웹은 Vite가 원본을 컴파일한다. `dist`를 만들면 개발 중 자동 반영(Docker 포함)이 느려지고, 오래된 `dist`를 읽는 문제가 생긴다. npm에 배포하거나 TypeScript를 컴파일하지 않는 곳에서 쓰게 되면 다시 정한다.
+- 새 진입점이 필요하면 `exports`에 더한다. 그 밖의 파일은 패키지 밖에서 가져오지 않는다.
+- `index.ts`는 `encoding`, `rules`, `products`, `abi`, `signals`를 다시 내보낸다. `ledger.ts`, `verify.ts`, `api.ts`는 각 진입점으로 가져온다.
 - `encoding.ts`, `rules.ts`, `products.ts`, `abi.ts`, `signals.ts`는 `index.ts`를 값으로 import하지 않는다. 순환 import가 생긴다.
 
 ## API 계약 (`src/api.ts`)

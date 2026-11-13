@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { createTestClient, http } from "viem";
 import { environment } from "./environment.ts";
-import { verifySale } from "../packages/core/src/verify.ts";
+import { verifySale } from "@finveric/core/verify";
 import {
   DEMO_CUSTOMER_NO,
   DEMO_PRODUCTS,
@@ -18,7 +18,7 @@ import {
   json,
   type EvidenceReceipt,
   type OriginalBundle,
-} from "../packages/core/src/index.ts";
+} from "@finveric/core";
 import type {
   ConfigDto,
   CustomerDto,
@@ -26,7 +26,7 @@ import type {
   RegisterDto,
   SaleDto,
   TamperResponse,
-} from "../packages/core/src/api.ts";
+} from "@finveric/core/api";
 
 const { values: options } = parseArgs({
   options: {

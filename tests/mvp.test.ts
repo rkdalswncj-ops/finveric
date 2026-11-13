@@ -27,8 +27,8 @@ import { fakeUpstash } from "./fake-upstash.ts";
 import { responseChecker } from "./openapi-check.ts";
 import { createApp } from "../apps/api/src/app.ts";
 import { prove } from "../apps/api/src/gateways/proofs.ts";
-import { verifySale } from "../packages/core/src/verify.ts";
-import { readLedger } from "../packages/core/src/ledger.ts";
+import { verifySale } from "@finveric/core/verify";
+import { readLedger } from "@finveric/core/ledger";
 import {
   DEMO_CUSTOMER_NO,
   DEMO_PRODUCTS,
@@ -44,14 +44,14 @@ import {
   type Deployment,
   type EvidenceReceipt,
   type OriginalBundle,
-} from "../packages/core/src/index.ts";
+} from "@finveric/core";
 import type {
   CustomerDto,
   DiagnosisDto,
   ErrorCode,
   ErrorResponse,
   SaleDto,
-} from "../packages/core/src/api.ts";
+} from "@finveric/core/api";
 
 const [els, fund, elb] = DEMO_PRODUCTS;
 const CUSTOMER = DEMO_CUSTOMER_NO;

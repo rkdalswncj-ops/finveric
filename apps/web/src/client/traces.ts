@@ -1,12 +1,8 @@
 // 온체인 처리 기록(/api/traces)의 표시 이름, 출처, 상태, 영수증 이벤트.
 import { parseEventLogs, type Log } from "viem";
-import {
-  LEDGER_ERRORS,
-  ledgerAbi,
-  type LedgerError,
-} from "../../../../packages/core/src/index.ts";
-import type { TraceDto } from "../../../../packages/core/src/api.ts";
-import type { Tone } from "../../../../packages/ui/src/components.tsx";
+import { LEDGER_ERRORS, ledgerAbi, type LedgerError } from "@finveric/core";
+import type { TraceDto } from "@finveric/core/api";
+import type { Tone } from "../shared/components.tsx";
 
 /** 원장 함수 이름의 작업 이름. 원장 밖 기록(증명 생성, 관리자 승인 서명, 가입 중단)은 API가 한국어로 쓴다. */
 const ACTION_LABELS: Readonly<Record<string, string>> = {

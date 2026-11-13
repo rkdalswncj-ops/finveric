@@ -50,7 +50,7 @@
   - 동작 막대(`ActionBar`)가 있으면 주요 버튼 아래 줄에 쓴다(`role="alert"`, 주의 아이콘, `destructive` 글자). 고객이 방금 누른 곳이다. 오류가 있으면 막대 높이(`--action-bar-height`)가 오류 세 줄만큼 커진다.
   - 동작 막대가 없으면(첫 읽기 실패 등) `Frame`이 본문 맨 위에 `Notice tone="danger"`를 둔다. 아무것도 가리지 않는다.
   - 오류는 다음 처리를 시작할 때(`run()`), 경로가 바뀔 때 사라진다. 읽기 실패의 오류는 다시 읽기에 성공해도 사라진다. 처리 실패 뒤 바로 다시 읽는 것은 오류를 지우지 않는다.
-- 되돌릴 수 없는 동작(가입 중단, 청약 철회, 다른 상품 가입으로 진행 중인 신청 중단)은 `ConfirmDialog`(`packages/ui`, `size="large"`)로 먼저 묻는다. 안전한 선택이 주요 버튼이다. 탭을 옮기는 것은 묻지 않는다.
+- 되돌릴 수 없는 동작(가입 중단, 청약 철회, 다른 상품 가입으로 진행 중인 신청 중단)은 `ConfirmDialog`(`src/shared`, `size="large"`)로 먼저 묻는다. 안전한 선택이 주요 버튼이다. 탭을 옮기는 것은 묻지 않는다.
 
 ## 가입 절차
 
@@ -65,7 +65,7 @@
 
 ## 데이터
 
-- 자료는 `packages/ui`의 `api()`로만 읽고 쓴다. 응답 타입과 요청 본문은 `packages/core/src/api.ts`의 DTO를 쓴다.
+- 자료는 `src/shared`의 `api()`로만 읽고 쓴다. 응답 타입과 요청 본문은 `@finveric/core/api`의 DTO를 쓴다.
 - 오류는 `App.tsx`의 `customerMessage()`가 고객 문장으로 바꾼다. API 오류의 `code`로만 고른다. 원장 거절(`rejected`)은 `ledgerError`로 core의 `CUSTOMER_LEDGER_ERRORS`에서 고른다. 서버에 닿지 못하면 `offline`이다.
 - API 문장(`error`)은 화면에 보이지 않는다. API 문장은 판매사 개발자가 읽는 합니다체다. 모르는 `code`, `code`가 없는 응답, 없는 경로(404)는 `unavailable` 문장이다. 화면이 직접 던진 오류(해요체)만 그 문장을 그대로 쓴다.
 - 고객 문장에는 다음에 할 일을 쓴다. 원장·거래·해시·영수증 같은 말과 판매사 콘솔에서만 할 수 있는 안내를 쓰지 않는다. API에 `code`를 더하면 `customerMessage()`의 표에도 더한다.
@@ -77,7 +77,7 @@
 
 ## 코드
 
-- 다른 페이지 폴더(`src/client`, `src/auditor`, `src/entry`)에서 import하지 않는다. 판매사 콘솔과 함께 쓰는 표시 계산과 요소는 `packages/ui`에 둔다.
+- 다른 페이지 폴더(`src/client`, `src/auditor`, `src/entry`)에서 import하지 않는다. 판매사 콘솔과 함께 쓰는 표시 계산과 요소는 `src/shared`에 둔다.
 
 | 파일                          | 내용                                                               |
 | ----------------------------- | ------------------------------------------------------------------ |

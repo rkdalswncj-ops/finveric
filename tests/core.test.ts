@@ -18,7 +18,7 @@ import {
   validateProduct,
   validateRule,
   type RuleDocument,
-} from "../packages/core/src/index.ts";
+} from "@finveric/core";
 
 const clone = (doc: RuleDocument): RuleDocument => structuredClone(doc);
 type AbiParam = {

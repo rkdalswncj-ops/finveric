@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { MAX_ACTIVE_API_KEYS } from "../packages/core/src/api.ts";
+import { MAX_ACTIVE_API_KEYS } from "@finveric/core/api";
 import { HTTP_ERRORS } from "../apps/api/src/errors.ts";
 import { offlineStack } from "./offline-app.ts";
 import { responseChecker } from "./openapi-check.ts";

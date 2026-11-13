@@ -9,7 +9,7 @@ import {
   type OpenSaleRequest,
   type SaleIdParams,
   type SubscribeRequest,
-} from "../../../../packages/core/src/api.ts";
+} from "@finveric/core/api";
 import type { FundService } from "../service.ts";
 
 export const saleRoutes: FastifyPluginAsync<{ service: FundService }> = async (

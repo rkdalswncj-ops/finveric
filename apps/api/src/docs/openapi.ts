@@ -7,8 +7,8 @@ import {
   ERROR_CODES,
   errorResponseSchema,
   type ErrorResponse,
-} from "../../../../packages/core/src/api.ts";
-import { LEDGER_ERRORS } from "../../../../packages/core/src/index.ts";
+} from "@finveric/core/api";
+import { LEDGER_ERRORS } from "@finveric/core";
 import { HTTP_ERRORS, ledgerRejectionMessage } from "../errors.ts";
 import {
   API_KEY_ID_EXAMPLE,

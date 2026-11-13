@@ -1,6 +1,6 @@
 // 버전 사이의 차이 목록. 추가·삭제·변경은 상태가 아니라 종류다. 중립 배지와 글자로 표시한다.
-import { Badge } from "../../../../packages/ui/src/components.tsx";
-import ui from "../../../../packages/ui/src/ui.module.css";
+import { Badge } from "../shared/components.tsx";
+import ui from "../shared/ui.module.css";
 import local from "./auditor.module.css";
 import { CHANGE_LABELS, type Change } from "./diff.ts";
 

@@ -1,26 +1,19 @@
 import { Link } from "react-router";
 import { AlertTriangle } from "lucide-react";
-import {
-  DEMO_AMOUNT,
-  type Product,
-} from "../../../../../packages/core/src/index.ts";
-import type { ProductEntryDto } from "../../../../../packages/core/src/api.ts";
-import type { LoadState } from "../../../../../packages/ui/src/api.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
-import {
-  Facts,
-  Heading,
-  Notice,
-} from "../../../../../packages/ui/src/components.tsx";
-import { won } from "../../../../../packages/ui/src/format.ts";
-import { ExplanationCards } from "../../../../../packages/ui/src/sale-components.tsx";
+import { DEMO_AMOUNT, type Product } from "@finveric/core";
+import type { ProductEntryDto } from "@finveric/core/api";
+import type { LoadState } from "../../shared/api.ts";
+import { Button } from "../../shared/button.tsx";
+import { Facts, Heading, Notice } from "../../shared/components.tsx";
+import { won } from "../../shared/format.ts";
+import { ExplanationCards } from "../../shared/sale-components.tsx";
 import {
   gradeName,
   issuerLabel,
   productName,
   type Sale,
-} from "../../../../../packages/ui/src/sales.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "../../shared/sales.ts";
+import ui from "../../shared/ui.module.css";
 import local from "./channel.module.css";
 import { ActionBar, PrimaryAction, useStartEnrollment } from "../flow.tsx";
 import { channel } from "../links.ts";

@@ -1,5 +1,5 @@
 // 화면 표기 형식. 판정이나 업무 규칙은 넣지 않는다.
-import type { Deployment } from "../../core/src/index.ts";
+import type { Deployment } from "@finveric/core";
 
 /** 긴 해시와 ID를 앞 10자·뒤 6자로 줄인다. */
 export const short = (value?: string) =>

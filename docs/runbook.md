@@ -25,7 +25,7 @@ npm run dev
 
 | 고친 곳 | 반영 방법 |
 | --- | --- |
-| 웹(`apps/web`, `packages/ui`) | 저장하면 브라우저에 바로 반영된다(Vite HMR). |
+| 웹(`apps/web`) | 저장하면 브라우저에 바로 반영된다(Vite HMR). |
 | API, 코어(`apps/api`, `packages/core`) | 저장하면 API가 다시 시작한다(`tsx watch`). 진행 중인 요청은 끊긴다. |
 | 원장·회로(`contracts`, `circuits`) | 다시 빌드한다(`docker compose up --build -d`). 원장 버전이나 증명 키가 바뀌면 새로 배포한다. |
 | 의존성(`package.json`), `Dockerfile` | 다시 빌드한다(`docker compose up --build -d`). |

@@ -1,11 +1,7 @@
 // 판매사 콘솔의 위험 신호 입력. 판정은 core의 computeSignals를 쓴다.
-import {
-  computeSignals,
-  type Signal,
-  type SignalSale,
-} from "../../../../packages/core/src/index.ts";
-import type { CustomerDto } from "../../../../packages/core/src/api.ts";
-import type { Sale } from "../../../../packages/ui/src/sales.ts";
+import { computeSignals, type Signal, type SignalSale } from "@finveric/core";
+import type { CustomerDto } from "@finveric/core/api";
+import type { Sale } from "../shared/sales.ts";
 
 /**
  * 위험 신호. 고객의 진단 회차와 청약한 판매 건을 core 입력 형식으로 바꿔 계산한다.

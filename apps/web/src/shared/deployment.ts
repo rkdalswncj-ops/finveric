@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Deployment } from "../../core/src/index.ts";
+import type { Deployment } from "@finveric/core";
 
 /** 검증 설정을 읽지 못했을 때의 문장. 고객 화면(해요체)과 기관 화면(합니다체)이 다르다. */
 export const DEPLOYMENT_ERROR = {

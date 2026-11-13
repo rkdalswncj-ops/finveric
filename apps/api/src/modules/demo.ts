@@ -1,9 +1,6 @@
 // 시연: 사후 변경 시도. 판매사가 이미 기록한 회차를 더 유리한 결과로 다시 쓰려 한다.
 // 판매사 키로 원장 호출을 시뮬레이션만 한다. 거래는 보내지 않는다. 원장이 회차 검사(InvalidAttempt)로 거절한다.
-import type {
-  TamperRequest,
-  TamperResponse,
-} from "../../../../packages/core/src/api.ts";
+import type { TamperRequest, TamperResponse } from "@finveric/core/api";
 import { CodedError } from "../errors.ts";
 import type { FundService } from "../service.ts";
 import {

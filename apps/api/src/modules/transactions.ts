@@ -1,7 +1,7 @@
 // 원장 거래 처리 기록: 시뮬레이션·제출·영수증 대조를 기록하고, 대기 중인 거래의 영수증을 다시 확인한다.
 import { randomUUID } from "node:crypto";
 import type { Hex, TransactionReceipt } from "viem";
-import type { Role, Trace } from "../../../../packages/core/src/index.ts";
+import type { Role, Trace } from "@finveric/core";
 import { CodedError } from "../errors.ts";
 import type { FundService } from "../service.ts";
 import type { StoredSale } from "../repositories/sales.ts";

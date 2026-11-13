@@ -12,7 +12,7 @@ import {
   isSuitable,
   RISK_GRADE_NAMES,
   type Deployment,
-} from "../../../../../packages/core/src/index.ts";
+} from "@finveric/core";
 import type {
   CustomerDto,
   DiagnoseRequest,
@@ -23,9 +23,9 @@ import type {
   SaleAction,
   SaleDto,
   SubscribeRequest,
-} from "../../../../../packages/core/src/api.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
-import { api, type LoadState } from "../../../../../packages/ui/src/api.ts";
+} from "@finveric/core/api";
+import { Button } from "../../shared/button.tsx";
+import { api, type LoadState } from "../../shared/api.ts";
 import {
   Badge,
   ConfirmDialog,
@@ -33,8 +33,8 @@ import {
   Facts,
   FieldError,
   Notice,
-} from "../../../../../packages/ui/src/components.tsx";
-import { dateTime, won } from "../../../../../packages/ui/src/format.ts";
+} from "../../shared/components.tsx";
+import { dateTime, won } from "../../shared/format.ts";
 import {
   activeRule,
   confirmedTrace,
@@ -45,8 +45,8 @@ import {
   profileName,
   saleProduct,
   type Sale,
-} from "../../../../../packages/ui/src/sales.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "../../shared/sales.ts";
+import ui from "../../shared/ui.module.css";
 import local from "./channel.module.css";
 import type { Run } from "../App.tsx";
 import { ActionBar, PrimaryAction, StepHeader } from "../flow.tsx";

@@ -1,5 +1,5 @@
-import type { LedgerError } from "../../core/src/index.ts";
-import type { ErrorCode, ErrorResponse } from "../../core/src/api.ts";
+import type { LedgerError } from "@finveric/core";
+import type { ErrorCode, ErrorResponse } from "@finveric/core/api";
 
 export function token() {
   return sessionStorage.getItem("finveric-token") ?? "";

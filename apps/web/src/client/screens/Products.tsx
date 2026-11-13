@@ -10,13 +10,13 @@ import {
   type ProductDocument,
   type ProductType,
   type RiskGrade,
-} from "../../../../../packages/core/src/index.ts";
+} from "@finveric/core";
 import type {
   ProductEntryDto,
   RegisterProductRequest,
   RuleEntryDto,
-} from "../../../../../packages/core/src/api.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
+} from "@finveric/core/api";
+import { Button } from "../../shared/button.tsx";
 import {
   Badge,
   ConfirmDialog,
@@ -24,13 +24,13 @@ import {
   Heading,
   Notice,
   TableScroll,
-} from "../../../../../packages/ui/src/components.tsx";
-import { api, type LoadState } from "../../../../../packages/ui/src/api.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "../../shared/components.tsx";
+import { api, type LoadState } from "../../shared/api.ts";
+import ui from "../../shared/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
 import type { Run } from "../App.tsx";
-import { ExplanationCards } from "../../../../../packages/ui/src/sale-components.tsx";
+import { ExplanationCards } from "../../shared/sale-components.tsx";
 import {
   ProductFacts,
   ProfileProducts,
@@ -41,7 +41,7 @@ import {
   gradeName,
   latestProducts,
   productName,
-} from "../../../../../packages/ui/src/sales.ts";
+} from "../../shared/sales.ts";
 
 const s = { ...ui, ...client, ...local };
 const GRADES = Object.keys(RISK_GRADE_NAMES).map(Number) as RiskGrade[];

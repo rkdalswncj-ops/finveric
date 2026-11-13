@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { environment } from "../scripts/environment.ts";
 import { FundService } from "../apps/api/src/service.ts";
 import { createApp } from "../apps/api/src/app.ts";
-import type { Deployment } from "../packages/core/src/index.ts";
+import type { Deployment } from "@finveric/core";
 
 type Context = { after: (fn: () => unknown) => void };
 

@@ -5,8 +5,8 @@ import {
   ruleHash,
   validateRule,
   type RuleDocument,
-} from "../../../../packages/core/src/index.ts";
-import type { RuleEntry } from "../../../../packages/core/src/api.ts";
+} from "@finveric/core";
+import type { RuleEntry } from "@finveric/core/api";
 import { CodedError } from "../errors.ts";
 import type { FundService } from "../service.ts";
 import type { StoredRule } from "../repositories/sales.ts";

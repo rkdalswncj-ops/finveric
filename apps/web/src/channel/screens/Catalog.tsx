@@ -8,22 +8,19 @@ import {
   TrendingUp,
   Umbrella,
 } from "lucide-react";
-import {
-  PRODUCT_TYPES,
-  type ProductType,
-} from "../../../../../packages/core/src/index.ts";
-import type { ProductEntryDto } from "../../../../../packages/core/src/api.ts";
-import type { LoadState } from "../../../../../packages/ui/src/api.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
-import { Badge, Heading } from "../../../../../packages/ui/src/components.tsx";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+import { PRODUCT_TYPES, type ProductType } from "@finveric/core";
+import type { ProductEntryDto } from "@finveric/core/api";
+import type { LoadState } from "../../shared/api.ts";
+import { Button } from "../../shared/button.tsx";
+import { Badge, Heading } from "../../shared/components.tsx";
+import ui from "../../shared/ui.module.css";
 import {
   gradeName,
   issuerLabel,
   latestProducts,
   productName,
   type Sale,
-} from "../../../../../packages/ui/src/sales.ts";
+} from "../../shared/sales.ts";
 import local from "./channel.module.css";
 import { useStartEnrollment } from "../flow.tsx";
 import { channel, fundPath } from "../links.ts";

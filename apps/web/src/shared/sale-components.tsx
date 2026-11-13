@@ -1,5 +1,5 @@
 // 판매사 콘솔과 증권사 앱 예시가 함께 쓰는 판매 건·상품 표시 요소.
-import type { ProductDocument } from "../../core/src/index.ts";
+import type { ProductDocument } from "@finveric/core";
 import { Badge } from "./components.tsx";
 import { STATUS_LABELS, STATUS_TONES, statusKey, type Sale } from "./sales.ts";
 import s from "./ui.module.css";

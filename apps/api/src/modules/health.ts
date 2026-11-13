@@ -1,8 +1,5 @@
 // 운영: API가 의존하는 RPC, 원장, 판매 기록 저장소를 점검한다.
-import type {
-  HealthCheck,
-  HealthResponse,
-} from "../../../../packages/core/src/api.ts";
+import type { HealthCheck, HealthResponse } from "@finveric/core/api";
 import type { FundService } from "../service.ts";
 import { readChainId, readCodeHash } from "../gateways/ledger.ts";
 

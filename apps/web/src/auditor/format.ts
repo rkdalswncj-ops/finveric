@@ -5,15 +5,15 @@ import {
   productDisplayName,
   type ProductDocument,
   type Signal,
-} from "../../../../packages/core/src/index.ts";
+} from "@finveric/core";
 import type {
   LedgerProduct,
   LedgerSale,
   LedgerSaleStatus,
   LedgerSnapshot,
-} from "../../../../packages/core/src/ledger.ts";
-import type { VerificationReference } from "../../../../packages/core/src/verify.ts";
-import type { Tone } from "../../../../packages/ui/src/components.tsx";
+} from "@finveric/core/ledger";
+import type { VerificationReference } from "@finveric/core/verify";
+import type { Tone } from "../shared/components.tsx";
 
 /** 긴 해시·주소·판매 ID를 앞뒤만 보여 준다. 전체 값은 title로 둔다. */
 export const short = (value: string, head = 6, tail = 4) =>

@@ -1,9 +1,6 @@
 // 경로: 상태 확인, 검증 설정, API 문서. 접근 코드 없이 열린다(app.ts의 PUBLIC_PATHS).
 import type { FastifyPluginAsync } from "fastify";
-import type {
-  ConfigResponse,
-  HealthResponse,
-} from "../../../../packages/core/src/api.ts";
+import type { ConfigResponse, HealthResponse } from "@finveric/core/api";
 import { DOCS_PAGE } from "../docs/page.ts";
 import type { FundService } from "../service.ts";
 

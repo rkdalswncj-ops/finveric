@@ -9,7 +9,7 @@ import {
   type DiagnosisContext,
   type Groth16Proof,
   type RuleDocument,
-} from "../../../../packages/core/src/index.ts";
+} from "@finveric/core";
 import { ZK_FILES, zkPath } from "../../../../scripts/root.ts";
 
 /** 1 이상 FIELD 미만의 임의값(10진 문자열). */

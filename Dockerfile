@@ -9,7 +9,6 @@ COPY package.json package-lock.json .npmrc ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/core/package.json packages/core/
-COPY packages/ui/package.json packages/ui/
 RUN npm ci --no-audit --no-fund
 
 COPY . .

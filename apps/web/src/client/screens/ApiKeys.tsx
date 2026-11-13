@@ -5,20 +5,20 @@ import {
   type ApiKeyDto,
   type IssueApiKeyRequest,
   type IssuedApiKeyDto,
-} from "../../../../../packages/core/src/api.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
-import { api, type LoadState } from "../../../../../packages/ui/src/api.ts";
+} from "@finveric/core/api";
+import { Button } from "../../shared/button.tsx";
+import { api, type LoadState } from "../../shared/api.ts";
 import {
   Badge,
   ConfirmDialog,
   FieldError,
   Heading,
   TableScroll,
-} from "../../../../../packages/ui/src/components.tsx";
-import { focusElement } from "../../../../../packages/ui/src/focus.ts";
-import { dateTime } from "../../../../../packages/ui/src/format.ts";
-import { API_DOCS_HREF } from "../../../../../packages/ui/src/links.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "../../shared/components.tsx";
+import { focusElement } from "../../shared/focus.ts";
+import { dateTime } from "../../shared/format.ts";
+import { API_DOCS_HREF } from "../../shared/links.ts";
+import ui from "../../shared/ui.module.css";
 import local from "./keys.module.css";
 import type { Run } from "../App.tsx";
 

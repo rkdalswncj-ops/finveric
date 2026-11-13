@@ -4,7 +4,7 @@ import { PUBLIC_PATHS } from "../apps/api/src/app.ts";
 import { offlineApp } from "./offline-app.ts";
 import { OPERATIONS, TAGS } from "../apps/api/src/docs/operations.ts";
 import { HTTP_ERRORS } from "../apps/api/src/errors.ts";
-import { ERROR_CODES, type ErrorCode } from "../packages/core/src/api.ts";
+import { ERROR_CODES, type ErrorCode } from "@finveric/core/api";
 
 /** 해요체 끝맺음. API 오류 문장은 합니다체(지시는 "-세요")로 쓴다. */
 const HAEYO = /(어|아|에|해|예|워|돼|봐)요[.?!]|주세요/;

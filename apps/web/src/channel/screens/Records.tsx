@@ -4,17 +4,12 @@ import type {
   CustomerDto,
   ExportKind,
   ProductEntryDto,
-} from "../../../../../packages/core/src/api.ts";
-import type { LoadState } from "../../../../../packages/ui/src/api.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
-import {
-  Empty,
-  Facts,
-  Heading,
-  Notice,
-} from "../../../../../packages/ui/src/components.tsx";
-import { dateTime, won } from "../../../../../packages/ui/src/format.ts";
-import { StatusBadge } from "../../../../../packages/ui/src/sale-components.tsx";
+} from "@finveric/core/api";
+import type { LoadState } from "../../shared/api.ts";
+import { Button } from "../../shared/button.tsx";
+import { Empty, Facts, Heading, Notice } from "../../shared/components.tsx";
+import { dateTime, won } from "../../shared/format.ts";
+import { StatusBadge } from "../../shared/sale-components.tsx";
 import {
   confirmedTrace,
   inCooling,
@@ -23,8 +18,8 @@ import {
   profileName,
   saleProduct,
   type Sale,
-} from "../../../../../packages/ui/src/sales.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "../../shared/sales.ts";
+import ui from "../../shared/ui.module.css";
 import local from "./channel.module.css";
 import { ActionBar, PrimaryAction } from "../flow.tsx";
 import { channel, recordPath, verifyPath } from "../links.ts";

@@ -92,8 +92,8 @@ try {
       await complete("npm", ["run", "deploy:local"]);
     } else {
       const { copyFileSync } = await import("node:fs");
-      mkdirSync("packages/ui/public", { recursive: true });
-      copyFileSync(file, "packages/ui/public/deployment.json");
+      mkdirSync("apps/web/public", { recursive: true });
+      copyFileSync(file, "apps/web/public/deployment.json");
     }
   }
   // 개발 중 API 코드를 저장하면 다시 시작한다. 웹은 Vite가 바로 반영한다(HMR).

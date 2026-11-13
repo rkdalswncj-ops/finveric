@@ -4,20 +4,12 @@ import type {
   Deployment,
   EvidenceReceipt,
   OriginalBundle,
-} from "../../../../../packages/core/src/index.ts";
-import type { SaleVerification } from "../../../../../packages/core/src/verify.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
-import {
-  Badge,
-  Facts,
-  FieldError,
-  Notice,
-} from "../../../../../packages/ui/src/components.tsx";
-import {
-  dateTime,
-  networkName,
-} from "../../../../../packages/ui/src/format.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "@finveric/core";
+import type { SaleVerification } from "@finveric/core/verify";
+import { Button } from "../../shared/button.tsx";
+import { Badge, Facts, FieldError, Notice } from "../../shared/components.tsx";
+import { dateTime, networkName } from "../../shared/format.ts";
+import ui from "../../shared/ui.module.css";
 import s from "./customer.module.css";
 
 /** 결과 세 가지의 제목과 안내. 화면 문구는 이 셋만 쓴다. */
@@ -143,8 +135,7 @@ export function CustomerVerify({
     setResult(undefined);
     setError(undefined);
     try {
-      const { verifySale } =
-        await import("../../../../../packages/core/src/verify.ts");
+      const { verifySale } = await import("@finveric/core/verify");
       setResult(await verifySale(deployment, saleId, receipt, original));
     } catch (e) {
       const message = e instanceof Error ? e.message : "";

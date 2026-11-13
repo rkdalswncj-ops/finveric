@@ -6,16 +6,13 @@ import {
   Layers,
   Store,
 } from "lucide-react";
-import type { HealthResponse } from "../../../../packages/core/src/api.ts";
-import { api, ApiError } from "../../../../packages/ui/src/api.ts";
-import { Badge } from "../../../../packages/ui/src/components.tsx";
-import { useDeployment } from "../../../../packages/ui/src/deployment.ts";
-import { networkName } from "../../../../packages/ui/src/format.ts";
-import {
-  API_DOCS_HREF,
-  CHANNEL_APP_HREF,
-} from "../../../../packages/ui/src/links.ts";
-import ui from "../../../../packages/ui/src/ui.module.css";
+import type { HealthResponse } from "@finveric/core/api";
+import { api, ApiError } from "../shared/api.ts";
+import { Badge } from "../shared/components.tsx";
+import { useDeployment } from "../shared/deployment.ts";
+import { networkName } from "../shared/format.ts";
+import { API_DOCS_HREF, CHANNEL_APP_HREF } from "../shared/links.ts";
+import ui from "../shared/ui.module.css";
 import s from "./entry.module.css";
 
 const roles = [

@@ -3,21 +3,21 @@ import type {
   CustomerDto,
   ProductEntryDto,
   RuleEntryDto,
-} from "../../../../../packages/core/src/api.ts";
-import type { LoadState } from "../../../../../packages/ui/src/api.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
+} from "@finveric/core/api";
+import type { LoadState } from "../../shared/api.ts";
+import { Button } from "../../shared/button.tsx";
 import {
   Badge,
   Facts,
   Heading,
   Stat,
   TableScroll,
-} from "../../../../../packages/ui/src/components.tsx";
-import { dateTime, short } from "../../../../../packages/ui/src/format.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "../../shared/components.tsx";
+import { dateTime, short } from "../../shared/format.ts";
+import ui from "../../shared/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
-import { StatusBadge } from "../../../../../packages/ui/src/sale-components.tsx";
+import { StatusBadge } from "../../shared/sale-components.tsx";
 import { RegisterNotice } from "../components.tsx";
 import {
   activeRule,
@@ -27,7 +27,7 @@ import {
   productName,
   saleProduct,
   type Sale,
-} from "../../../../../packages/ui/src/sales.ts";
+} from "../../shared/sales.ts";
 import { saleSignals } from "../signals.ts";
 
 const s = { ...ui, ...client, ...local };

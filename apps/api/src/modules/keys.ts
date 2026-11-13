@@ -6,7 +6,7 @@ import {
   MAX_ACTIVE_API_KEYS,
   type ApiKeyDto,
   type IssuedApiKeyDto,
-} from "../../../../packages/core/src/api.ts";
+} from "@finveric/core/api";
 import { CodedError } from "../errors.ts";
 import type { StoredApiKey } from "../repositories/sales.ts";
 import type { FundService } from "../service.ts";

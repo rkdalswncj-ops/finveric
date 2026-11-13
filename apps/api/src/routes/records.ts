@@ -1,9 +1,6 @@
 // 경로: 처리 기록과 고객 증빙 내려받기.
 import type { FastifyPluginAsync } from "fastify";
-import {
-  exportParamsSchema,
-  type ExportParams,
-} from "../../../../packages/core/src/api.ts";
+import { exportParamsSchema, type ExportParams } from "@finveric/core/api";
 import type { FundService } from "../service.ts";
 
 export const recordRoutes: FastifyPluginAsync<{

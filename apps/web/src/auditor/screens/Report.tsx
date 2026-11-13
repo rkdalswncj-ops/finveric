@@ -1,17 +1,10 @@
 import { useId, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Download, FileText } from "lucide-react";
-import {
-  SIGNAL_KINDS,
-  SIGNAL_LABELS,
-  type Deployment,
-} from "../../../../../packages/core/src/index.ts";
-import {
-  OUTCOME_LABELS,
-  type VerifyOutcome,
-} from "../../../../../packages/core/src/verify.ts";
-import { saveFile } from "../../../../../packages/ui/src/api.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
+import { SIGNAL_KINDS, SIGNAL_LABELS, type Deployment } from "@finveric/core";
+import { OUTCOME_LABELS, type VerifyOutcome } from "@finveric/core/verify";
+import { saveFile } from "../../shared/api.ts";
+import { Button } from "../../shared/button.tsx";
 import {
   Badge,
   Facts,
@@ -20,9 +13,9 @@ import {
   FieldError,
   TableScroll,
   type Tone,
-} from "../../../../../packages/ui/src/components.tsx";
-import { dateTime } from "../../../../../packages/ui/src/format.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "../../shared/components.tsx";
+import { dateTime } from "../../shared/format.ts";
+import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
 import { LedgerLine } from "../components.tsx";
 import {

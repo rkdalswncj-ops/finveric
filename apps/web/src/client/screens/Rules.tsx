@@ -14,13 +14,13 @@ import {
   validateRule,
   type Category,
   type RuleDocument,
-} from "../../../../../packages/core/src/index.ts";
+} from "@finveric/core";
 import type {
   ProductEntryDto,
   RegisterRuleRequest,
   RuleEntryDto,
-} from "../../../../../packages/core/src/api.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
+} from "@finveric/core/api";
+import { Button } from "../../shared/button.tsx";
 import {
   Badge,
   ConfirmDialog,
@@ -28,13 +28,13 @@ import {
   Heading,
   Notice,
   TableScroll,
-} from "../../../../../packages/ui/src/components.tsx";
-import { api, type LoadState } from "../../../../../packages/ui/src/api.ts";
-import { short } from "../../../../../packages/ui/src/format.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "../../shared/components.tsx";
+import { api, type LoadState } from "../../shared/api.ts";
+import { short } from "../../shared/format.ts";
+import ui from "../../shared/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
-import { focusElement } from "../../../../../packages/ui/src/focus.ts";
+import { focusElement } from "../../shared/focus.ts";
 import type { Run } from "../App.tsx";
 import { ProfileProducts, RegisterNotice } from "../components.tsx";
 import {
@@ -43,7 +43,7 @@ import {
   limitRange,
   productName,
   profileName,
-} from "../../../../../packages/ui/src/sales.ts";
+} from "../../shared/sales.ts";
 
 const s = { ...ui, ...client, ...local };
 const PROFILES = Object.keys(PROFILE_NAMES).map(Number);

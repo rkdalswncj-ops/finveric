@@ -1,5 +1,5 @@
 // 원장 v5 배포. 증명 키(FINVERIC_ZK_DIR, 기본 circuits/build)에 맞는 Verifier와 원장을 배포한다.
-// 결과: .local/deployment-<network>.json, packages/ui/public/deployment.json.
+// 결과: .local/deployment-<network>.json, apps/web/public/deployment.json.
 // 이전 버전 원장의 배포 설정은 .local/deployment-<network>-v<버전>.json으로 보존한다. 화면은 v5만 검증한다.
 import {
   copyFileSync,
@@ -17,7 +17,7 @@ import {
   type Address,
 } from "viem";
 import { COOLING_PERIOD, environment, roles } from "./environment.ts";
-import { json, type Deployment } from "../packages/core/src/index.ts";
+import { json, type Deployment } from "@finveric/core";
 import { proofKeyHash } from "./artifacts.ts";
 
 const env = environment(process.argv[2]);
@@ -131,14 +131,14 @@ const result: Deployment = {
   ),
 };
 mkdirSync(".local", { recursive: true, mode: 0o700 });
-mkdirSync("packages/ui/public", { recursive: true });
+mkdirSync("apps/web/public", { recursive: true });
 // 이전 버전 원장의 기록은 그 주소에 남는다. 설정 파일만 보존한다.
 const previousVersion = previous?.ledgerVersion ?? previous?.ruleVersion ?? 1;
 const legacyPath = `.local/deployment-${env.network}-v${previousVersion}.json`;
 if (previous && previousVersion !== 5 && !existsSync(legacyPath))
   copyFileSync(deploymentPath, legacyPath);
 writeFileSync(deploymentPath, json(result));
-writeFileSync("packages/ui/public/deployment.json", json(result));
+writeFileSync("apps/web/public/deployment.json", json(result));
 console.log(
-  `배포 완료: 원장 v5 ${ledger.address} · 숙려 ${COOLING_PERIOD}초. 공개 검증 설정을 packages/ui/public/deployment.json에 기록했습니다.`,
+  `배포 완료: 원장 v5 ${ledger.address} · 숙려 ${COOLING_PERIOD}초. 공개 검증 설정을 apps/web/public/deployment.json에 기록했습니다.`,
 );

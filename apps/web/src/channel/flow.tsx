@@ -2,14 +2,10 @@
 import { useContext, useLayoutEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { AlertTriangle, ChevronLeft } from "lucide-react";
-import type { ProductEntryDto } from "../../../../packages/core/src/api.ts";
-import { Button } from "../../../../packages/ui/src/button.tsx";
-import { ConfirmDialog } from "../../../../packages/ui/src/components.tsx";
-import {
-  productName,
-  saleProduct,
-  type Sale,
-} from "../../../../packages/ui/src/sales.ts";
+import type { ProductEntryDto } from "@finveric/core/api";
+import { Button } from "../shared/button.tsx";
+import { ConfirmDialog } from "../shared/components.tsx";
+import { productName, saleProduct, type Sale } from "../shared/sales.ts";
 import { ErrorSlot } from "./Frame.tsx";
 import s from "./flow.module.css";
 

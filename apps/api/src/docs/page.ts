@@ -1,6 +1,6 @@
 // GET /api/docs: 사람이 읽는 API 문서. HTML·CSS·JS를 한 응답에 넣는다(외부 파일·CDN 없음).
 // Vercel 함수 번들(esbuild CJS)에 문자열로 들어간다. 디스크에서 파일을 읽지 않는다.
-// 화면은 /api/openapi.json을 읽어 그린다. 색, 글자 크기, 반경은 DESIGN.md 토큰(packages/ui/src/theme.css)과 같다.
+// 화면은 /api/openapi.json을 읽어 그린다. 색, 글자 크기, 반경은 DESIGN.md 토큰(apps/web/src/shared/theme.css)과 같다.
 
 const STYLE = `
 :root {
@@ -25,7 +25,7 @@ const STYLE = `
   --destructive-surface: #fff1f1;
   --rounded-control: 8px;
   --rounded-surface: 12px;
-  /* 글자 크기와 줄 높이. packages/ui/src/theme.css의 --type-* 값과 같다. 이 화면은 그 파일을 가져올 수 없어 값을 옮겨 둔다. */
+  /* 글자 크기와 줄 높이. apps/web/src/shared/theme.css의 --type-* 값과 같다. 이 화면은 그 파일을 가져올 수 없어 값을 옮겨 둔다. */
   --type-caption: 0.75rem;
   --type-ui: 0.8125rem;
   --type-detail: 0.875rem;

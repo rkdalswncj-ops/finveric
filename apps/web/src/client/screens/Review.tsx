@@ -5,9 +5,9 @@ import type {
   CustomerDto,
   ProductEntryDto,
   SaleAction,
-} from "../../../../../packages/core/src/api.ts";
-import type { LoadState } from "../../../../../packages/ui/src/api.ts";
-import { Button } from "../../../../../packages/ui/src/button.tsx";
+} from "@finveric/core/api";
+import type { LoadState } from "../../shared/api.ts";
+import { Button } from "../../shared/button.tsx";
 import {
   Badge,
   Empty,
@@ -16,14 +16,14 @@ import {
   Notice,
   TableScroll,
   type Tone,
-} from "../../../../../packages/ui/src/components.tsx";
-import { focusElement } from "../../../../../packages/ui/src/focus.ts";
-import { dateTime, short, won } from "../../../../../packages/ui/src/format.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "../../shared/components.tsx";
+import { focusElement } from "../../shared/focus.ts";
+import { dateTime, short, won } from "../../shared/format.ts";
+import ui from "../../shared/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
-import { CHANNEL_APP_HREF } from "../../../../../packages/ui/src/links.ts";
-import { StatusBadge } from "../../../../../packages/ui/src/sale-components.tsx";
+import { CHANNEL_APP_HREF } from "../../shared/links.ts";
+import { StatusBadge } from "../../shared/sale-components.tsx";
 import { DiagnosisTable } from "../components.tsx";
 import {
   awaitingApproval,
@@ -36,7 +36,7 @@ import {
   statusKey,
   type Sale,
   type StatusKey,
-} from "../../../../../packages/ui/src/sales.ts";
+} from "../../shared/sales.ts";
 import { traceLabel, traceStatus } from "../traces.ts";
 
 const s = { ...ui, ...client, ...local };

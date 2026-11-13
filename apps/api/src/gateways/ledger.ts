@@ -16,7 +16,7 @@ import {
   type ChainSale,
   type LedgerError,
   type Role,
-} from "../../../../packages/core/src/index.ts";
+} from "@finveric/core";
 import { CodedError, ledgerRejectionMessage } from "../errors.ts";
 import type { FundService } from "../service.ts";
 

@@ -5,14 +5,14 @@ import {
   SIGNAL_LABELS,
   type Deployment,
   type Signal,
-} from "../../../../packages/core/src/index.ts";
-import type { LedgerSnapshot } from "../../../../packages/core/src/ledger.ts";
+} from "@finveric/core";
+import type { LedgerSnapshot } from "@finveric/core/ledger";
 import {
   OUTCOME_LABELS,
   verifySale,
   type SaleVerification,
   type VerifyOutcome,
-} from "../../../../packages/core/src/verify.ts";
+} from "@finveric/core/verify";
 import {
   customerRefs,
   productName,

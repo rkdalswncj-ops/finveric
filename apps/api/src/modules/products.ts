@@ -9,11 +9,8 @@ import {
   validateProduct,
   type Product,
   type ProductDocument,
-} from "../../../../packages/core/src/index.ts";
-import type {
-  ProductEntry,
-  RegisterResponse,
-} from "../../../../packages/core/src/api.ts";
+} from "@finveric/core";
+import type { ProductEntry, RegisterResponse } from "@finveric/core/api";
 import { CodedError } from "../errors.ts";
 import type { FundService } from "../service.ts";
 import type { StoredProduct } from "../repositories/sales.ts";

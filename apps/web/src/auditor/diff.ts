@@ -1,9 +1,5 @@
 // 버전 사이의 차이. 진단 기준은 문항·선택지 번호(회로 입력 순서)로 맞춰 비교한다.
-import type {
-  ProductDocument,
-  RuleChoice,
-  RuleDocument,
-} from "../../../../packages/core/src/index.ts";
+import type { ProductDocument, RuleChoice, RuleDocument } from "@finveric/core";
 import { gradeLabel, profileLabel } from "./format.ts";
 
 export type Change = {

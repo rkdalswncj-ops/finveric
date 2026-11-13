@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import type { Deployment } from "../../../../../packages/core/src/index.ts";
-import type {
-  EventRef,
-  LedgerSnapshot,
-} from "../../../../../packages/core/src/ledger.ts";
+import type { Deployment } from "@finveric/core";
+import type { EventRef, LedgerSnapshot } from "@finveric/core/ledger";
 import {
   Badge,
   Facts,
@@ -12,9 +9,9 @@ import {
   Stat,
   TableScroll,
   type Tone,
-} from "../../../../../packages/ui/src/components.tsx";
-import { dateTime } from "../../../../../packages/ui/src/format.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "../../shared/components.tsx";
+import { dateTime } from "../../shared/format.ts";
+import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
 import { LedgerGate, LedgerLine } from "../components.tsx";
 import {

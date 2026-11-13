@@ -2,5 +2,10 @@
   "name": "@finveric/core",
   "private": true,
   "type": "module",
-  "exports": "./src/index.ts"
+  "exports": {
+    ".": "./src/index.ts",
+    "./api": "./src/api.ts",
+    "./ledger": "./src/ledger.ts",
+    "./verify": "./src/verify.ts"
+  }
 }

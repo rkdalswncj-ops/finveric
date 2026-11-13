@@ -8,7 +8,7 @@ import {
   customerRefSecret,
   type Deployment,
   type Role,
-} from "../packages/core/src/index.ts";
+} from "@finveric/core";
 import { fromRoot } from "./root.ts";
 
 export const roles: readonly Role[] = ROLES;

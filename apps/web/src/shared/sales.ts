@@ -5,13 +5,13 @@ import {
   productDisplayName,
   RISK_GRADE_NAMES,
   type ProductDocument,
-} from "../../core/src/index.ts";
+} from "@finveric/core";
 import type {
   ProductEntryDto,
   RuleEntryDto,
   SaleDto,
   TraceDto,
-} from "../../core/src/api.ts";
+} from "@finveric/core/api";
 import type { Tone } from "./components.tsx";
 
 export type Sale = SaleDto;

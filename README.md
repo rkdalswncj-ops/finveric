@@ -70,7 +70,7 @@
 - 증권사 앱 서버는 판매사 콘솔에서 발급한 API 키로 `판매 채널 연동` API를 부른다. 서버는 키의 해시만 보관한다. ([ADR 0008](docs/adr/0008-api-keys.md))
 - 원장 v5는 진단 기준과 설명서 원문을 이벤트에 남긴다. 감독기관 화면은 판매사 API 없이 원장에서 읽는다. ([ADR 0005](docs/adr/0005-ledger-v5-registered-rules.md))
 - API는 경로 → 업무 절차 → 리포지토리·게이트웨이 계층으로 나눈다. ([ADR 0004](docs/adr/0004-api-layers.md))
-- 요청·응답 DTO와 판정·검증 로직은 `packages/core`에 두고 웹과 API가 함께 쓴다.
+- 요청·응답 DTO와 판정·검증 로직은 `packages/core`(`@finveric/core`)에 두고 API, 웹, 스크립트, 테스트가 함께 쓴다. 웹 화면 요소와 스타일은 `apps/web/src/shared`에 둔다.
 - 판매 기록은 로컬에서는 파일에, 배포에서는 Upstash Redis에 둔다. 별도 DB 서버는 없다.
 
 ### 가입과 검증 흐름

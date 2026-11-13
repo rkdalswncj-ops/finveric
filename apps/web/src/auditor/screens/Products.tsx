@@ -5,20 +5,17 @@ import {
   productDocumentHash,
   validateProduct,
   type ProductDocument,
-} from "../../../../../packages/core/src/index.ts";
-import type {
-  LedgerProduct,
-  LedgerSnapshot,
-} from "../../../../../packages/core/src/ledger.ts";
+} from "@finveric/core";
+import type { LedgerProduct, LedgerSnapshot } from "@finveric/core/ledger";
 import {
   Badge,
   Facts,
   Heading,
   Notice,
   TableScroll,
-} from "../../../../../packages/ui/src/components.tsx";
-import { dateTime } from "../../../../../packages/ui/src/format.ts";
-import ui from "../../../../../packages/ui/src/ui.module.css";
+} from "../../shared/components.tsx";
+import { dateTime } from "../../shared/format.ts";
+import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
 import { ChangeList } from "../ChangeList.tsx";
 import { LedgerGate, LedgerLine } from "../components.tsx";

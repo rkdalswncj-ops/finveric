@@ -15,16 +15,9 @@ import {
   FileText,
   LayoutGrid,
 } from "lucide-react";
-import {
-  Badge,
-  Notice,
-  type Tone,
-} from "../../../../packages/ui/src/components.tsx";
-import {
-  focusPageTitle,
-  useFocusRescue,
-} from "../../../../packages/ui/src/focus.ts";
-import ui from "../../../../packages/ui/src/ui.module.css";
+import { Badge, Notice, type Tone } from "../shared/components.tsx";
+import { focusPageTitle, useFocusRescue } from "../shared/focus.ts";
+import ui from "../shared/ui.module.css";
 import f from "./frame.module.css";
 import { channel } from "./links.ts";
 

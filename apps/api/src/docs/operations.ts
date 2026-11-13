@@ -5,7 +5,7 @@ import {
   DEMO_CUSTOMER_NO,
   DEMO_PRODUCTS,
   DEMO_RULE,
-} from "../../../../packages/core/src/index.ts";
+} from "@finveric/core";
 import {
   apiKeySchema,
   configResponseSchema,
@@ -26,7 +26,7 @@ import {
   type OpenSaleRequest,
   type SubscribeRequest,
   type TamperRequest,
-} from "../../../../packages/core/src/api.ts";
+} from "@finveric/core/api";
 
 export const TAGS = [
   {
