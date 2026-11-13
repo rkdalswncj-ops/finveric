@@ -65,7 +65,14 @@
 
 ## 🏭 아키텍처
 
-![FINVERIC 서비스 아키텍처](docs/assets/architecture.png)
+![FINVERIC 서비스 아키텍처, MVP](docs/assets/architecture.png)
+
+<details>
+<summary><b>로컬 실행 구성</b> · Vercel → Docker, Upstash Redis → 파일, Sepolia → Anvil</summary>
+
+![FINVERIC 서비스 아키텍처, 로컬](docs/assets/architecture-local.png)
+
+</details>
 
 - 웹(Vite 앱 하나, 페이지 네 개)과 API를 Vercel 프로젝트 하나, 같은 도메인에 둔다. 상시 서버는 없다. 루트 `/`는 진입 화면이다. ([ADR 0002](docs/adr/0002-vercel-functions-and-upstash.md), [ADR 0006](docs/adr/0006-seller-console-and-single-web-app.md))
 - API는 등록한 경로로 OpenAPI 3.1 문서를 만든다. 판매사 앱은 `판매 채널 연동` API로 고객 흐름을 만든다. ([ADR 0007](docs/adr/0007-openapi-and-channel-sample-app.md))
