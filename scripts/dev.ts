@@ -22,9 +22,24 @@ const complete = async (cmd: string, args: string[]) =>
     );
     child.on("error", reject);
   });
+let stopping = false;
 const stop = () => {
+  stopping = true;
   for (const child of children) child.kill("SIGTERM");
 };
+/**
+ * 계속 도는 서버(API, 웹)가 끝나면 나머지도 멈추고 실패로 끝낸다.
+ * 한 서버만 죽은 채 남지 않는다. Docker는 compose.yaml의 restart로 다시 시작한다.
+ */
+const keepRunning = (child: ChildProcess, name: string) =>
+  child.on("exit", (code, signal) => {
+    if (stopping) return;
+    console.error(
+      `${name} 서버가 끝났습니다(${code ?? signal}). 모든 서버를 멈춥니다.`,
+    );
+    stop();
+    process.exit(1);
+  });
 process.on("SIGINT", () => {
   stop();
   process.exit(0);
@@ -97,11 +112,14 @@ try {
     }
   }
   // 개발 중 API 코드를 저장하면 다시 시작한다. 웹은 Vite가 바로 반영한다(HMR).
-  run("tsx", ["watch", "--clear-screen=false", "apps/api/src/index.ts"], {
-    env: { ...process.env, HOST: host },
-  });
+  keepRunning(
+    run("tsx", ["watch", "--clear-screen=false", "apps/api/src/index.ts"], {
+      env: { ...process.env, HOST: host },
+    }),
+    "API",
+  );
   // 웹 한 서버가 진입 화면(/), 판매사 콘솔(/client/), 감독기관(/auditor/), 증권사 앱 예시(/channel/)를 제공한다.
-  run("npm", ["run", "dev", "-w", "@finveric/web"]);
+  keepRunning(run("npm", ["run", "dev", "-w", "@finveric/web"]), "웹");
   console.log(
     "FINVERIC: http://127.0.0.1:5173/ (판매사 콘솔 /client/ · 감독기관 /auditor/ · 증권사 앱 예시 /channel/) · Ctrl+C로 종료",
   );

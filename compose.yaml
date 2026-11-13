@@ -32,6 +32,8 @@ services:
       retries: 3
       start_period: 300s
     init: true
+    # 개발 서버(API, 웹) 하나가 끝나면 scripts/dev.ts가 전체를 끝낸다. 그때 컨테이너를 다시 시작한다.
+    restart: unless-stopped
     stop_grace_period: 15s
 
 volumes:
