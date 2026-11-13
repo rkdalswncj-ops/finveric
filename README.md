@@ -15,15 +15,15 @@
 
 ### 📝 주요 문서
 
-| 구분 | 문서                                                               | 기여자     |
-| ---- | ------------------------------------------------------------------ | ---------- |
-| 기획 | [PRD v5 초안: 제품 정의, 시연 범위, 완료 기준](docs/prd.md)        | 개발       |
-| 기획 | [시장 조사: 경쟁 서비스와 선행 사례](docs/market-research.md)      | 자료조사   |
-| 개발 | [결정 기록: 앱 분리, 배포, 원장, API 계층, 판매사 콘솔](docs/adr/) | 개발       |
-| 개발 | [배포: Vercel·Upstash·Sepolia 순서와 환경 변수](docs/deploy.md)    | 개발       |
-| 발표 | [실행과 시연: 발표 순서, 검증 절차, 복구](docs/runbook.md)         | 개발, 발표 |
-| 발표 | [QA 기록: 체크리스트, 차수별 결과](docs/qa.md)                     | 모두       |
-| 팀   | [팀 운영과 자료 정리: 역할, 자료 위치, 넘겨줄 것](docs/team.md)    | 모두       |
+| 구분 | 문서                                                                       | 기여자     |
+| ---- | -------------------------------------------------------------------------- | ---------- |
+| 기획 | [PRD v5: 제품 정의, 시연 범위, 완료 기준](docs/prd.md)                     | 개발       |
+| 기획 | [시장 조사: 경쟁 서비스와 선행 사례](docs/market-research.md)              | 자료조사   |
+| 개발 | [결정 기록: 배포, 원장, API 계층, 판매사 콘솔, OpenAPI, API 키](docs/adr/) | 개발       |
+| 개발 | [배포: Vercel·Upstash·Sepolia 순서와 환경 변수](docs/deploy.md)            | 개발       |
+| 발표 | [실행과 시연: 발표 순서, 검증 절차, 복구](docs/runbook.md)                 | 개발, 발표 |
+| 발표 | [QA 기록: 체크리스트, 차수별 결과](docs/qa.md)                             | 모두       |
+| 팀   | [팀 운영과 자료 정리: 역할, 자료 위치, 넘겨줄 것](docs/team.md)            | 모두       |
 
 ---
 
@@ -43,13 +43,13 @@
 
 ## 🖥 화면
 
-| 페이지   | 경로        | 사용자                       | 화면                                                                          |
-| -------- | ----------- | ---------------------------- | ----------------------------------------------------------------------------- |
-| 진입     | `/`         | 모두                         | 역할 선택, 연결된 원장 상태                                                   |
-| client   | `/client/`  | 판매사 소비자보호 담당 (B2B) | 대시보드, 진단 기준, 상품 관리, 판매·검토, 위험 신호, 온체인 처리, API 키     |
-| channel  | `/channel/` | 증권사 앱 예시 (고객 화면)   | 상품, 가입, 내 가입, 기록 확인                                                |
-| auditor  | `/auditor/` | 감독기관 (B2G)               | 대시보드, 분쟁 조회, 기준 감사, 상품 감사, 위험 신호, 보고서                  |
-| API 문서 | `/api/docs` | 판매사 개발자                | 판매 채널 연동·판매사 콘솔·시스템 API. OpenAPI 3.1 원문은 `/api/openapi.json` |
+| 페이지   | 경로        | 사용자                       | 화면                                                                                                                       |
+| -------- | ----------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 진입     | `/`         | 모두                         | 역할 선택, 연결된 원장 상태                                                                                                |
+| client   | `/client/`  | 판매사 소비자보호 담당 (B2B) | 대시보드, 진단 기준, 상품 관리, 판매·검토, 위험 신호, 온체인 처리, API 키                                                  |
+| channel  | `/channel/` | 증권사 앱 예시 (고객 화면)   | 상품, 가입, 내 가입, 기록 확인                                                                                             |
+| auditor  | `/auditor/` | 감독기관 (B2G)               | 대시보드, 분쟁 조회, 기준 감사, 상품 감사, 위험 신호, 보고서                                                               |
+| API 문서 | `/api/docs` | 판매사 개발자                | 분류별 API, 요청 예시(curl·Node.js·Python), 응답 예시, API별 오류 표, 오류 코드 표. OpenAPI 3.1 원문은 `/api/openapi.json` |
 
 | 진입 화면                                                       | 진단 기준 (client)                                    |
 | --------------------------------------------------------------- | ----------------------------------------------------- |
@@ -59,7 +59,7 @@
 | **대시보드 (auditor)**                                          | **분쟁 조회 (auditor)**                               |
 | ![감독기관 대시보드](docs/assets/screens/auditor-dashboard.png) | ![분쟁 조회](docs/assets/screens/auditor-dispute.png) |
 
-증권사 앱 예시는 판매사 앱이 FINVERIC API로 만들 고객 화면의 예시다. 고객은 FINVERIC 화면을 직접 쓰지 않는다. 판매사 콘솔 사이드바 하단의 **증권사 앱 예시**와 **API 문서**는 새 탭으로 열린다. client와 auditor는 서로 링크하지 않는다. 사이드 메뉴의 `FINVERIC`과 **처음 화면**이 진입 화면으로 간다. 캡처는 로컬 Anvil 시연 원장에서 찍었다.
+증권사 앱 예시는 판매사 앱이 FINVERIC API로 만들 고객 화면의 예시다. 고객은 FINVERIC 화면을 직접 쓰지 않는다. 판매사 콘솔 사이드바 하단의 **증권사 앱 예시**와 **API 문서**는 새 탭으로 열린다. API 문서는 넓은 화면에서 메뉴, 설명, 요청·응답 예시의 3단으로 보인다. client와 auditor는 서로 링크하지 않는다. 사이드 메뉴의 `FINVERIC`과 **처음 화면**이 진입 화면으로 간다. 캡처는 로컬 Anvil 시연 원장에서 찍었다.
 
 ## 🏭 아키텍처
 
@@ -68,6 +68,7 @@
 - 웹(Vite 앱 하나, 페이지 네 개)과 API를 Vercel 프로젝트 하나, 같은 도메인에 둔다. 루트 `/`는 진입 화면이다. ([ADR 0006](docs/adr/0006-seller-console-and-single-web-app.md))
 - API는 등록한 경로로 OpenAPI 3.1 문서를 만든다. 판매사 앱은 `판매 채널 연동` API로 고객 흐름을 만든다. ([ADR 0007](docs/adr/0007-openapi-and-channel-sample-app.md))
 - 증권사 앱 서버는 판매사 콘솔에서 발급한 API 키로 `판매 채널 연동` API를 부른다. 서버는 키의 해시만 보관한다. ([ADR 0008](docs/adr/0008-api-keys.md))
+- 오류 응답은 `{ error, type, code }`다. `type`은 분류 16개이고 HTTP 상태를 정한다. `code`는 상황별 코드 52개(`SALE_ALREADY_SUBSCRIBED` 등)다. 코드 목록은 `@finveric/core/errors` 한곳에만 있고, API 문서의 오류 표도 여기서 만든다. 고객 화면은 API 문장을 그대로 보여 주지 않고 `type`으로 고객용 문장을 고른다.
 - 원장 v5는 진단 기준과 설명서 원문을 이벤트에 남긴다. 감독기관 화면은 판매사 API 없이 원장에서 읽는다. ([ADR 0005](docs/adr/0005-ledger-v5-registered-rules.md))
 - API는 경로 → 업무 절차 → 리포지토리·게이트웨이 계층으로 나눈다. ([ADR 0004](docs/adr/0004-api-layers.md))
 - 요청·응답 DTO와 판정·검증 로직은 `packages/core`(`@finveric/core`)에 두고 API, 웹, 스크립트, 테스트가 함께 쓴다. 웹 화면 요소와 스타일은 `apps/web/src/shared`에 둔다.
@@ -94,7 +95,7 @@
   <tr>
     <td>
       - ZKP 회로와 원장 컨트랙트<br>
-      - Fastify API와 client·auditor 웹<br>
+      - Fastify API와 웹(진입·판매사 콘솔·증권사 앱 예시·감독기관)<br>
       - Vercel·Docker 실행 환경<br>
       - 기술 문서, 그림, 화면 캡처
     </td>
@@ -119,7 +120,7 @@
 | 구분         | 기술 스택                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 프론트엔드   | ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=fff) ![React](https://img.shields.io/badge/React_19-20232A?logo=react&logoColor=61DAFB) ![Vite](https://img.shields.io/badge/Vite_8-646CFF?logo=vite&logoColor=fff) ![React Router](https://img.shields.io/badge/React_Router_7-CA4245?logo=reactrouter&logoColor=fff) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=fff) ![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-000?logo=shadcnui&logoColor=fff) |
-| 백엔드       | ![Node.js](https://img.shields.io/badge/Node.js_22-5FA04E?logo=nodedotjs&logoColor=fff) ![Fastify](https://img.shields.io/badge/Fastify_5-000?logo=fastify&logoColor=fff) ![Upstash](https://img.shields.io/badge/Upstash_Redis-00E9A3?logo=upstash&logoColor=000)                                                                                                                                                                                                                                                                                    |
+| 백엔드       | ![Node.js](https://img.shields.io/badge/Node.js_22-5FA04E?logo=nodedotjs&logoColor=fff) ![Fastify](https://img.shields.io/badge/Fastify_5-000?logo=fastify&logoColor=fff) ![OpenAPI](https://img.shields.io/badge/OpenAPI_3.1-6BA539?logo=openapiinitiative&logoColor=fff) ![Upstash](https://img.shields.io/badge/Upstash_Redis-00E9A3?logo=upstash&logoColor=000)                                                                                                                                                                                   |
 | 블록체인·ZKP | ![Solidity](https://img.shields.io/badge/Solidity_0.8.30-363636?logo=solidity&logoColor=fff) ![Foundry](https://img.shields.io/badge/Foundry_1.4-1B1B1B) ![viem](https://img.shields.io/badge/viem_2-FFC517) ![Ethereum](https://img.shields.io/badge/Sepolia-3C3C3D?logo=ethereum&logoColor=fff) ![Circom](https://img.shields.io/badge/Circom_2.2-5A3E99) ![snarkjs](https://img.shields.io/badge/snarkjs_Groth16-2E2E2E)                                                                                                                           |
 | 인프라       | ![Vercel](https://img.shields.io/badge/Vercel-000?logo=vercel&logoColor=fff) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=fff) ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=githubactions&logoColor=fff)                                                                                                                                                                                                                                                                                   |
 
@@ -140,8 +141,8 @@ docker compose up --build -d
 - 이미지 하나, 컨테이너 하나에서 Anvil, API, 웹을 실행한다.
 - 첫 실행은 이미지 빌드(약 3~4분)와 증명 키 생성·컨트랙트 배포(약 2~4분)를 거친다. 다음 실행은 볼륨에 남은 키와 원장을 써서 10초 안팎이면 준비된다.
 - `docker compose ps`의 상태가 `healthy`가 되면 연다. 이 상태는 health API가 RPC·원장·저장소를 점검한 결과다.
-  - [진입 화면](http://localhost:5173/) · [client](http://localhost:5173/client/) · [auditor](http://localhost:5173/auditor/) · [health](http://localhost:3001/api/health)
-- 개발도 Docker로 한다. 소스 폴더를 마운트하므로 웹은 저장하면 바로 반영되고, API는 저장하면 다시 시작한다. 원장·회로나 의존성을 바꿨을 때만 다시 빌드한다. ([실행과 시연](docs/runbook.md#실행))
+  - [진입 화면](http://localhost:5173/) · [client](http://localhost:5173/client/) · [증권사 앱 예시](http://localhost:5173/channel/) · [auditor](http://localhost:5173/auditor/) · [API 문서](http://localhost:3001/api/docs) · [health](http://localhost:3001/api/health)
+- 개발도 Docker로 한다. 소스 폴더를 마운트하므로 웹은 저장하면 바로 반영되고, API는 저장하면 다시 시작한다. 원장·회로나 의존성을 바꿨을 때만 다시 빌드한다. API나 웹 서버가 멈추면 컨테이너가 스스로 다시 시작한다. ([실행과 시연](docs/runbook.md#실행))
 - 진행 로그는 `docker compose logs -f`로 본다.
 - 멈출 때는 `docker compose down`을 실행한다. 원장 상태와 판매 기록은 볼륨에 남는다. 기록까지 지우려면 `docker compose down -v`를 실행한다.
 
@@ -154,7 +155,7 @@ npm ci
 npm run dev
 ```
 
-- [진입 화면](http://127.0.0.1:5173/) · [client](http://127.0.0.1:5173/client/) · [auditor](http://127.0.0.1:5173/auditor/) · [health](http://127.0.0.1:3001/api/health)
+- [진입 화면](http://127.0.0.1:5173/) · [client](http://127.0.0.1:5173/client/) · [증권사 앱 예시](http://127.0.0.1:5173/channel/) · [auditor](http://127.0.0.1:5173/auditor/) · [API 문서](http://127.0.0.1:3001/api/docs) · [health](http://127.0.0.1:3001/api/health)
 - Docker와 같은 포트를 쓴다. 먼저 `docker compose stop`으로 컨테이너를 멈춘다.
 - 로컬 원장 상태와 판매 기록은 `.local/`에 저장한다. 이 폴더를 지우면 이력과 고객 원본을 잃는다.
 
@@ -164,6 +165,7 @@ npm run dev
 2. client 사이드바 하단의 **증권사 앱 예시**를 새 탭으로 연다. **상품** 탭에서 상품의 **가입하기**를 누르고 진단부터 청약, 숙려, 최종 확인까지 진행한다. 3회차 이상 진단한 고객의 청약은 client의 **판매·검토**에서 관리자 승인을 한다.
 3. **내 가입** 탭에서 판매 건을 열고 **가입 기록 확인하기**를 눌러 고객이 보는 확인 결과를 본다.
 4. **처음 화면**으로 돌아가 감독기관 화면을 연다. **분쟁 조회**에서 같은 판매 건을 원장과 대조한다.
+5. client의 **API 키**에서 키를 발급한다. **API 문서**의 요청 예시에 그 키를 넣어 `판매 채널 연동` API를 불러 본다.
 
 발표 순서와 시연 수치는 [실행과 시연](docs/runbook.md)을 따른다.
 
@@ -193,11 +195,12 @@ npm run dev
 
 ```
 apps/
-  web/         웹. 진입 화면(/), client(/client/), auditor(/auditor/)
-  api/         Fastify API (routes · modules · repositories · gateways)
+  web/         웹. 진입 화면(/), client(/client/), channel(/channel/), auditor(/auditor/)
+    src/shared/  페이지들이 함께 쓰는 화면 요소, 스타일(theme.css), API 클라이언트
+  api/         Fastify API (routes · modules · repositories · gateways), API 문서(/api/docs)
 packages/
-  core/        판정·해시·검증 로직, 원장 ABI, API 계약(DTO)
-  ui/          웹 페이지들의 공통 화면 요소와 API 클라이언트
+  core/        @finveric/core. 판정·해시·검증 로직, 원장 ABI, API 계약(DTO), 오류 코드.
+               API·웹·스크립트·테스트가 함께 쓴다. 빌드하지 않고 원본 .ts를 쓴다
 circuits/      ZKP 회로
 contracts/     원장 컨트랙트
 deploy/        Vercel 빌드에 쓰는 원장 배포본
@@ -210,7 +213,7 @@ docs/          문서, 그림(assets/)
 | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `docker compose up --build -d`                                   | Docker로 Anvil, API, 웹을 실행한다                                                                  |
 | `npm run dev`                                                    | Node로 Anvil, API, 웹을 실행한다                                                                    |
-| `npm test`                                                       | 실제 회로·EVM·API 통합 검사와 저장소·잠금 검사                                                      |
+| `npm test`                                                       | 실제 회로·EVM·API 통합 검사, API 문서·오류 코드·API 키 검사, 저장소·잠금 검사                       |
 | `npm run contracts:test`                                         | 원장의 단계·권한 검사 (Foundry)                                                                     |
 | `npm run build`                                                  | 타입 검사와 웹 빌드                                                                                 |
 | `npm run demo -- --api <API 주소> --rpc <RPC 주소>`              | 시연 데이터를 API로 채운다(진단 3회, 관리자 승인, 확정한 가입 2건). 결과는 `.local/demo/v5/`에 둔다 |
