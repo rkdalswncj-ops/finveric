@@ -110,7 +110,6 @@
     <text x="968" y="480" fill="#4E5968">거래 · 조회</text>
 
     <path d="M1006 150 H824" fill="none" stroke="#4E5968" stroke-width="1.6" marker-end="url(#arrow)"/>
-    <text x="915" y="142" fill="#4E5968">빌드 · 배포</text>
 
     <path d="M140 512 H1006" fill="none" stroke="#116149" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrow-green)"/>
     <text x="573" y="503" font-size="12" font-weight="600" fill="#116149">원장 직접 조회 · 판매사 API를 거치지 않는다</text>

@@ -74,13 +74,12 @@
 
 </details>
 
-- 웹(Vite 앱 하나, 페이지 네 개)과 API를 Vercel 프로젝트 하나, 같은 도메인에 둔다. 상시 서버는 없다. 루트 `/`는 진입 화면이다. ([ADR 0002](docs/adr/0002-vercel-functions-and-upstash.md), [ADR 0006](docs/adr/0006-seller-console-and-single-web-app.md))
-- API는 등록한 경로로 OpenAPI 3.1 문서를 만든다. 판매사 앱은 `판매 채널 연동` API로 고객 흐름을 만든다. ([ADR 0007](docs/adr/0007-openapi-and-channel-sample-app.md))
+- 웹(Vite 앱 하나, 페이지 네 개)과 API를 Vercel 프로젝트 하나, 같은 도메인에 둔다. 상시 서버와 별도 DB 서버는 없다. ([ADR 0002](docs/adr/0002-vercel-functions-and-upstash.md), [ADR 0006](docs/adr/0006-seller-console-and-single-web-app.md))
+- API는 등록한 경로로 OpenAPI 3.1 문서를 만든다. ([ADR 0007](docs/adr/0007-openapi-and-channel-sample-app.md))
 - API를 부르는 쪽은 둘이다. 소비자보호 담당은 판매사 콘솔에서 접근 코드로 쓴다. 증권사 앱 서버는 판매사 콘솔에서 발급한 API 키로 `판매 채널 연동` API만 부른다. 서버는 키의 해시만 보관한다. ([ADR 0008](docs/adr/0008-api-keys.md))
 - 오류 응답은 `{ error, type, code }`다. `type`은 분류 16개이고 HTTP 상태를 정한다. `code`는 상황별 코드 52개(`SALE_ALREADY_SUBSCRIBED` 등)다. 코드 목록은 `@finveric/core/errors` 한곳에만 있고, API 문서의 오류 표도 여기서 만든다. 고객 화면은 API 문장을 그대로 보여 주지 않고 `type`으로 고객용 문장을 고른다.
 - API가 역할 키(판매사, 승인, 고객, 인프라)로 원장 거래를 보낸다. 단계별 송신자는 [PRD의 판매 절차](docs/prd.md#판매-절차와-원장-기록)를 따른다. MVP는 네 키를 API가 함께 보관한다. 실제 서비스는 허가형 블록체인을 가정한다.
-- 원장 v5는 진단 기준과 설명서 원문을 이벤트에 남긴다. 감독기관 화면은 판매사 API 없이 원장에서 읽는다. ([ADR 0005](docs/adr/0005-ledger-v5-registered-rules.md))
-- 판매 기록은 로컬에서는 파일에, 배포에서는 Upstash Redis에 둔다. 별도 DB 서버는 없다.
+- 원장 v5는 진단 기준과 설명서 원문을 이벤트에 남긴다. ([ADR 0005](docs/adr/0005-ledger-v5-registered-rules.md))
 
 ### 가입과 검증 흐름
 
@@ -147,7 +146,7 @@ docker compose up --build -d
 ```
 
 - 이미지 하나, 컨테이너 하나에서 Anvil, API, 웹을 실행한다.
-- 첫 실행은 이미지 빌드(약 3~4분)와 증명 키 생성·컨트랙트 배포(약 2~4분)를 거친다. 다음 실행은 볼륨에 남은 키와 원장을 써서 10초 안팎이면 준비된다.
+- 첫 실행은 이미지 빌드(약 3\~4분)와 증명 키 생성·컨트랙트 배포(약 2\~4분)를 거친다. 다음 실행은 볼륨에 남은 키와 원장을 써서 10초 안팎이면 준비된다.
 - `docker compose ps`의 상태가 `healthy`가 되면 연다. 이 상태는 health API가 RPC·원장·저장소를 점검한 결과다.
   - [진입 화면](http://localhost:5173/) · [client](http://localhost:5173/client/) · [증권사 앱 예시](http://localhost:5173/channel/) · [auditor](http://localhost:5173/auditor/) · [API 문서](http://localhost:3001/api/docs) · [health](http://localhost:3001/api/health)
 - 개발도 Docker로 한다. 소스 폴더를 마운트하므로 웹은 저장하면 바로 반영되고, API는 저장하면 다시 시작한다. 원장·회로나 의존성을 바꿨을 때만 다시 빌드한다. API나 웹 서버가 멈추면 컨테이너가 스스로 다시 시작한다. ([실행과 시연](docs/runbook.md#실행))
