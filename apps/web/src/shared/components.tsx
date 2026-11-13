@@ -80,10 +80,7 @@ export function Empty({
   );
 }
 /**
- * 요약 수치 카드. `.stats` 묶음 안에 둔다. `to`가 있으면 그 화면으로 가는 링크다.
- */
-/**
- * 요약 수치 카드. 단위(`unit`)는 숫자 바로 뒤에 작게 붙인다. 숫자가 아니면(읽기 실패의 "—") 단위를 붙이지 않는다.
+ * 요약 수치 카드. `.stats` 묶음 안에 둔다. 단위(`unit`)는 숫자 바로 뒤에 작게 붙인다. 숫자가 아니면(읽기 실패의 "—") 단위를 붙이지 않는다.
  * `note`는 단위가 아닌 맥락(내역, 기준)만 적는다. `to`가 있으면 카드 전체가 링크이고 오른쪽 위에 이동 표시가 붙는다.
  */
 export function Stat({
@@ -117,6 +114,49 @@ export function Stat({
     </Link>
   ) : (
     <div className={s.stat}>{body}</div>
+  );
+}
+/**
+ * 표의 건수 칸. 오른쪽 정렬, 등폭 숫자다. 단위는 붙이지 않는다. 무엇을 센 값인지는 열 제목이 알린다.
+ * 열 제목(th)에도 `numeric` 클래스를 단다. 0은 옅게 두어 값이 있는 칸이 먼저 보인다.
+ * `warn`은 0이 아닐 때 주의 색과 굵기로 강조한다(예: 부적합 확정, 위험 신호). 숫자 칸에는 배지를 쓰지 않는다.
+ */
+export function Count({ value, warn }: { value: number; warn?: boolean }) {
+  const tone = value === 0 ? s.zero : warn ? s.warnCount : "";
+  return (
+    <td className={tone ? `${s.numeric} ${tone}` : s.numeric}>
+      {value.toLocaleString("ko-KR")}
+    </td>
+  );
+}
+/**
+ * 필터 칩(`.chips` 묶음 안). 이름 뒤에 건수를 옅은 등폭 숫자로 따로 붙인다. 0건인 칩은 이름도 옅게 둔다.
+ * 고른 칩은 `aria-pressed`와 진한 바탕(`chipActive`)이다. 칩 묶음마다 같은 모양을 쓴다.
+ */
+export function FilterChip({
+  label,
+  count,
+  pressed,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  pressed: boolean;
+  onClick: () => void;
+}) {
+  const classes = [count === 0 && s.chipEmpty, pressed && s.chipActive]
+    .filter(Boolean)
+    .join(" ");
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      className={classes || undefined}
+      onClick={onClick}
+    >
+      {label}{" "}
+      <span className={s.chipCount}>{count.toLocaleString("ko-KR")}</span>
+    </button>
   );
 }
 export function Facts({ rows }: { rows: [string, ReactNode][] }) {

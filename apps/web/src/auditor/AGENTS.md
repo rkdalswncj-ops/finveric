@@ -45,7 +45,7 @@
 | `format.ts`          | 표시 문구, 상품·기준 이름 찾기, 화면 경로       |
 | `diff.ts`            | 진단 기준·설명서 버전 사이의 차이               |
 | `report.ts`          | 보고서 생성(`verifySale`), CSV, 텍스트 내려받기 |
-| `components.tsx`     | 원장 상태 줄, 대기·오류 표시                    |
+| `components.tsx`     | 원장 상태 줄, 대기·오류 표시, 비율 줄(`Ratio`)  |
 | `ChangeList.tsx`     | 차이 목록                                       |
 | `auditor.module.css` | 감독기관 화면 스타일                            |
 | `screens/`           | 화면 6개                                        |

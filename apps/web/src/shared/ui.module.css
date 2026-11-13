@@ -269,19 +269,31 @@
   gap: 7px;
   flex-wrap: wrap;
 }
-/* 필터 칩. 화면을 바꾸는 칩은 링크(a)로 쓴다. */
+/* 필터 칩. 화면을 바꾸는 칩은 링크(a)로 쓴다. 건수는 이름 뒤의 옅은 등폭 숫자다(FilterChip). */
 .chips button,
 .chips a {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   min-height: 38px;
   background: var(--card);
   border: 1px solid var(--border);
-  color: var(--muted-foreground);
+  color: var(--foreground);
   border-radius: var(--rounded-control);
   padding: 7px 13px;
   font-size: var(--type-ui);
   text-decoration: none;
+}
+.chipCount {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+/* 0건인 칩은 이름도 옅게 둔다. 건이 있는 칩이 먼저 보인다. 고른 칩의 모양(chipActive)이 앞선다. */
+.chips .chipEmpty {
+  color: var(--muted-foreground);
+}
+.chips .chipActive .chipCount {
+  color: inherit;
 }
 .chips .chipActive {
   background: var(--foreground);
@@ -530,9 +542,12 @@ caption.tableCaption {
   text-decoration: none;
 }
 .statLabel {
-  padding-inline-end: 24px;
   color: var(--muted-foreground);
   font-size: var(--type-ui);
+}
+/* 링크 카드는 오른쪽 위의 이동 표시(statGo)와 이름이 겹치지 않게 비운다. */
+a.stat .statLabel {
+  padding-inline-end: 24px;
 }
 /* 숫자와 단위는 한 덩어리로 읽힌다. 단위는 같은 기준선에 작고 옅게 붙인다. */
 .statValue {
@@ -551,6 +566,20 @@ caption.tableCaption {
 .statNote {
   color: var(--muted-foreground);
   font-size: var(--type-caption);
+}
+/* 표의 건수·금액 칸(Count). 열 제목(th)도 같은 클래스로 오른쪽에 맞춘다. */
+.numeric {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+/* 건수 0은 옅게 둔다. 값이 있는 칸이 먼저 보인다. */
+.zero {
+  color: var(--muted-foreground);
+}
+/* 0이 아닌 주의 건수(부적합 확정, 위험 신호). 배지 대신 글자색과 굵기로 강조해 숫자 열의 모양을 맞춘다. */
+.warnCount {
+  color: var(--warning);
+  font-weight: 700;
 }
 /* 링크 카드의 이동 표시. 터치 화면에도 누를 수 있음을 알린다. */
 .statGo {

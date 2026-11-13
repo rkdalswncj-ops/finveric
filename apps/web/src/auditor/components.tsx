@@ -1,4 +1,4 @@
-// 감독기관 화면이 함께 쓰는 원장 상태 줄과 대기·오류 표시.
+// 감독기관 화면이 함께 쓰는 원장 상태 줄, 대기·오류 표시, 비율 줄.
 import type { ReactNode } from "react";
 import { LoaderCircle, RefreshCw } from "lucide-react";
 import type { LedgerSnapshot } from "@finveric/core/ledger";
@@ -7,9 +7,42 @@ import { Notice } from "../shared/components.tsx";
 import { dateTime } from "../shared/format.ts";
 import ui from "../shared/ui.module.css";
 import local from "./auditor.module.css";
+import { percent } from "./format.ts";
 import type { Ledger } from "./useLedger.ts";
 
 const s = { ...ui, ...local };
+
+/**
+ * 비율 한 줄: 이름, 큰 백분율, 막대, 한 줄 근거. 대시보드와 보고서가 같은 모양으로 쓴다.
+ * `note`에는 분모와 분자를 건수로 적는다. 패딩이 있는 패널(`pad`) 안에서는 `inPad`를 준다.
+ */
+export function Ratio({
+  label,
+  part,
+  whole,
+  note,
+  inPad,
+}: {
+  label: string;
+  part: number;
+  whole: number;
+  note: string;
+  inPad?: boolean;
+}) {
+  const value = percent(part, whole);
+  return (
+    <div className={inPad ? `${s.ratio} ${s.ratioInPad}` : s.ratio}>
+      <div>
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </div>
+      <div className={s.bar} role="img" aria-label={`${label} ${value}`}>
+        <span style={{ width: whole ? `${(part / whole) * 100}%` : 0 }} />
+      </div>
+      <p>{note}</p>
+    </div>
+  );
+}
 
 /** 원장을 언제, 어느 블록까지 읽었는지 보여 주고 다시 읽게 한다. */
 export function LedgerLine({ ledger }: { ledger: Ledger }) {

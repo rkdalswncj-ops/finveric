@@ -2,26 +2,28 @@
 
 웹(`apps/web`)의 페이지들이 함께 쓰는 화면 요소, 스타일, API 클라이언트다. `apps/api`는 이 폴더를 쓰지 않는다. API와 함께 쓰는 판정·계약은 `packages/core`에 둔다. 바꾸면 진입 화면, client, auditor, channel을 모두 확인한다. 디자인 규칙은 루트 [DESIGN.md](../../../../DESIGN.md)를 따른다.
 
-| 파일                  | 내용                                                                                                                                                                                                           |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Shell.tsx`           | 사이드 메뉴, 상단 막대, 오류 알림(닫기 버튼 없음), 상태 줄(`Shell`, `NavGroup`). `entryHref`는 진입 화면 링크, `links`는 그 아래의 새 탭 링크, `foot`은 선택. 문서 제목과 경로가 바뀔 때의 초점을 맡는다       |
-| `components.tsx`      | `Badge`, `Notice`(색은 `Tone`), `Heading`, `Empty`, `Facts`, `TransactionFacts`, `AccessCodeForm`, `FieldError`(입력 칸 오류), `TableScroll`(가로 스크롤 표), `Stat`(요약 수치 카드), `ConfirmDialog`(확인 창) |
-| `focus.ts`            | 초점 이동: 화면 제목으로(`focusPageTitle`), 구역 제목으로(`focusElement`), 누른 요소가 사라졌을 때(`useFocusRescue`)                                                                                           |
-| `button.tsx`          | `Button`. 누를 수 없는 상태는 `busy`(처리 중), `blocked`(아직 누를 수 없음), `disabled`(정말 쓸 수 없음)                                                                                                       |
-| `api.ts`              | 판매사 API 클라이언트(`api`), 오류(`ApiError`), 읽기 상태(`LoadState`), JSON 내려받기(`saveFile`)                                                                                                              |
-| `deployment.ts`       | 사이트 루트의 `/deployment.json`을 읽는 `useDeployment`                                                                                                                                                        |
-| `format.ts`           | 표기 형식: 해시 줄임(`short`), 금액(`won`), 한국 시간(`dateTime`), 네트워크 이름                                                                                                                               |
-| `sales.ts`            | client와 channel이 함께 쓰는 판매 건 상태, 상품·기준 찾기, 투자성향·위험등급 표시                                                                                                                              |
-| `sale-components.tsx` | client와 channel이 함께 쓰는 판매 건 상태 배지(`StatusBadge`), 핵심 설명 카드(`ExplanationCards`)                                                                                                              |
-| `links.ts`            | 다른 페이지로 가는 주소: 증권사 앱 예시(`/channel/`), API 문서(`/api/docs`)                                                                                                                                    |
-| `theme.css`           | 테마 토큰과 기본 요소 스타일                                                                                                                                                                                   |
-| `ui.module.css`       | 화면 틀과 공통 클래스. 페이지 CSS 모듈과 합칠 때 같은 클래스 이름을 다시 정의하지 않는다                                                                                                                       |
+| 파일                  | 내용                                                                                                                                                                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Shell.tsx`           | 사이드 메뉴, 상단 막대, 오류 알림(닫기 버튼 없음), 상태 줄(`Shell`, `NavGroup`). `entryHref`는 진입 화면 링크, `links`는 그 아래의 새 탭 링크, `foot`은 선택. 문서 제목과 경로가 바뀔 때의 초점을 맡는다                                                                 |
+| `components.tsx`      | `Badge`, `Notice`(색은 `Tone`), `Heading`, `Empty`, `Facts`, `TransactionFacts`, `AccessCodeForm`, `FieldError`(입력 칸 오류), `TableScroll`(가로 스크롤 표), `Stat`(요약 수치 카드), `Count`(표의 건수 칸), `FilterChip`(건수가 있는 필터 칩), `ConfirmDialog`(확인 창) |
+| `focus.ts`            | 초점 이동: 화면 제목으로(`focusPageTitle`), 구역 제목으로(`focusElement`), 누른 요소가 사라졌을 때(`useFocusRescue`)                                                                                                                                                     |
+| `button.tsx`          | `Button`. 누를 수 없는 상태는 `busy`(처리 중), `blocked`(아직 누를 수 없음), `disabled`(정말 쓸 수 없음)                                                                                                                                                                 |
+| `api.ts`              | 판매사 API 클라이언트(`api`), 오류(`ApiError`), 읽기 상태(`LoadState`), JSON 내려받기(`saveFile`)                                                                                                                                                                        |
+| `deployment.ts`       | 사이트 루트의 `/deployment.json`을 읽는 `useDeployment`                                                                                                                                                                                                                  |
+| `format.ts`           | 표기 형식: 해시 줄임(`short`), 금액(`won`), 한국 시간(`dateTime`), 네트워크 이름, 진단 기준 선택지의 점수·추출 조건(`choiceNote`)                                                                                                                                        |
+| `sales.ts`            | client와 channel이 함께 쓰는 판매 건 상태, 상품·기준 찾기, 투자성향·위험등급 표시                                                                                                                                                                                        |
+| `sale-components.tsx` | client와 channel이 함께 쓰는 판매 건 상태 배지(`StatusBadge`), 핵심 설명 카드(`ExplanationCards`)                                                                                                                                                                        |
+| `links.ts`            | 다른 페이지로 가는 주소: 증권사 앱 예시(`/channel/`), API 문서(`/api/docs`)                                                                                                                                                                                              |
+| `theme.css`           | 테마 토큰과 기본 요소 스타일                                                                                                                                                                                                                                             |
+| `ui.module.css`       | 화면 틀과 공통 클래스. 페이지 CSS 모듈과 합칠 때 같은 클래스 이름을 다시 정의하지 않는다                                                                                                                                                                                 |
 
 - 테마 토큰(색, 그림자·덮개, 글자 크기 `--type-*`, 줄 높이, 반경 `--rounded-*`, 고정폭 글꼴)은 `theme.css`의 `:root`에만 정의한다. DESIGN.md와 같은 값을 쓴다. CSS 모듈에는 px 글자 크기와 hex·rgb 색을 쓰지 않는다. 반경은 `--rounded-*`를 쓴다. 배지(5px), 진행 막대, 원형 아이콘만 예외다.
 - hover 스타일은 `@media (hover: hover)` 안에만 둔다.
 - 누른 버튼과 처리 중인 버튼에는 네이티브 `disabled`를 쓰지 않는다. `Button`의 `busy`나 `blocked`를 쓴다(`aria-disabled`). 초점과 Tab 순서가 남는다. 규칙은 DESIGN.md의 Interaction이다.
 - 화면 제목은 `tabIndex={-1}`이다(`Heading`의 `h1`, `Empty`의 `h2`). 경로가 바뀌거나 누른 요소가 사라지면 초점을 받는다. 화면에 새 제목을 만들 때도 같은 규칙을 따른다.
 - 가로로 스크롤하는 표는 `TableScroll`에 넣는다. `.tableWrap`을 직접 쓰지 않는다. `label`은 표 제목과 같은 글이다.
+- 표의 건수 열은 `Count`를 쓰고 열 제목(th)에 `numeric` 클래스를 단다. 건수가 있는 필터 칩은 `FilterChip`을 쓴다. 숫자 칸과 칩 건수에는 배지를 쓰지 않는다. 규칙은 DESIGN.md의 Typography와 Components다.
+- 요약 수치는 `Stat`을 쓴다. 열 수는 화면의 CSS 모듈이 `--stat-columns`로 정한다.
 - 입력 칸의 오류는 `FieldError`로 보여 준다. 입력 칸에 `aria-invalid`와 `aria-describedby`(오류 id)를 단다.
 - `Badge`와 `Notice`의 `tone`은 `Tone`(`neutral`, `info`, `success`, `warning`, `danger`)이다. 상태 색 표(`sales.ts`의 `STATUS_TONES` 등)도 `Tone`으로 적는다.
 - 두 페이지 이상이 쓰는 표시 계산과 요소만 둔다. 한 페이지만 쓰는 화면이나 업무 규칙은 여기에 두지 않는다. 그 페이지의 폴더(`apps/web/src/<페이지>/`)에 둔다. 판정과 계산은 `packages/core`에 둔다.

@@ -16,6 +16,14 @@
 .ledgerStats {
   --stat-columns: 5;
 }
+/* 분쟁 조회의 고객 기록(진단, 판매 건, 위험 신호) */
+.recordStats {
+  --stat-columns: 3;
+}
+/* 보고서의 대조 결과(대조한 판매 건, 일치, 불일치, 기록 없음) */
+.reportStats {
+  --stat-columns: 4;
+}
 .columns {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -68,18 +76,9 @@
   height: 100%;
   background: var(--primary);
 }
-.numeric {
-  text-align: end;
-  font-variant-numeric: tabular-nums;
-}
-/* 건수 0은 옅게 둔다. 값이 있는 칸이 먼저 보인다. */
-.zero {
-  color: var(--muted-foreground);
-}
-/* 0이 아닌 주의 건수(부적합 확정). 배지 대신 글자색과 굵기로 강조해 숫자 열의 모양을 맞춘다. */
-.warnCount {
-  color: var(--warning);
-  font-weight: 700;
+/* 패딩이 있는 패널(ui의 .pad) 안의 비율 줄. 패널 글자와 왼쪽을 맞춘다(보고서). */
+.ratioInPad {
+  padding-inline: 0;
 }
 /* 다음 패널과 띄운다. 그리드 밖에 홀로 놓인 패널에 쓴다. */
 .spaced {
@@ -334,7 +333,9 @@
   }
 }
 @media (max-width: 640px) {
-  .ledgerStats {
+  .ledgerStats,
+  .recordStats,
+  .reportStats {
     --stat-columns: 2;
     --stat-gap: 12px;
   }

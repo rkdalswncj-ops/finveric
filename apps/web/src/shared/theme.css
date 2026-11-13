@@ -264,6 +264,12 @@ th {
   background: var(--muted);
   font-weight: 500;
 }
+/* 행 제목(th scope="row")은 열 제목 바탕을 쓰지 않는다. 다른 표의 첫 칸(굵은 글자)과 같은 모양이다. */
+tbody th {
+  color: var(--foreground);
+  background: none;
+  font-weight: 700;
+}
 ::selection {
   background: var(--selection);
   color: var(--selection-foreground);

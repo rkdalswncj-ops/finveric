@@ -5,7 +5,13 @@ import type { Deployment } from "@finveric/core";
 import type { ProductEntryDto, TraceDto } from "@finveric/core/api";
 import type { LoadState } from "../../shared/api.ts";
 import { Button } from "../../shared/button.tsx";
-import { Badge, Facts, Heading, Notice } from "../../shared/components.tsx";
+import {
+  Badge,
+  Facts,
+  FilterChip,
+  Heading,
+  Notice,
+} from "../../shared/components.tsx";
 import { dateTime, short } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import local from "./operations.module.css";
@@ -82,18 +88,16 @@ export function Chain({
       </Notice>
       <div className={s.chips} role="group" aria-label="처리 기록 종류 필터">
         {(["", ...GROUPS] as const).map((value) => (
-          <button
+          <FilterChip
             key={value || "all"}
-            aria-pressed={group === value}
-            className={group === value ? s.chipActive : ""}
-            onClick={() => setGroup(value)}
-          >
-            {value ? TRACE_GROUPS[value] : "전체"}{" "}
-            {
+            label={value ? TRACE_GROUPS[value] : "전체"}
+            count={
               traces.filter((trace) => !value || traceGroup(trace) === value)
                 .length
             }
-          </button>
+            pressed={group === value}
+            onClick={() => setGroup(value)}
+          />
         ))}
       </div>
       <div className={`${s.panel} ${s.logGrid}`}>
@@ -192,7 +196,12 @@ export function Chain({
                   ],
                   ...(proof
                     ? ([
-                        ["증명 생성 시간", `${proof.ms ?? "—"}ms`],
+                        [
+                          "증명 생성 시간",
+                          proof.ms === undefined
+                            ? "—"
+                            : `${proof.ms.toLocaleString("ko-KR")}ms`,
+                        ],
                         ["공개 신호", `${proof.publicSignals!.length}개`],
                       ] as [string, ReactNode][])
                     : []),

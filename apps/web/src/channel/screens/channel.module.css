@@ -221,10 +221,6 @@
 .flowFoot {
   font-size: var(--type-ui);
 }
-.badges {
-  display: flex;
-  gap: 6px;
-}
 .choices {
   display: grid;
   gap: 10px;

@@ -4,12 +4,13 @@ import { ruleHash, type RuleDocument } from "@finveric/core";
 import type { LedgerRule, LedgerSnapshot } from "@finveric/core/ledger";
 import {
   Badge,
+  Count,
   Facts,
   Heading,
   Notice,
   TableScroll,
 } from "../../shared/components.tsx";
-import { dateTime } from "../../shared/format.ts";
+import { choiceNote, dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
 import { ChangeList } from "../ChangeList.tsx";
@@ -114,7 +115,7 @@ function RuleAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
                     {rule.hashMatches ? "해시 일치" : "불일치"}
                   </Badge>
                 </td>
-                <td className={s.numeric}>{used(rule)}회</td>
+                <Count value={used(rule)} />
                 {technical && (
                   <td className={s.numeric}>{rule.block.toString()}</td>
                 )}
@@ -300,11 +301,7 @@ function RuleDocumentView({ document }: { document: RuleDocument }) {
                         <span>
                           {o + 1}. {choice.text}
                         </span>
-                        <Badge>{choice.score}점</Badge>
-                        {choice.cap && choice.cap > 1 && (
-                          <Badge>추출 {choice.cap}등급까지</Badge>
-                        )}
-                        {choice.elderly && <Badge tone="info">고령 표시</Badge>}
+                        <span className={s.small}>{choiceNote(choice)}</span>
                       </li>
                     ))}
                   </ol>

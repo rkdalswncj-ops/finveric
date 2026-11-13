@@ -1,5 +1,5 @@
 // 화면 표기 형식. 판정이나 업무 규칙은 넣지 않는다.
-import type { Deployment } from "@finveric/core";
+import type { Deployment, RuleDocument } from "@finveric/core";
 
 /** 긴 해시와 ID를 앞 10자·뒤 6자로 줄인다. */
 export const short = (value?: string) =>
@@ -40,3 +40,18 @@ export const networkName = (deployment?: Pick<Deployment, "chainId">) =>
     : deployment.chainId === 11155111
       ? "Sepolia 테스트넷"
       : "Anvil 테스트 원장";
+
+/**
+ * 진단 기준 선택지의 점수, 추출 조건, 고령 표시. 선택지 문구 뒤에 옅은 글자로 쓴다(배지를 쓰지 않는다).
+ * 예: "0점 · 추출: 5등급까지 · 고령 표시". 판매사 콘솔과 감독기관 화면이 같이 쓴다.
+ */
+export const choiceNote = (
+  choice: RuleDocument["questions"][number]["choices"][number],
+) =>
+  [
+    `${choice.score}점`,
+    choice.cap && choice.cap > 1 ? `추출: ${choice.cap}등급까지` : "",
+    choice.elderly ? "고령 표시" : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");

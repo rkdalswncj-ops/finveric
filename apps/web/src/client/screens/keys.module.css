@@ -44,6 +44,12 @@
 .rowAction {
   text-align: end;
 }
+/* 폐기한 키: 상태 배지 뒤에 폐기 시각을 글자로 쓴다. 배지에는 상태 이름만 둔다. */
+.revoked {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 /* 문장 안의 헤더 예시는 한 덩어리로 둔다(theme.css의 code는 아무 곳에서나 줄을 바꾼다). */
 .secret p code {
   white-space: nowrap;

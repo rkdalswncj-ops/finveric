@@ -242,7 +242,10 @@ export function ApiKeys({
                       <td>{dateTime(key.lastUsedAt)}</td>
                       <td>
                         {key.revokedAt ? (
-                          <Badge>폐기 · {dateTime(key.revokedAt)}</Badge>
+                          <span className={s.revoked}>
+                            <Badge>폐기</Badge>
+                            {dateTime(key.revokedAt)}
+                          </span>
                         ) : (
                           <Badge tone="success">사용 중</Badge>
                         )}

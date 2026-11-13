@@ -8,7 +8,13 @@ import {
   type SignalKind,
 } from "@finveric/core";
 import type { LedgerSnapshot } from "@finveric/core/ledger";
-import { Badge, Heading, TableScroll } from "../../shared/components.tsx";
+import {
+  Badge,
+  Count,
+  FilterChip,
+  Heading,
+  TableScroll,
+} from "../../shared/components.tsx";
 import { dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
@@ -81,24 +87,20 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
         role="group"
         aria-label="신호 종류"
       >
-        <button
-          type="button"
-          className={!kind ? s.chipActive : undefined}
-          aria-pressed={!kind}
+        <FilterChip
+          label="전체"
+          count={signals.length}
+          pressed={!kind}
           onClick={() => filter()}
-        >
-          전체 {signals.length}
-        </button>
+        />
         {SIGNAL_KINDS.map((value) => (
-          <button
+          <FilterChip
             key={value}
-            type="button"
-            className={kind === value ? s.chipActive : undefined}
-            aria-pressed={kind === value}
+            label={SIGNAL_LABELS[value]}
+            count={count(value)}
+            pressed={kind === value}
             onClick={() => filter(value)}
-          >
-            {SIGNAL_LABELS[value]} {count(value)}
-          </button>
+          />
         ))}
       </div>
       <section className={`${s.panel} ${s.section}`}>
@@ -192,7 +194,7 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
                 <td>{SIGNAL_LABELS[value]}</td>
                 <td className={s.wrap}>{CONDITIONS[value]}</td>
                 <td>{EVIDENCE[value]}</td>
-                <td className={s.numeric}>{count(value)}</td>
+                <Count value={count(value)} warn />
               </tr>
             ))}
           </tbody>

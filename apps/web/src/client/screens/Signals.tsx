@@ -8,7 +8,12 @@ import {
 import type { CustomerDto, ProductEntryDto } from "@finveric/core/api";
 import type { LoadState } from "../../shared/api.ts";
 import { Button } from "../../shared/button.tsx";
-import { Badge, Heading, TableScroll } from "../../shared/components.tsx";
+import {
+  Badge,
+  FilterChip,
+  Heading,
+  TableScroll,
+} from "../../shared/components.tsx";
 import { short } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import client from "../client.module.css";
@@ -51,15 +56,15 @@ export function Signals({
       />
       <div className={s.chips} role="group" aria-label="위험 신호 종류 필터">
         {(["", ...SIGNAL_KINDS] as const).map((value) => (
-          <button
+          <FilterChip
             key={value || "all"}
-            aria-pressed={kind === value}
-            className={kind === value ? s.chipActive : ""}
+            label={value ? SIGNAL_LABELS[value] : "전체"}
+            count={
+              signals.filter((signal) => !value || signal.kind === value).length
+            }
+            pressed={kind === value}
             onClick={() => setKind(value)}
-          >
-            {value ? SIGNAL_LABELS[value] : "전체"}{" "}
-            {signals.filter((signal) => !value || signal.kind === value).length}
-          </button>
+          />
         ))}
       </div>
       <div className={`${s.panel} ${s.salesTable}`}>

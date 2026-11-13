@@ -12,6 +12,7 @@ import {
   Badge,
   Empty,
   Facts,
+  FilterChip,
   Heading,
   Notice,
   TableScroll,
@@ -128,14 +129,13 @@ export function Review({
       />
       <div className={s.chips} role="group" aria-label="판매 건 상태 필터">
         {(["", ...STATUS_KEYS] as const).map((key) => (
-          <button
+          <FilterChip
             key={key || "all"}
-            aria-pressed={filter === key}
-            className={filter === key ? s.chipActive : ""}
+            label={key ? STATUS_LABELS[key] : "전체"}
+            count={count(key)}
+            pressed={filter === key}
             onClick={() => setFilter(key)}
-          >
-            {key ? STATUS_LABELS[key] : "전체"} {count(key)}
-          </button>
+          />
         ))}
       </div>
       <div className={`${s.panel} ${s.salesTable}`}>
@@ -244,122 +244,137 @@ export function Review({
           ))}
       </div>
       {sale ? (
-        <div className={s.detailGrid}>
-          <section className={`${s.panel} ${s.pad}`}>
-            <div className={s.row}>
-              <h2>
-                {productName(product?.document)} v{sale.productVersion}
-              </h2>
-              <StatusBadge sale={sale} now={now} />
+        <>
+          {/* 판매 건 기록(왼쪽)과 승인·타임라인(오른쪽)을 비슷한 높이로 나란히 둔다. 진단 회차 표는 아래 화면 너비의 줄에 둔다. */}
+          <div className={s.reviewGrid}>
+            <section className={`${s.panel} ${s.pad}`}>
+              <div className={s.row}>
+                <h2>
+                  {productName(product?.document)} v{sale.productVersion}
+                </h2>
+                <StatusBadge sale={sale} now={now} />
+              </div>
+              <Facts
+                rows={[
+                  ["판매 ID", <code>{sale.id}</code>],
+                  ["고객 가명 ID", <code>{sale.customerRef}</code>],
+                  ["청약 금액", won(sale.amount)],
+                  [
+                    sale.chain ? "청약 회차" : "최신 회차",
+                    `${usedAttempt ?? sale.latestAttempt}회차 · ${profileName(usedDiagnosis?.profile)}`,
+                  ],
+                  [
+                    "적합성",
+                    sale.suitable === undefined
+                      ? "진단 전"
+                      : sale.suitable
+                        ? "적합"
+                        : sale.chain
+                          ? `부적합 · 추가 위험 확인 ${sale.chain.higherRiskConfirmed ? "기록" : "없음"}`
+                          : "부적합 · 추가 위험 확인 필요",
+                  ],
+                  [
+                    "녹취·숙려 대상",
+                    sale.protectedSale === undefined
+                      ? "—"
+                      : sale.protectedSale
+                        ? sale.chain
+                          ? `대상 · 녹취 지문 ${/^0x0+$/.test(sale.chain.recordingHash) ? "없음" : "기록"}`
+                          : "대상"
+                        : "대상 아님",
+                  ],
+                  [
+                    "숙려 종료",
+                    sale.coolingEndsAt ? dateTime(sale.coolingEndsAt) : "—",
+                  ],
+                  [
+                    "설명 확인 시간",
+                    sale.chain
+                      ? `${sale.chain.explanationSeconds}초`
+                      : "청약 전",
+                  ],
+                  ["관리자 승인", approvalText(sale)],
+                  [
+                    "결제 기록",
+                    sale.settled
+                      ? "기록"
+                      : sale.status === "confirmed"
+                        ? "대기"
+                        : "—",
+                  ],
+                ]}
+              />
+              {awaitingApproval(sale) && (
+                <Notice tone="warning">
+                  {sale.latestAttempt}회차 진단한 고객입니다. 회차 이력과 위험
+                  신호를 확인한 뒤 승인하세요. 승인은 이 판매 ID와 최신 회차에
+                  묶입니다.
+                </Notice>
+              )}
+            </section>
+            <div className={s.stack}>
+              <section className={`${s.panel} ${s.pad}`}>
+                {/* 승인하면 버튼이 사라진다. 초점은 이 제목으로 옮긴다. */}
+                <h2 id="approval-title" tabIndex={-1}>
+                  관리자 승인
+                </h2>
+                <p>
+                  3회차 이상 진단한 고객의 청약은 소비자보호 담당이 승인 키로
+                  서명해야 원장이 받습니다.
+                </p>
+                <Facts rows={[["승인 상태", approvalText(sale)]]} />
+                {awaitingApproval(sale) && (
+                  <Button
+                    busy={busy}
+                    onClick={async () => {
+                      const approved = await action(
+                        sale.id,
+                        "approve",
+                        "관리자 승인 서명을 만들고 있습니다",
+                        "관리자 승인을 기록했습니다.",
+                      );
+                      if (approved) focusElement("approval-title");
+                    }}
+                  >
+                    회차 이력을 확인하고 승인
+                  </Button>
+                )}
+                <Button variant="outline" asChild>
+                  <Link to="/chain">처리 근거 보기</Link>
+                </Button>
+              </section>
+              <section className={`${s.panel} ${s.pad}`}>
+                <h2>타임라인</h2>
+                <ol className={s.timeline}>
+                  {timeline.map((item) => (
+                    <li key={item.key}>
+                      <time>{dateTime(new Date(item.at).toISOString())}</time>
+                      <span className={s.timelineLabel}>{item.label}</span>
+                      <Badge tone={item.status[1]}>{item.status[0]}</Badge>
+                    </li>
+                  ))}
+                </ol>
+              </section>
             </div>
-            <Facts
-              rows={[
-                ["판매 ID", <code>{sale.id}</code>],
-                ["고객 가명 ID", <code>{sale.customerRef}</code>],
-                ["청약 금액", won(sale.amount)],
-                [
-                  sale.chain ? "청약 회차" : "최신 회차",
-                  `${usedAttempt ?? sale.latestAttempt}회차 · ${profileName(usedDiagnosis?.profile)}`,
-                ],
-                [
-                  "적합성",
-                  sale.suitable === undefined
-                    ? "진단 전"
-                    : sale.suitable
-                      ? "적합"
-                      : sale.chain
-                        ? `부적합 · 추가 위험 확인 ${sale.chain.higherRiskConfirmed ? "기록" : "없음"}`
-                        : "부적합 · 추가 위험 확인 필요",
-                ],
-                [
-                  "녹취·숙려 대상",
-                  sale.protectedSale === undefined
-                    ? "—"
-                    : sale.protectedSale
-                      ? sale.chain
-                        ? `대상 · 녹취 지문 ${/^0x0+$/.test(sale.chain.recordingHash) ? "없음" : "기록"}`
-                        : "대상"
-                      : "대상 아님",
-                ],
-                [
-                  "숙려 종료",
-                  sale.coolingEndsAt ? dateTime(sale.coolingEndsAt) : "—",
-                ],
-                [
-                  "설명 확인 시간",
-                  sale.chain ? `${sale.chain.explanationSeconds}초` : "청약 전",
-                ],
-                ["관리자 승인", approvalText(sale)],
-                [
-                  "결제 기록",
-                  sale.settled
-                    ? "기록"
-                    : sale.status === "confirmed"
-                      ? "대기"
-                      : "—",
-                ],
-              ]}
-            />
-            {awaitingApproval(sale) && (
-              <Notice tone="warning">
-                {sale.latestAttempt}회차 진단한 고객입니다. 회차 이력과 위험
-                신호를 확인한 뒤 승인하세요. 승인은 이 판매 ID와 최신 회차에
-                묶입니다.
-              </Notice>
-            )}
-            <h3 className={s.subTitle}>진단 회차</h3>
-            {knownCustomer ? (
-              <DiagnosisTable diagnoses={diagnoses} used={usedAttempt} />
-            ) : (
-              <p className={s.small}>
+          </div>
+          {knownCustomer ? (
+            <section className={`${s.panel} ${s.spaced}`}>
+              <DiagnosisTable
+                diagnoses={diagnoses}
+                used={usedAttempt}
+                caption="진단 회차"
+              />
+            </section>
+          ) : (
+            <section className={`${s.panel} ${s.pad} ${s.spaced}`}>
+              <h2>진단 회차</h2>
+              <p>
                 이 판매 건의 고객 번호를 연결하지 않아 진단 회차를 표시하지
                 않습니다.
               </p>
-            )}
-            <h3 className={s.subTitle}>타임라인</h3>
-            <ol className={s.timeline}>
-              {timeline.map((item) => (
-                <li key={item.key}>
-                  <time>{dateTime(new Date(item.at).toISOString())}</time>
-                  <span className={s.timelineLabel}>{item.label}</span>
-                  <Badge tone={item.status[1]}>{item.status[0]}</Badge>
-                </li>
-              ))}
-            </ol>
-          </section>
-          <aside className={s.editorAside}>
-            <section className={`${s.panel} ${s.pad}`}>
-              {/* 승인하면 버튼이 사라진다. 초점은 이 제목으로 옮긴다. */}
-              <h2 id="approval-title" tabIndex={-1}>
-                관리자 승인
-              </h2>
-              <p>
-                3회차 이상 진단한 고객의 청약은 소비자보호 담당이 승인 키로
-                서명해야 원장이 받습니다.
-              </p>
-              <Facts rows={[["승인 상태", approvalText(sale)]]} />
-              {awaitingApproval(sale) && (
-                <Button
-                  busy={busy}
-                  onClick={async () => {
-                    const approved = await action(
-                      sale.id,
-                      "approve",
-                      "관리자 승인 서명을 만들고 있습니다",
-                      "관리자 승인을 기록했습니다.",
-                    );
-                    if (approved) focusElement("approval-title");
-                  }}
-                >
-                  회차 이력을 확인하고 승인
-                </Button>
-              )}
-              <Button variant="outline" asChild>
-                <Link to="/chain">처리 근거 보기</Link>
-              </Button>
             </section>
-          </aside>
-        </div>
+          )}
+        </>
       ) : (
         load === "ready" && (
           <Empty

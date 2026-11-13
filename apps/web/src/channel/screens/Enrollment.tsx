@@ -562,13 +562,13 @@ export function Enrollment({
       stage: "진단",
       label: "투자성향 진단",
       title: "최근 투자성향 진단 결과가 있어요",
-      badge: <Badge tone="info">최근 진단 {latest.attempt}회차</Badge>,
       content: (
         <>
           <Facts
             rows={[
               ["투자성향", profileName(latest.profile)],
               ["권유 가능 위험등급", limitRange(latest.limit)],
+              ["진단 회차", `${latest.attempt}회차`],
               ["진단 시각", dateTime(latest.at)],
             ]}
           />
@@ -678,18 +678,16 @@ export function Enrollment({
       stage: "결과",
       label: "진단 결과",
       title: `투자성향은 ${profileName(latest.profile)}이에요`,
-      badge: (
-        <span className={s.badges}>
-          <Badge tone="info">{latest.attempt}회차</Badge>
-          {latest.attempt > 1 && <Badge>재진단</Badge>}
-        </span>
-      ),
       content: (
         <>
           <Facts
             rows={[
               ["권유 가능 위험등급", limitRange(latest.limit)],
               ["이 상품의 위험등급", gradeName(document.riskGrade)],
+              [
+                "진단 회차",
+                `${latest.attempt}회차${latest.attempt > 1 ? " · 재진단" : ""}`,
+              ],
               ...(latest.elderly
                 ? ([["고령 투자자", "보호 절차를 함께 적용해요"]] as [
                     string,

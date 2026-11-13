@@ -23,6 +23,12 @@
   gap: 8px;
   padding: 6px 0;
 }
+/* 이름 뒤의 버전. 배지가 아니라 옅은 글자다(상태가 아니다). */
+.versionText {
+  flex: none;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
 .choiceList {
   margin: 0;
   padding-inline-start: 16px;
@@ -154,7 +160,20 @@
 }
 /* 판매·검토 */
 .salesTable {
-  margin: 20px 0 28px;
+  margin: 20px 0 24px;
+}
+/* 판매 건 기록(왼쪽)과 관리자 승인·타임라인(오른쪽). 두 열의 높이가 비슷하다. */
+.reviewGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+/* 한 열에 패널을 위아래로 쌓는다. */
+.stack {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
 }
 .salesTable caption {
   padding: 16px;
@@ -172,12 +191,16 @@
   border-bottom: 1px solid var(--border);
   font-size: var(--type-ui);
 }
+/* 시각은 표의 시각과 같은 글꼴의 등폭 숫자로 한 줄에 쓴다. 자릿수가 같아 항목 이름이 나란하다. */
 .timeline time {
-  font-family: var(--type-mono);
   font-size: var(--type-caption);
+  font-variant-numeric: tabular-nums;
   color: var(--muted-foreground);
   flex: none;
-  width: 120px;
+  white-space: nowrap;
+}
+.timeline li:last-child {
+  border-bottom: 0;
 }
 .timelineLabel {
   flex: 1;
@@ -211,8 +234,8 @@
   box-shadow: inset 3px 0 0 var(--primary);
 }
 .logList time {
-  font-family: var(--type-mono);
   font-size: var(--type-caption);
+  font-variant-numeric: tabular-nums;
   color: var(--muted-foreground);
 }
 .logList > button > div {
@@ -245,6 +268,7 @@
 }
 @media (max-width: 950px) {
   .editorGrid,
+  .reviewGrid,
   .logGrid {
     grid-template-columns: 1fr;
   }

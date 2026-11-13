@@ -120,7 +120,7 @@ export function ProfileProducts({
   );
 }
 
-/** 고객 가명 ID의 진단 회차. 청약에 쓴 회차를 강조한다. */
+/** 고객 가명 ID의 진단 회차. 청약에 쓴 회차를 강조한다. `caption`은 패널 제목과 같은 크기의 표 제목이다. */
 export function DiagnosisTable({
   diagnoses,
   used,
@@ -133,7 +133,7 @@ export function DiagnosisTable({
   return (
     <TableScroll label={caption ?? "진단 회차"}>
       <table>
-        {caption && <caption>{caption}</caption>}
+        {caption && <caption className={s.tableCaption}>{caption}</caption>}
         <thead>
           <tr>
             <th scope="col">회차</th>

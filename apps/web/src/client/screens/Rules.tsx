@@ -30,7 +30,7 @@ import {
   TableScroll,
 } from "../../shared/components.tsx";
 import { api, type LoadState } from "../../shared/api.ts";
-import { short } from "../../shared/format.ts";
+import { choiceNote, short } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
@@ -71,19 +71,8 @@ function scoreRanges(rule: RuleDocument) {
   });
 }
 
-const choiceNote = (
-  choice: RuleDocument["questions"][number]["choices"][number],
-) =>
-  [
-    `${choice.score}점`,
-    choice.cap && choice.cap > 1 ? `추출: ${choice.cap}등급까지` : "",
-    choice.elderly ? "고령 표시" : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
-/** 진단 기준의 문항, 선택지 점수, 추출 조건, 등급 구간, 적합성 기준. */
-function RuleView({ entry }: { entry: RuleEntryDto }) {
+/** 진단 기준 버전의 이름, 등록 상태, 해시, 등록 원문. 버전 이력 옆에 둔다. */
+function RuleHead({ entry }: { entry: RuleEntryDto }) {
   const rule = entry.document;
   return (
     <>
@@ -101,9 +90,25 @@ function RuleView({ entry }: { entry: RuleEntryDto }) {
           ["문항 수", `${rule.questions.length}개`],
         ]}
       />
-      <h3 className={s.subTitle}>문항과 선택지</h3>
-      <TableScroll label="문항과 선택지">
+      <details>
+        <summary>원장에 등록한 원문 보기</summary>
+        <pre>{canonical(rule)}</pre>
+      </details>
+    </>
+  );
+}
+
+/** 진단 기준의 문항, 선택지 점수, 추출 조건, 등급 구간, 적합성 기준. 화면 너비의 패널에 둔다. */
+function RuleTables({ rule }: { rule: RuleDocument }) {
+  return (
+    <>
+      <TableScroll
+        as="section"
+        label="문항과 선택지"
+        className={`${s.panel} ${s.spaced}`}
+      >
         <table>
+          <caption className={s.tableCaption}>문항과 선택지</caption>
           <thead>
             <tr>
               <th scope="col">범주</th>
@@ -131,35 +136,35 @@ function RuleView({ entry }: { entry: RuleEntryDto }) {
           </tbody>
         </table>
       </TableScroll>
-      <h3 className={s.subTitle}>등급 구간과 적합성 기준</h3>
-      <TableScroll label="등급 구간과 적합성 기준">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">투자성향</th>
-              <th scope="col">합계 점수</th>
-              <th scope="col">권유 가능 위험등급</th>
-            </tr>
-          </thead>
-          <tbody>
-            {scoreRanges(rule).map(({ profile, range }) => (
-              <tr key={profile}>
-                <th scope="row">{profileName(profile)}</th>
-                <td>{range}</td>
-                <td>{limitRange(rule.matrix[profile - 1])}</td>
+      <section className={`${s.panel} ${s.spaced}`}>
+        <TableScroll label="등급 구간과 적합성 기준">
+          <table>
+            <caption className={s.tableCaption}>
+              등급 구간과 적합성 기준
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">투자성향</th>
+                <th scope="col">합계 점수</th>
+                <th scope="col">권유 가능 위험등급</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableScroll>
-      <p className={s.small}>
-        추출 조건은 등급표보다 우선합니다. 추출 조건이 있는 답을 고르면
-        투자성향과 관계없이 그 등급까지만 권유합니다.
-      </p>
-      <details>
-        <summary>원장에 등록한 원문 보기</summary>
-        <pre>{canonical(rule)}</pre>
-      </details>
+            </thead>
+            <tbody>
+              {scoreRanges(rule).map(({ profile, range }) => (
+                <tr key={profile}>
+                  <th scope="row">{profileName(profile)}</th>
+                  <td>{range}</td>
+                  <td>{limitRange(rule.matrix[profile - 1])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableScroll>
+        <p className={s.tableNote}>
+          추출 조건은 등급표보다 우선합니다. 추출 조건이 있는 답을 고르면
+          투자성향과 관계없이 그 등급까지만 권유합니다.
+        </p>
+      </section>
     </>
   );
 }
@@ -645,61 +650,65 @@ export function Rules({
           }}
         />
       ) : (
-        <div className={s.detailGrid}>
-          <section className={`${s.panel} ${s.pad}`}>
-            {entry ? (
-              <RuleView entry={entry} />
-            ) : (
-              <p className={s.small}>
-                {load === "ready"
-                  ? "진단 기준이 없습니다."
-                  : load === "failed"
-                    ? "진단 기준을 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
-                    : "진단 기준을 불러오고 있습니다."}
-              </p>
-            )}
-          </section>
-          <aside className={`${s.panel} ${s.pad}`}>
-            <h2>버전 이력</h2>
-            <ul className={s.versionList}>
-              {[...rules].reverse().map((rule) => (
-                <li key={`${rule.version}:${rule.hash}`}>
-                  <button
-                    aria-pressed={rule === entry}
-                    className={rule === entry ? s.versionActive : ""}
-                    onClick={() => setSelected(rule.version)}
-                  >
-                    <span>
-                      <strong>v{rule.version}</strong> {rule.document.name}
-                    </span>
-                    <small>
-                      <code>{short(rule.hash)}</code>
-                    </small>
-                    <Badge
-                      tone={
-                        rule === active
-                          ? "success"
-                          : rule.registered
-                            ? "neutral"
-                            : "warning"
-                      }
+        <>
+          {/* 버전 정보와 버전 이력을 나란히 두고, 문항·등급 표는 아래 화면 너비의 패널에 둔다. */}
+          <div className={s.detailGrid}>
+            <section className={`${s.panel} ${s.pad}`}>
+              {entry ? (
+                <RuleHead entry={entry} />
+              ) : (
+                <p className={s.small}>
+                  {load === "ready"
+                    ? "진단 기준이 없습니다."
+                    : load === "failed"
+                      ? "진단 기준을 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
+                      : "진단 기준을 불러오고 있습니다."}
+                </p>
+              )}
+            </section>
+            <aside className={`${s.panel} ${s.pad}`}>
+              <h2>버전 이력</h2>
+              <ul className={s.versionList}>
+                {[...rules].reverse().map((rule) => (
+                  <li key={`${rule.version}:${rule.hash}`}>
+                    <button
+                      aria-pressed={rule === entry}
+                      className={rule === entry ? s.versionActive : ""}
+                      onClick={() => setSelected(rule.version)}
                     >
-                      {rule === active
-                        ? "적용 중"
-                        : rule.registered
-                          ? "이전 버전"
-                          : "등록 전"}
-                    </Badge>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <p className={s.small}>
-              진단은 원장에 등록한 최신 버전으로만 합니다. 이전 회차는 그때의
-              버전으로 남습니다.
-            </p>
-          </aside>
-        </div>
+                      <span>
+                        <strong>v{rule.version}</strong> {rule.document.name}
+                      </span>
+                      <small>
+                        <code>{short(rule.hash)}</code>
+                      </small>
+                      <Badge
+                        tone={
+                          rule === active
+                            ? "success"
+                            : rule.registered
+                              ? "neutral"
+                              : "warning"
+                        }
+                      >
+                        {rule === active
+                          ? "적용 중"
+                          : rule.registered
+                            ? "이전 버전"
+                            : "등록 전"}
+                      </Badge>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p className={s.small}>
+                진단은 원장에 등록한 최신 버전으로만 합니다. 이전 회차는 그때의
+                버전으로 남습니다.
+              </p>
+            </aside>
+          </div>
+          {entry && <RuleTables rule={entry.document} />}
+        </>
       )}
       <section className={`${s.panel} ${s.pad} ${s.spaced}`}>
         <h2>등급별 판매 상품</h2>

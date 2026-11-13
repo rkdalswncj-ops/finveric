@@ -11,13 +11,14 @@ import {
   Heading,
   Notice,
   FieldError,
+  Stat,
   TableScroll,
   type Tone,
 } from "../../shared/components.tsx";
 import { dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
-import { LedgerLine } from "../components.tsx";
+import { LedgerLine, Ratio } from "../components.tsx";
 import {
   koreanError,
   productName,
@@ -228,7 +229,7 @@ export function Report({
             )}
           </div>
           {report ? (
-            <ReportView
+            <ReportSummary
               report={report}
               json={() => saveFile(report, fileName("json"))}
               csv={() =>
@@ -251,11 +252,14 @@ export function Report({
           )}
         </section>
       </div>
+      {/* 열이 많은 표는 화면 너비의 줄에 둔다. 1440px에서 옆으로 스크롤하지 않는다. */}
+      {report && <ReportTable report={report} />}
     </div>
   );
 }
 
-function ReportView({
+/** 보고서 요약: 대조 결과 수치, 일치 비율, 원장 요약. 오른쪽 패널에 둔다. */
+function ReportSummary({
   report,
   json,
   csv,
@@ -265,6 +269,7 @@ function ReportView({
   csv: () => void;
 }) {
   const { summary, source } = report;
+  const total = report.sales.length;
   return (
     <>
       <div className={s.row}>
@@ -286,26 +291,35 @@ function ReportView({
         까지 읽고 판매 건마다 verifySale을 실행했습니다. 판매사 API는 쓰지
         않았습니다.
       </Notice>
+      <div className={`${s.stats} ${s.reportStats}`}>
+        <Stat label="대조한 판매 건" value={total} unit="건" />
+        {(["match", "mismatch", "missing"] as const).map((outcome) => (
+          <Stat
+            key={outcome}
+            label={OUTCOME_LABELS[outcome]}
+            value={summary.verified[outcome]}
+            unit="건"
+          />
+        ))}
+      </div>
+      <Ratio
+        label="일치 비율"
+        part={summary.verified.match}
+        whole={total}
+        note={`대조한 판매 건 ${total}건 중 원장 기록과 일치한 ${summary.verified.match}건`}
+        inPad
+      />
       <Facts
         rows={[
           [
             "범위",
             report.scope.kind === "sale"
               ? `판매 건 하나 · ${short(report.scope.saleId)}`
-              : `가입 확정 전체 · ${report.sales.length}건`,
-          ],
-          [
-            "대조 결과",
-            (["match", "mismatch", "missing"] as const)
-              .map(
-                (outcome) =>
-                  `${OUTCOME_LABELS[outcome]} ${summary.verified[outcome]}건`,
-              )
-              .join(" · "),
+              : `가입 확정 전체 · ${total}건`,
           ],
           [
             "원장 요약",
-            `기준 ${summary.rules}개 버전 · 상품 설명서 ${summary.productVersions}개 버전 · 진단 ${summary.diagnoses}회 · 고객 가명 ID ${summary.customers}개`,
+            `기준 ${summary.rules}개 버전 · 상품 설명서 ${summary.productVersions}개 버전 · 진단 ${summary.diagnoses}회 · 고객 가명 ID ${summary.customers}명`,
           ],
           [
             "원장 전체 판매 건",
@@ -315,73 +329,83 @@ function ReportView({
             "위험 신호",
             SIGNAL_KINDS.map(
               (kind) =>
-                `${SIGNAL_LABELS[kind]} ${summary.signals[SIGNAL_LABELS[kind]] ?? 0}`,
+                `${SIGNAL_LABELS[kind]} ${summary.signals[SIGNAL_LABELS[kind]] ?? 0}건`,
             ).join(" · "),
           ],
           ["만든 시각", dateTime(report.generatedAt)],
         ]}
       />
-      <TableScroll label="판매 건별 대조 결과" className={s.section}>
-        <table>
-          <caption>판매 건별 대조 결과</caption>
-          <thead>
-            <tr>
-              <th scope="col">판매 ID</th>
-              <th scope="col">상품</th>
-              <th scope="col">회차</th>
-              <th scope="col">적합</th>
-              <th scope="col">상태</th>
-              <th scope="col">대조 결과</th>
-              <th scope="col">확인 필요 항목</th>
-              <th scope="col">위험 신호</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.sales.map((sale) => {
-              const failed = sale.checks.filter((check) => !check.ok);
-              return (
-                <tr key={sale.saleId}>
-                  <td>
-                    <Link to={salePath(sale.saleId)}>
-                      <code title={sale.saleId}>{short(sale.saleId)}</code>
-                    </Link>
-                  </td>
-                  <td className={s.wrap}>
-                    {sale.product
-                      ? `${sale.product} v${sale.productVersion}`
-                      : "—"}
-                  </td>
-                  <td>{sale.attempt ? `${sale.attempt}회차` : "—"}</td>
-                  <td>
-                    {sale.outcome === "missing"
-                      ? "—"
-                      : sale.suitable
-                        ? "적합"
-                        : "부적합"}
-                  </td>
-                  <td>{sale.status}</td>
-                  <td>
-                    <Badge tone={OUTCOME_TONES[sale.outcome]}>
-                      {sale.outcomeLabel}
-                    </Badge>
-                  </td>
-                  <td className={s.wrap}>
-                    {failed.length
-                      ? failed.map((check) => check.name).join(", ")
-                      : "—"}
-                  </td>
-                  <td className={s.wrap}>
-                    {sale.signals.length ? sale.signals.join(", ") : "—"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {report.sales.length === 0 && (
-          <p className={s.small}>범위 안에 판매 건이 없습니다.</p>
-        )}
-      </TableScroll>
     </>
+  );
+}
+
+/** 판매 건별 대조 결과. 열이 여덟 개라 화면 너비의 패널에 둔다. */
+function ReportTable({ report }: { report: AuditReport }) {
+  return (
+    <TableScroll
+      as="section"
+      label="판매 건별 대조 결과"
+      className={`${s.panel} ${s.section}`}
+    >
+      <table>
+        <caption className={s.tableCaption}>판매 건별 대조 결과</caption>
+        <thead>
+          <tr>
+            <th scope="col">판매 ID</th>
+            <th scope="col">상품</th>
+            <th scope="col">회차</th>
+            <th scope="col">적합</th>
+            <th scope="col">상태</th>
+            <th scope="col">대조 결과</th>
+            <th scope="col">확인 필요 항목</th>
+            <th scope="col">위험 신호</th>
+          </tr>
+        </thead>
+        <tbody>
+          {report.sales.map((sale) => {
+            const failed = sale.checks.filter((check) => !check.ok);
+            return (
+              <tr key={sale.saleId}>
+                <td>
+                  <Link to={salePath(sale.saleId)}>
+                    <code title={sale.saleId}>{short(sale.saleId)}</code>
+                  </Link>
+                </td>
+                <td className={s.wrap}>
+                  {sale.product
+                    ? `${sale.product} v${sale.productVersion}`
+                    : "—"}
+                </td>
+                <td>{sale.attempt ? `${sale.attempt}회차` : "—"}</td>
+                <td>
+                  {sale.outcome === "missing"
+                    ? "—"
+                    : sale.suitable
+                      ? "적합"
+                      : "부적합"}
+                </td>
+                <td>{sale.status}</td>
+                <td>
+                  <Badge tone={OUTCOME_TONES[sale.outcome]}>
+                    {sale.outcomeLabel}
+                  </Badge>
+                </td>
+                <td className={s.wrap}>
+                  {failed.length
+                    ? failed.map((check) => check.name).join(", ")
+                    : "—"}
+                </td>
+                <td className={s.wrap}>
+                  {sale.signals.length ? sale.signals.join(", ") : "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {report.sales.length === 0 && (
+        <p className={s.panelNote}>범위 안에 판매 건이 없습니다.</p>
+      )}
+    </TableScroll>
   );
 }

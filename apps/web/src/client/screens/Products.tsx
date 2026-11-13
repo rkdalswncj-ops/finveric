@@ -501,75 +501,83 @@ export function Products({
             )}
           </section>
           {group && (
-            <div className={`${s.detailGrid} ${s.spaced}`}>
-              <section className={`${s.panel} ${s.pad}`}>
-                <div className={s.row}>
-                  <h2>
-                    {productName(group.latest.product.document)} v
-                    {group.latest.product.version}
-                  </h2>
-                  <Badge tone={group.latest.registered ? "success" : "warning"}>
-                    {group.latest.registered ? "원장 등록" : "등록 전"}
-                  </Badge>
-                </div>
-                <p className={s.lead}>
-                  {group.latest.product.document.summary}
-                </p>
-                <ProductFacts document={group.latest.product.document} />
-                <h3 className={s.subTitle}>핵심 설명 카드</h3>
+            <>
+              {/* 상품 속성과 버전 이력을 비슷한 높이로 나란히 두고, 핵심 설명 카드는 아래 화면 너비의 패널에 둔다. */}
+              <div className={`${s.detailGrid} ${s.spaced}`}>
+                <section className={`${s.panel} ${s.pad}`}>
+                  <div className={s.row}>
+                    <h2>
+                      {productName(group.latest.product.document)} v
+                      {group.latest.product.version}
+                    </h2>
+                    <Badge
+                      tone={group.latest.registered ? "success" : "warning"}
+                    >
+                      {group.latest.registered ? "원장 등록" : "등록 전"}
+                    </Badge>
+                  </div>
+                  <p className={s.lead}>
+                    {group.latest.product.document.summary}
+                  </p>
+                  <ProductFacts document={group.latest.product.document} />
+                </section>
+                <aside className={`${s.panel} ${s.pad}`}>
+                  <h2>버전 이력</h2>
+                  <ul className={s.versionList}>
+                    {[...group.versions].reverse().map((entry) => (
+                      <li key={entry.product.version}>
+                        <div>
+                          <span>
+                            <strong>v{entry.product.version}</strong>{" "}
+                            {gradeName(entry.product.document.riskGrade)}
+                          </span>
+                          <small>
+                            설명서 지문{" "}
+                            <code>{entry.product.documentHash}</code>
+                          </small>
+                          <small>
+                            등록 거래{" "}
+                            {entry.txHash ? <code>{entry.txHash}</code> : "—"}
+                          </small>
+                          <Badge
+                            tone={
+                              entry.latest
+                                ? "success"
+                                : entry.registered
+                                  ? "neutral"
+                                  : "warning"
+                            }
+                          >
+                            {entry.latest
+                              ? "판매 중"
+                              : entry.registered
+                                ? "이전 버전"
+                                : "등록 전"}
+                          </Badge>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    variant="outline"
+                    blocked={busy || !group.latest.registered}
+                    onClick={() =>
+                      setForm(structuredClone(group.latest.product.document))
+                    }
+                  >
+                    새 버전 만들기
+                  </Button>
+                  <p className={s.small}>
+                    새 버전을 등록하면 다음 청약부터 새 설명서를 씁니다. 청약한
+                    판매 건은 그때의 버전으로 남습니다.
+                  </p>
+                </aside>
+              </div>
+              <section className={`${s.panel} ${s.pad} ${s.spaced}`}>
+                <h2>핵심 설명 카드</h2>
                 <ExplanationCards cards={group.latest.product.document.cards} />
               </section>
-              <aside className={`${s.panel} ${s.pad}`}>
-                <h2>버전 이력</h2>
-                <ul className={s.versionList}>
-                  {[...group.versions].reverse().map((entry) => (
-                    <li key={entry.product.version}>
-                      <div>
-                        <span>
-                          <strong>v{entry.product.version}</strong>{" "}
-                          {gradeName(entry.product.document.riskGrade)}
-                        </span>
-                        <small>
-                          설명서 지문 <code>{entry.product.documentHash}</code>
-                        </small>
-                        <small>
-                          등록 거래{" "}
-                          {entry.txHash ? <code>{entry.txHash}</code> : "—"}
-                        </small>
-                        <Badge
-                          tone={
-                            entry.latest
-                              ? "success"
-                              : entry.registered
-                                ? "neutral"
-                                : "warning"
-                          }
-                        >
-                          {entry.latest
-                            ? "판매 중"
-                            : entry.registered
-                              ? "이전 버전"
-                              : "등록 전"}
-                        </Badge>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  variant="outline"
-                  blocked={busy || !group.latest.registered}
-                  onClick={() =>
-                    setForm(structuredClone(group.latest.product.document))
-                  }
-                >
-                  새 버전 만들기
-                </Button>
-                <p className={s.small}>
-                  새 버전을 등록하면 다음 청약부터 새 설명서를 씁니다. 청약한
-                  판매 건은 그때의 버전으로 남습니다.
-                </p>
-              </aside>
-            </div>
+            </>
           )}
         </>
       )}

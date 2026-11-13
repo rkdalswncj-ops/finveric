@@ -12,7 +12,7 @@ import { PRODUCT_TYPES, type ProductType } from "@finveric/core";
 import type { ProductEntryDto } from "@finveric/core/api";
 import type { LoadState } from "../../shared/api.ts";
 import { Button } from "../../shared/button.tsx";
-import { Badge, Heading } from "../../shared/components.tsx";
+import { Badge, FilterChip, Heading } from "../../shared/components.tsx";
 import ui from "../../shared/ui.module.css";
 import {
   gradeName,
@@ -57,11 +57,13 @@ export function Catalog({
   const selling = latestProducts(products).sort(
     (a, b) => a.product.document.riskGrade - b.product.document.riskGrade,
   );
-  const filtered = selling.filter(
-    ({ product: { document } }) =>
-      (!type || document.type === type) &&
-      `${document.name} ${document.issuer}`.includes(query.trim()),
+  // 검색어에 맞는 상품. 유형 칩의 건수도 이 목록으로 센다.
+  const matches = selling.filter(({ product: { document } }) =>
+    `${document.name} ${document.issuer}`.includes(query.trim()),
   );
+  const ofType = (value: ProductType | "") =>
+    matches.filter(({ product }) => !value || product.document.type === value);
+  const filtered = ofType(type);
   return (
     <>
       <Heading
@@ -71,14 +73,13 @@ export function Catalog({
       <div className={s.tools}>
         <div className={s.chips} role="group" aria-label="상품 유형">
           {(["", ...PRODUCT_TYPES] as const).map((value) => (
-            <button
+            <FilterChip
               key={value || "all"}
-              aria-pressed={type === value}
+              label={value || "전체"}
+              count={ofType(value).length}
+              pressed={type === value}
               onClick={() => setType(value)}
-              className={type === value ? s.chipActive : ""}
-            >
-              {value || "전체"}
-            </button>
+            />
           ))}
         </div>
         <div className={s.search}>

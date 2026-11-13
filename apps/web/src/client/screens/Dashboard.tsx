@@ -214,7 +214,7 @@ export function Dashboard({
             {selling.map(({ product }) => (
               <li key={product.id}>
                 <span>{productName(product.document)}</span>
-                <Badge>v{product.version}</Badge>
+                <span className={s.versionText}>v{product.version}</span>
               </li>
             ))}
           </ul>

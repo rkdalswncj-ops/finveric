@@ -4,6 +4,7 @@ import type { Deployment } from "@finveric/core";
 import type { EventRef, LedgerSnapshot } from "@finveric/core/ledger";
 import {
   Badge,
+  Count,
   Facts,
   Heading,
   Stat,
@@ -13,12 +14,11 @@ import {
 import { dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
-import { LedgerGate, LedgerLine } from "../components.tsx";
+import { LedgerGate, LedgerLine, Ratio } from "../components.tsx";
 import {
   customerPath,
   customerRefs,
   gradeLabel,
-  percent,
   productName,
   ruleLabel,
   salePath,
@@ -111,15 +111,6 @@ function ledgerEvents(snapshot: LedgerSnapshot): LedgerEvent[] {
 }
 
 /** 감독기관 첫 화면. 원장 이벤트만으로 판매 현황을 집계한다. */
-/**
- * 표의 건수 칸. 0은 옅게 보여 값이 있는 칸이 먼저 보이게 한다.
- * `warn`은 0이 아닐 때 주의 색으로 강조한다(예: 부적합 확정). 뜻은 열 제목이 알린다.
- */
-function Count({ value, warn }: { value: number; warn?: boolean }) {
-  const tone = value === 0 ? s.zero : warn ? s.warnCount : "";
-  return <td className={`${s.numeric} ${tone}`}>{value}</td>;
-}
-
 export function Dashboard({
   deployment,
   ledger,
@@ -233,26 +224,7 @@ function Summary({
               원장의 진단·청약·확정 이벤트로 계산합니다.
             </p>
             {ratios.map((ratio) => (
-              <div key={ratio.label} className={s.ratio}>
-                <div>
-                  <span>{ratio.label}</span>
-                  <strong>{percent(ratio.part, ratio.whole)}</strong>
-                </div>
-                <div
-                  className={s.bar}
-                  role="img"
-                  aria-label={`${ratio.label} ${percent(ratio.part, ratio.whole)}`}
-                >
-                  <span
-                    style={{
-                      width: ratio.whole
-                        ? `${(ratio.part / ratio.whole) * 100}%`
-                        : 0,
-                    }}
-                  />
-                </div>
-                <p>{ratio.note}</p>
-              </div>
+              <Ratio key={ratio.label} {...ratio} />
             ))}
           </section>
           <TableScroll

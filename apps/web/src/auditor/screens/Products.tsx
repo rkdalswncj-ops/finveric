@@ -9,6 +9,7 @@ import {
 import type { LedgerProduct, LedgerSnapshot } from "@finveric/core/ledger";
 import {
   Badge,
+  Count,
   Facts,
   Heading,
   Notice,
@@ -140,7 +141,7 @@ function ProductAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
                       {allMatch ? "모든 버전 일치" : "불일치 버전 있음"}
                     </Badge>
                   </td>
-                  <td className={s.numeric}>{salesOf(id)}건</td>
+                  <Count value={salesOf(id)} />
                 </tr>
               );
             })}
@@ -256,7 +257,7 @@ function ProductDetail({
                     {entry.matches ? "지문 일치" : "불일치"}
                   </Badge>
                 </td>
-                <td className={s.numeric}>{salesOf(entry.version)}건</td>
+                <Count value={salesOf(entry.version)} />
                 {technical && (
                   <td className={s.numeric}>{entry.block.toString()}</td>
                 )}
