@@ -108,11 +108,7 @@ export class SaleRepository {
   }
   find(id: string) {
     const record = this.data.sales.find((s) => s.id === id);
-    if (!record)
-      throw new CodedError(
-        "판매 건을 찾을 수 없습니다. 판매 ID를 확인하세요.",
-        "not_found",
-      );
+    if (!record) throw new CodedError("SALE_NOT_FOUND");
     return record;
   }
   add(record: StoredSale) {

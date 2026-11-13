@@ -17,9 +17,10 @@ const STYLE = `
   --primary-foreground: #ffffff;
   --primary-hover: #1d4ed8;
   --primary-surface: #edf3ff;
-  /* 메서드 색. GET은 primary를 쓰고 POST는 보라다. 상태 색(성공·주의·실패)과 겹치지 않는다. */
-  --method-post: #6d28d9;
-  --method-post-surface: #f3eeff;
+  /* 메서드 색. GET 파랑(primary), POST 초록(Stripe·Scalar 관례).
+     POST 초록은 성공 색(#116149, 색상 162°)과 다른 연두 계열(104°)이라 상태 배지와 구분된다. */
+  --method-post: #217005;
+  --method-post-surface: #eef7e9;
   --ring: #1d4ed8;
   --success: #116149;
   --success-surface: #eaf6ef;
@@ -309,7 +310,8 @@ li code.op-index-path { background: none; padding: 0; }
 .block { margin-top: 20px; }
 .block > h4 { font-size: var(--type-detail); color: var(--muted-foreground); font-weight: 600; margin-bottom: 8px; }
 
-/* 메서드는 종류다. 상태 색(성공·주의·실패)을 쓰지 않는다. GET(읽기)은 파랑, POST(기록을 바꾸는 요청)는 보라다. */
+/* 메서드는 종류다. 상태 색(성공·주의·실패)을 쓰지 않는다. GET 파랑, POST 초록(Stripe·Scalar 관례).
+   POST 초록은 성공 색(#116149, 색상 162°)과 다른 연두 계열(104°)이라 상태 배지와 구분된다. */
 .method {
   display: inline-block;
   font: 600 var(--type-caption)/1 var(--mono);
@@ -448,7 +450,7 @@ pre.code {
   white-space: nowrap;
 }
 
-/* 오류 코드 표. 좁은 화면에서는 행마다 칸을 위아래로 쌓는다. 표의 뜻은 role로 남긴다. */
+/* 오류 코드 표와 경로별 오류 표. 좁은 화면에서는 행마다 칸을 위아래로 쌓는다. 표의 뜻은 role로 남긴다. */
 .codes-section h3 { font-size: var(--type-title); margin-top: 32px; }
 .codes-section h3 + p { margin-top: 6px; color: var(--muted-foreground); max-width: 72ch; }
 .table-wrap {
@@ -460,10 +462,21 @@ pre.code {
 }
 .codes { width: 100%; border-collapse: collapse; font-size: var(--type-detail); }
 .codes th, .codes td { text-align: left; vertical-align: top; padding: 12px 16px; border-bottom: 1px solid var(--border); }
-.codes thead th { font-size: var(--type-ui); font-weight: 600; color: var(--muted-foreground); background: var(--muted); }
-.codes tbody tr:last-child > * { border-bottom: 0; }
+.codes thead th { font-size: var(--type-ui); font-weight: 600; color: var(--muted-foreground); background: var(--muted); white-space: nowrap; }
+.codes tbody:last-child tr:last-child > * { border-bottom: 0; }
 .codes tbody th { font-weight: 400; }
 .codes tbody th code { white-space: nowrap; font-weight: 600; }
+/* type 묶음의 머리 행. 묶음 사이를 굵은 선으로 나눈다. */
+.codes tbody + tbody tr.group > * { border-top: 2px solid var(--border); }
+.codes tr.group > th { background: var(--background); }
+.group-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.group-text { margin-top: 4px; color: var(--muted-foreground); max-width: 72ch; }
+.code-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+/* 경로별 오류 표는 경로 카드 안에 있다. 칸 여백을 줄여 메시지 칸을 넓힌다. */
+.block .table-wrap { margin-top: 0; }
+.block .table-wrap + .note { margin-top: 10px; }
+.block .codes th, .block .codes td { padding: 8px 12px; }
+.block .codes tbody th code { font-size: var(--type-ui); }
 .codes tbody tr:target > * { background: var(--primary-surface); }
 .codes tbody tr:target > :first-child { box-shadow: inset 3px 0 0 var(--primary); }
 .statuses { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -501,8 +514,12 @@ pre.code {
   }
   .codes, .codes tbody, .codes tr, .codes th, .codes td { display: block; }
   .codes tbody tr { padding: 12px 16px; border-bottom: 1px solid var(--border); }
-  .codes tbody tr:last-child { border-bottom: 0; }
-  .codes tbody th, .codes tbody td { padding: 0; border: 0; }
+  .codes tbody:last-child tr:last-child { border-bottom: 0; }
+  .codes tr.group { background: var(--background); }
+  .codes tbody + tbody tr.group { border-top: 2px solid var(--border); }
+  .codes tbody + tbody tr.group > * { border-top: 0; }
+  .codes tbody th, .codes tbody td, .block .codes tbody th, .block .codes tbody td { padding: 0; border: 0; }
+  .block .codes tbody tr { padding: 10px 12px; }
   .codes tbody tr > * + * { margin-top: 8px; }
   .codes tbody tr:target { background: var(--primary-surface); box-shadow: inset 3px 0 0 var(--primary); }
   .codes tbody tr:target > :first-child { box-shadow: none; }
@@ -572,7 +589,7 @@ const SCRIPT = String.raw`
   var wide = window.matchMedia("(min-width: 1024px)");
   var own = Object.prototype.hasOwnProperty;
 
-  // openapi.ts의 "### 오류 코드" 묶음. 이 화면은 그 묶음 대신 x-error-codes로 표를 그린다.
+  // openapi.ts의 "### 오류 코드" 묶음. 이 화면은 그 묶음 대신 x-error-types·x-error-codes로 표를 그린다.
   var CODES_SECTION = "오류 코드";
   var LANGUAGE_KEY = "finveric-docs-language";
   var LANGUAGES = [
@@ -597,9 +614,11 @@ const SCRIPT = String.raw`
     var saved = localStorage.getItem(LANGUAGE_KEY);
     if (LANGUAGES.some(function (item) { return item.key === saved; })) language = saved;
   } catch (e) {}
-  var targets = {}; // 백틱 안의 이름(code, ledgerError, operationId) → 문서 안 주소
+  var targets = {}; // 백틱 안의 이름(type, code, ledgerError, operationId) → 문서 안 주소
   var requests = []; // 언어 탭이 있는 요청 예시
   var hasCodes = false; // 문서에 x-error-codes가 있으면 오류 코드 표를 그린다.
+  var catalog = {}; // code → x-error-codes의 항목(type, status, message, description, common)
+  var codeOrder = {}; // code → 오류 코드 표의 순서
   var resize = "ResizeObserver" in window
     ? new ResizeObserver(function (entries) { entries.forEach(function (entry) { fit(entry.target); }); })
     : null;
@@ -786,6 +805,36 @@ const SCRIPT = String.raw`
     var n = Number(code);
     return n < 300 ? "ok" : n < 500 ? "client" : "server";
   }
+  // 경로별 오류 표: 이 경로만의 code는 표로, 공통 오류는 그 아래 한 줄로 보여 준다. code는 오류 코드 표로 연결한다.
+  function codeLink(code) {
+    return h("a", { href: "#code-" + code, class: "code-link" }, h("code", null, code));
+  }
+  function operationErrorsView(codes) {
+    var known = codes.filter(function (code) { return own.call(catalog, code); });
+    var sorted = known.slice().sort(function (a, b) {
+      return catalog[a].status - catalog[b].status || codeOrder[a] - codeOrder[b];
+    });
+    var specific = sorted.filter(function (code) { return !catalog[code].common; });
+    var common = sorted.filter(function (code) { return catalog[code].common; });
+    return h("div", { class: "block" }, h("h4", null, "이 API의 오류"),
+      specific.length
+        ? table("이 API의 오류", ["HTTP 상태", "code", "메시지"], specific.map(function (code) {
+            var item = catalog[code];
+            return {
+              cells: [
+                h("span", { class: "code-status " + statusClass(item.status) }, String(item.status)),
+                codeLink(code),
+                item.message,
+              ],
+            };
+          }), 1)
+        : h("p", { class: "note" }, "이 API만의 오류는 없습니다."),
+      common.length
+        ? h("p", { class: "note" }, "공통 오류: ",
+            common.map(function (code, i) { return [i ? ", " : null, codeLink(code)]; }),
+            ". 뜻과 다음 행동은 ", h("a", { href: "#error-codes", class: "jump" }, "오류 코드 표"), "에 있습니다.")
+        : null);
+  }
   function responsesView(spec, op) {
     var success = [];
     var other = [];
@@ -807,7 +856,9 @@ const SCRIPT = String.raw`
     });
     return [
       h("div", { class: "block" }, h("h4", null, "응답"), success),
-      other.length
+      hasCodes && op["x-errors"]
+        ? operationErrorsView(op["x-errors"])
+        : other.length
         ? h("div", { class: "block" }, h("h4", null, "오류 응답"),
             h("ul", { class: "errors" }, other),
             hasCodes
@@ -1241,7 +1292,24 @@ const SCRIPT = String.raw`
       group.ops.map(function (item) { return operationView(spec, ctx, item); }));
   }
 
-  function table(caption, headers, rows) {
+  // 표 하나. rows의 행마다 cells를 칸으로 둔다. head번째 칸이 행 제목(th)이다.
+  // groups를 주면 묶음마다 tbody를 만들고, 묶음 머리 행(group)을 먼저 둔다.
+  function table(caption, headers, rows, head, groups) {
+    head = head || 0;
+    function row(item) {
+      return h("tr", { role: "row", id: item.id }, item.cells.map(function (cell, i) {
+        if (i === head) return h("th", { scope: "row", role: "rowheader" }, cell);
+        return h("td", { role: "cell" }, h("span", { class: "cell-label", "aria-hidden": "true" }, headers[i]), cell);
+      }));
+    }
+    var bodies = (groups || [{ rows: rows }]).map(function (group) {
+      return h("tbody", { role: "rowgroup" },
+        group.head
+          ? h("tr", { role: "row", class: "group", id: group.id },
+              h("th", { scope: "rowgroup", role: "rowheader", colspan: headers.length }, group.head))
+          : null,
+        group.rows.map(row));
+    });
     return h("div", { class: "table-wrap" },
       h("table", { class: "codes", role: "table" },
         h("caption", { class: "sr-only" }, caption),
@@ -1249,37 +1317,51 @@ const SCRIPT = String.raw`
           h("tr", { role: "row" }, headers.map(function (name) {
             return h("th", { scope: "col", role: "columnheader" }, name);
           }))),
-        h("tbody", { role: "rowgroup" }, rows.map(function (row) {
-          return h("tr", { role: "row", id: row.id }, row.cells.map(function (cell, i) {
-            if (!i) return h("th", { scope: "row", role: "rowheader" }, cell);
-            return h("td", { role: "cell" }, h("span", { class: "cell-label", "aria-hidden": "true" }, headers[i]), cell);
-          }));
-        }))));
+        bodies));
   }
-  function errorCodesView(codes, ledger) {
+  function statusBadges(list) {
+    return h("span", { class: "statuses" }, list.map(function (status) {
+      return h("span", { class: "code-status " + statusClass(status) }, String(status));
+    }));
+  }
+  // 오류 코드 표: type마다 묶는다. 묶음 머리에 type, HTTP 상태, 뜻, 다음 행동을, 행마다 code를 둔다.
+  function errorCodesView(types, codes, ledger) {
+    var groups = types.map(function (item) {
+      return {
+        id: "type-" + item.type,
+        head: [
+          h("span", { class: "group-head" }, h("code", null, item.type), statusBadges(item.status || [])),
+          h("p", { class: "group-text" }, inline(item.meaning)),
+          h("p", { class: "group-text" }, inline("다음 행동: " + item.action)),
+        ],
+        rows: codes.filter(function (code) { return code.type === item.type; }).map(function (code) {
+          return {
+            id: "code-" + code.code,
+            cells: [
+              h("span", { class: "code-cell" }, h("code", null, code.code), code.common ? h("span", { class: "badge" }, "공통") : null),
+              statusBadges([code.status]),
+              inline(code.description),
+              code.message,
+            ],
+          };
+        }),
+      };
+    }).filter(function (group) { return group.rows.length; });
     return h("section", { class: "tag codes-section", id: "error-codes", "aria-labelledby": "error-codes-title", "data-spy": "" },
       h("h2", { id: "error-codes-title" }, "오류 코드"),
-      h("p", null, inline("모든 오류 응답에 " + tick("code") + "가 있습니다. 연동 앱은 " + tick("code") + "로 다음 행동을 고릅니다. 원장이 거절하면 " + tick("ledgerError") + "도 옵니다.")),
-      h("h3", { id: "error-codes-code" }, h("code", null, "code")),
-      table("code 목록", ["code", "HTTP 상태", "뜻", "다음 행동"], codes.map(function (item) {
-        return {
-          id: "code-" + item.code,
-          cells: [
-            h("code", null, item.code),
-            h("span", { class: "statuses" }, (item.status || []).map(function (status) {
-              return h("span", { class: "code-status " + statusClass(status) }, String(status));
-            })),
-            inline(item.meaning),
-            inline(item.action),
-          ],
-        };
-      })),
+      h("p", null, inline("모든 오류 응답에 " + tick("type") + "과 " + tick("code") + "가 있습니다. " + tick("type") + "은 오류의 종류이고 HTTP 상태를 정합니다. 연동 앱은 " + tick("type") + "으로 처리 방법을 고르고, 더 자세히 나눌 때 " + tick("code") + "를 씁니다. 원장이 거절하면 " + tick("ledgerError") + "도 옵니다.")),
+      h("p", null, inline("경로마다 생길 수 있는 " + tick("code") + "는 그 경로의 “이 API의 오류”에 있습니다. 공통 표시가 있는 " + tick("code") + "는 인증, 형식, 요청 한도, 저장소처럼 여러 경로에 같은 오류입니다.")),
+      h("h3", { id: "error-codes-code" }, h("code", null, "type"), "과 ", h("code", null, "code")),
+      table("type별 code 목록", ["code", "HTTP 상태", "설명", "메시지"], null, 0, groups),
       ledger.length
         ? [
             h("h3", { id: "error-codes-ledger" }, h("code", null, "ledgerError")),
-            h("p", null, inline(tick("code") + "가 " + tick("rejected") + "일 때 원장 오류 이름입니다. 원장이 이름을 알리지 않으면 이 필드가 없습니다.")),
-            table("ledgerError 목록", ["ledgerError", "뜻과 다음 행동"], ledger.map(function (item) {
-              return { id: "ledger-" + item.name, cells: [h("code", null, item.name), inline(item.meaning)] };
+            h("p", null, inline(tick("type") + "이 " + tick("rejected") + "일 때 원장 오류 이름입니다. 원장이 이름을 알리지 않으면 이 필드가 없고 " + tick("code") + "는 " + tick("LEDGER_REJECTED") + "입니다.")),
+            table("ledgerError 목록", ["ledgerError", "code", "뜻과 다음 행동"], ledger.map(function (item) {
+              return {
+                id: "ledger-" + item.name,
+                cells: [h("code", null, item.name), item.code ? codeLink(item.code) : "—", inline(item.meaning)],
+              };
             })),
           ]
         : null);
@@ -1400,6 +1482,7 @@ const SCRIPT = String.raw`
     var base = new URL((spec.servers && spec.servers[0] && spec.servers[0].url) || "/", location.href).href.replace(/\/$/, "");
     var info = spec.info || {};
     var parts = sections(info.description);
+    var types = spec["x-error-types"] || [];
     var codes = spec["x-error-codes"] || [];
     var ledger = spec["x-ledger-errors"] || [];
 
@@ -1421,7 +1504,12 @@ const SCRIPT = String.raw`
     });
     groups = groups.filter(function (g) { return g.ops.length; });
     hasCodes = codes.length > 0;
-    codes.forEach(function (item) { targets[item.code] = "#code-" + item.code; });
+    types.forEach(function (item) { targets[item.type] = "#type-" + item.type; });
+    codes.forEach(function (item, i) {
+      targets[item.code] = "#code-" + item.code;
+      catalog[item.code] = item;
+      codeOrder[item.code] = i;
+    });
     ledger.forEach(function (item) { targets[item.name] = "#ledger-" + item.name; });
 
     var lead = document.getElementById("lead");
@@ -1436,13 +1524,13 @@ const SCRIPT = String.raw`
         return h("section", { class: wideCard ? "wide" : null },
           h("h2", null, part.title), blocks(part.text),
           wideCard && codes.length
-            ? h("p", null, inline(tick("code") + "와 " + tick("ledgerError") + "마다 뜻과 다음 행동은 "), h("a", { href: "#error-codes", class: "jump" }, "오류 코드 표"), "에 있습니다.")
+            ? h("p", null, inline(tick("type") + ", " + tick("code") + ", " + tick("ledgerError") + "마다 뜻과 다음 행동은 "), h("a", { href: "#error-codes", class: "jump" }, "오류 코드 표"), "에 있습니다.")
             : null);
       })
       .concat(requestIntro()));
 
     var guide = [h("li", { "data-search": "개요" }, h("a", { href: "#overview" }, "개요"))];
-    if (codes.length) guide.push(h("li", { "data-search": "오류 코드 code ledgererror" }, h("a", { href: "#error-codes" }, "오류 코드")));
+    if (codes.length) guide.push(h("li", { "data-search": "오류 코드 type code ledgererror" }, h("a", { href: "#error-codes" }, "오류 코드")));
     toc.replaceChildren.apply(toc, [
       h("div", { class: "toc-group" },
         h("p", { class: "toc-title", id: "toc-guide" }, "안내"),
@@ -1460,7 +1548,7 @@ const SCRIPT = String.raw`
 
     var operations = document.getElementById("operations");
     operations.replaceChildren.apply(operations, groups.map(function (g, i) { return tagView(spec, ctx, g, i); })
-      .concat(codes.length ? errorCodesView(codes, ledger) : []));
+      .concat(codes.length ? errorCodesView(types, codes, ledger) : []));
     statusLine.hidden = true;
     if (searchInput.value) filter();
     spy();

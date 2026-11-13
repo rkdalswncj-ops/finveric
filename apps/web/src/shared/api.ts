@@ -1,5 +1,6 @@
 import type { LedgerError } from "@finveric/core";
-import type { ErrorCode, ErrorResponse } from "@finveric/core/api";
+import type { ErrorResponse } from "@finveric/core/api";
+import type { ErrorCode, ErrorType } from "@finveric/core/errors";
 
 export function token() {
   return sessionStorage.getItem("finveric-token") ?? "";
@@ -11,18 +12,29 @@ export const OFFLINE_MESSAGE =
 
 /**
  * API 오류. `message`는 화면에 보여 줄 한국어 문장이다.
- * `code`는 API 응답의 `code`이거나, 서버에 닿지 못했거나 응답이 JSON이 아니면 `offline`이다.
- * 고객 화면은 `code`로 고객용 문장을 고른다.
+ * `type`과 `code`는 API 응답의 값이다. 서버에 닿지 못했거나 응답이 JSON이 아니면 `type`이 `offline`이고 `code`가 없다.
+ * 고객 화면은 `type`(필요하면 `code`)으로 고객용 문장을 고른다.
  */
 export class ApiError extends Error {
+  readonly type?: ErrorType | "offline";
+  readonly code?: ErrorCode;
+  readonly ledgerError?: LedgerError;
+  readonly status?: number;
   constructor(
     message: string,
-    readonly code?: ErrorCode | "offline",
-    readonly ledgerError?: LedgerError,
-    readonly status?: number,
+    details: {
+      type?: ErrorType | "offline";
+      code?: ErrorCode;
+      ledgerError?: LedgerError;
+      status?: number;
+    } = {},
   ) {
     super(message);
     this.name = "ApiError";
+    this.type = details.type;
+    this.code = details.code;
+    this.ledgerError = details.ledgerError;
+    this.status = details.status;
   }
 }
 
@@ -42,14 +54,17 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
   } catch {
-    throw new ApiError(OFFLINE_MESSAGE, "offline");
+    throw new ApiError(OFFLINE_MESSAGE, { type: "offline" });
   }
   let value: unknown;
   try {
     value = await response.json();
   } catch {
     // 프록시가 돌려준 502처럼 본문이 비었거나 JSON이 아니다.
-    throw new ApiError(OFFLINE_MESSAGE, "offline", undefined, response.status);
+    throw new ApiError(OFFLINE_MESSAGE, {
+      type: "offline",
+      status: response.status,
+    });
   }
   if (!response.ok) {
     const failure = (value ?? {}) as Partial<ErrorResponse>;
@@ -57,9 +72,12 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
       typeof failure.error === "string" && failure.error
         ? failure.error
         : "요청을 완료하지 못했습니다. 잠시 뒤 다시 시도하세요.",
-      failure.code,
-      failure.ledgerError,
-      response.status,
+      {
+        type: failure.type,
+        code: failure.code,
+        ledgerError: failure.ledgerError,
+        status: response.status,
+      },
     );
   }
   return value as T;

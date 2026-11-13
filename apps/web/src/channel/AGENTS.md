@@ -66,10 +66,10 @@
 ## 데이터
 
 - 자료는 `src/shared`의 `api()`로만 읽고 쓴다. 응답 타입과 요청 본문은 `@finveric/core/api`의 DTO를 쓴다.
-- 오류는 `App.tsx`의 `customerMessage()`가 고객 문장으로 바꾼다. API 오류의 `code`로만 고른다. 원장 거절(`rejected`)은 `ledgerError`로 core의 `CUSTOMER_LEDGER_ERRORS`에서 고른다. 서버에 닿지 못하면 `offline`이다.
-- API 문장(`error`)은 화면에 보이지 않는다. API 문장은 판매사 개발자가 읽는 합니다체다. 모르는 `code`, `code`가 없는 응답, 없는 경로(404)는 `unavailable` 문장이다. 화면이 직접 던진 오류(해요체)만 그 문장을 그대로 쓴다.
-- 고객 문장에는 다음에 할 일을 쓴다. 원장·거래·해시·영수증 같은 말과 판매사 콘솔에서만 할 수 있는 안내를 쓰지 않는다. API에 `code`를 더하면 `customerMessage()`의 표에도 더한다.
-- 처리가 실패하면 `run()`이 자료를 다시 읽는다. 다른 탭에서 상태가 바뀐 판매 건(`wrong_state`)도 화면이 실제 상태를 보여 준다.
+- 오류는 `App.tsx`의 `customerMessage()`가 고객 문장으로 바꾼다. API 오류의 `type`으로 고른다(`CUSTOMER_MESSAGES`). `type` 문장보다 분명한 문장이 필요한 `code`만 `CUSTOMER_CODE_MESSAGES`에 둔다(예: 중단한 가입 `SALE_ABANDONED`와 이미 청약한 가입 `SALE_ALREADY_SUBSCRIBED`). 원장 거절(`rejected`)은 `ledgerError`로 core의 `CUSTOMER_LEDGER_ERRORS`에서 고른다. 서버에 닿지 못하면 `type`이 `offline`이다.
+- API 문장(`error`)은 화면에 보이지 않는다. API 문장은 판매사 개발자가 읽는 합니다체다. 모르는 `type`, `type`이 없는 응답, 없는 경로(`ROUTE_NOT_FOUND`)는 `unavailable` 문장이다. 화면이 직접 던진 오류(해요체)만 그 문장을 그대로 쓴다.
+- 고객 문장에는 다음에 할 일을 쓴다. 원장·거래·해시·영수증 같은 말과 판매사 콘솔에서만 할 수 있는 안내를 쓰지 않는다. API에 `type`을 더하면 `CUSTOMER_MESSAGES`에도 더한다. 새 `code`는 `type` 문장으로 충분하면 더하지 않는다.
+- 처리가 실패하면 `run()`이 자료를 다시 읽는다. 다른 탭에서 상태가 바뀐 판매 건(`type`이 `wrong_state`)도 화면이 실제 상태를 보여 준다.
 - 처음 읽기에 실패하면 화면은 "불러오지 못했어요"를 보여 준다(`LoadState`의 `failed`). "불러오고 있어요"에 머물지 않는다.
 - `App.tsx`가 설정, 진단 기준, 상품, 판매 건, 시연 고객의 회차를 한 번에 읽는다. 화면은 `run()`으로 처리를 부르고, 끝나면 모두 다시 읽는다. 시연 고객 번호는 `/api/config`의 `demoCustomer`를 쓴다.
 - 가입 기록 확인(`/verify`)은 판매사 API를 부르지 않는다. `verifySale`(동적 import)로 지정 RPC의 원장과 대조한다. 결과는 `일치`, `불일치`, `기록 없음`만 쓴다.

@@ -4,7 +4,6 @@ import { CUSTOMER_LEDGER_ERRORS } from "@finveric/core";
 import type {
   ConfigDto,
   CustomerDto,
-  ErrorCode,
   ExportKind,
   ExportResponse,
   OpenSaleRequest,
@@ -13,6 +12,7 @@ import type {
   SaleAction,
   SaleDto,
 } from "@finveric/core/api";
+import type { ErrorCode, ErrorType } from "@finveric/core/errors";
 import { Button } from "../shared/button.tsx";
 import { api, ApiError, saveFile, type LoadState } from "../shared/api.ts";
 import { AccessCodeForm, Empty } from "../shared/components.tsx";
@@ -34,11 +34,11 @@ const UNAVAILABLE =
   "지금은 처리하지 못했어요. 잠시 후 다시 시도해 주세요. 계속 안 되면 판매사에 문의해 주세요.";
 
 /**
- * API 오류의 `code`별 고객 문장(해요체). 다음에 할 일을 함께 쓴다.
+ * API 오류의 `type`별 고객 문장(해요체). 다음에 할 일을 함께 쓴다.
  * 원장 거절(`rejected`)은 원장 오류 이름으로 `CUSTOMER_LEDGER_ERRORS`에서 고른다.
  */
 const CUSTOMER_MESSAGES: Readonly<
-  Record<Exclude<ErrorCode, "rejected"> | "offline", string>
+  Record<Exclude<ErrorType, "rejected"> | "offline", string>
 > = {
   offline: "서버에 연결하지 못했어요. 연결을 확인하고 화면을 새로 고쳐 주세요.",
   invalid_input:
@@ -66,8 +66,20 @@ const CUSTOMER_MESSAGES: Readonly<
 };
 
 /**
- * 오류를 고객에게 보여 줄 문장으로 바꾼다. API 응답의 `code`로만 고른다. API 문장(`error`)은 보이지 않는다.
- * 모르는 `code`나 `code`가 없는 응답은 `unavailable` 문장이다. `not_found`(404)는 없는 판매 건으로 안내한다.
+ * `type` 문장보다 고객에게 더 분명한 `code`별 문장. 여기에 없는 `code`는 `type` 문장을 쓴다.
+ * 없는 경로(`ROUTE_NOT_FOUND`)는 가입 기록 문제가 아니므로 일반 문장이다.
+ */
+const CUSTOMER_CODE_MESSAGES: Readonly<Partial<Record<ErrorCode, string>>> = {
+  ROUTE_NOT_FOUND: UNAVAILABLE,
+  SALE_ABANDONED: "중단한 가입이에요. 상품을 다시 골라 새로 가입해 주세요.",
+  SALE_ALREADY_SUBSCRIBED:
+    "이미 청약한 가입이에요. 내 가입에서 지금 상태를 확인해 주세요.",
+};
+
+/**
+ * 오류를 고객에게 보여 줄 문장으로 바꾼다. API 응답의 `type`으로 고르고, 더 분명한 `code`가 있으면 그 문장을 쓴다.
+ * API 문장(`error`)은 보이지 않는다. 모르는 `type`이나 `type`이 없는 응답은 `unavailable` 문장이다.
+ * `not_found`(404)는 없는 판매 건으로 안내한다. 없는 경로는 일반 문장이다.
  * 원장·거래·영수증 같은 말과 판매사 콘솔에서만 할 수 있는 안내를 고객에게 보이지 않는다.
  * 화면이 직접 던진 오류(해요체)만 그 문장을 그대로 쓴다.
  */
@@ -76,13 +88,15 @@ function customerMessage(error: unknown) {
     return error instanceof Error && /^[가-힣]/.test(error.message)
       ? error.message
       : UNAVAILABLE;
-  const { code, ledgerError } = error;
-  if (code === "rejected")
+  const { type, code, ledgerError } = error;
+  if (type === "rejected")
     return ledgerError && Object.hasOwn(CUSTOMER_LEDGER_ERRORS, ledgerError)
       ? CUSTOMER_LEDGER_ERRORS[ledgerError]
       : UNAVAILABLE;
-  return code && Object.hasOwn(CUSTOMER_MESSAGES, code)
-    ? CUSTOMER_MESSAGES[code]
+  if (code && Object.hasOwn(CUSTOMER_CODE_MESSAGES, code))
+    return CUSTOMER_CODE_MESSAGES[code] ?? UNAVAILABLE;
+  return type && Object.hasOwn(CUSTOMER_MESSAGES, type)
+    ? CUSTOMER_MESSAGES[type]
     : UNAVAILABLE;
 }
 
@@ -100,7 +114,7 @@ export type Run = <T>(
 
 /**
  * 증권사 앱 예시. 고객이 상품을 고르고, 가입하고, 받은 증명서로 기록을 확인한다.
- * 자료는 모두 FINVERIC API(packages/ui의 api())로 읽고 쓴다. 가입 기록 확인만 브라우저가 원장과 바로 대조한다.
+ * 자료는 모두 FINVERIC API(src/shared의 api())로 읽고 쓴다. 가입 기록 확인만 브라우저가 원장과 바로 대조한다.
  */
 export function App() {
   const location = useLocation();

@@ -49,12 +49,12 @@ export function Entry() {
     "loading",
   );
   useEffect(() => {
-    // 점검이 실패하면 API가 503을 돌려준다. 서버에 닿지 못하면 code가 offline이다.
+    // 점검이 실패하면 API가 503을 돌려준다. 서버에 닿지 못하면 type이 offline이다.
     api<HealthResponse>("/health")
       .then((result) => setHealth(result.ok ? "ok" : "fail"))
       .catch((e: unknown) =>
         setHealth(
-          e instanceof ApiError && e.code !== "offline" ? "fail" : "down",
+          e instanceof ApiError && e.type !== "offline" ? "fail" : "down",
         ),
       );
   }, []);

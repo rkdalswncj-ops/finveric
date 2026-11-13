@@ -5,7 +5,9 @@ import {
   DEMO_CUSTOMER_NO,
   DEMO_PRODUCTS,
   DEMO_RULE,
+  type LedgerError,
 } from "@finveric/core";
+import { LEDGER_ERROR_CODES, type ErrorCode } from "@finveric/core/errors";
 import {
   apiKeySchema,
   configResponseSchema,
@@ -62,10 +64,13 @@ export type Operation = {
   tag: Tag;
   summary: string;
   description: string;
-  /** 성공(2xx)과 그 경로만의 응답. 공통 오류(400·401·403·409·429)는 문서 생성이 더한다. */
+  /** 성공(2xx)과 그 경로만의 응답. 오류 응답은 `errors`와 공통 오류로 문서 생성이 만든다. */
   responses: Record<number, SuccessResponse>;
-  /** 업무 오류(409)가 없는 경로. */
-  noConflict?: true;
+  /**
+   * 이 경로만의 오류 `code`. 공통 오류(인증, 요청 한도, 형식, 저장소, INTERNAL_ERROR)는 문서 생성이 더한다.
+   * 상태마다 처음 나오는 `code`가 그 상태의 응답 예시다.
+   */
+  errors?: readonly ErrorCode[];
   /** 요청 본문 예시. */
   example?: unknown;
 };
@@ -75,6 +80,18 @@ const sale = (description: string) => ({
   200: { description, schema: saleSchema },
 });
 const [els] = DEMO_PRODUCTS;
+/**
+ * 원장 거래를 보내는 경로의 오류. `ledger`는 그 원장 함수가 거절할 수 있는 오류 이름이다(contracts/src/FundLedger.sol).
+ * 미확정 거래, 영수증 대기, 거래 제출 실패, 영수증의 이벤트 누락도 함께 생긴다.
+ */
+const sends = (...ledger: LedgerError[]): ErrorCode[] => [
+  ...ledger.map((name) => LEDGER_ERROR_CODES[name]),
+  "LEDGER_REJECTED",
+  "TRANSACTION_PENDING",
+  "RECEIPT_PENDING",
+  "TRANSACTION_NOT_SUBMITTED",
+  "RECEIPT_EVENT_MISSING",
+];
 
 /** 경로 값 예시. 이름이 같으면 모든 경로에 쓴다. */
 export const PARAMETER_EXAMPLES: Record<string, string> = {
@@ -96,7 +113,6 @@ export const OPERATIONS: Record<string, Operation> = {
     responses: {
       200: { description: "검증 설정", schema: configResponseSchema },
     },
-    noConflict: true,
   },
   "GET /api/rules": {
     operationId: "listRules",
@@ -140,6 +156,13 @@ export const OPERATIONS: Record<string, Operation> = {
     responses: {
       200: { description: "기록한 진단 회차", schema: diagnosisSchema },
     },
+    errors: [
+      "ANSWERS_NOT_MATCHING_RULE",
+      "RULE_NOT_REGISTERED",
+      "PROOF_GENERATION_FAILED",
+      "STORED_RECORD_MISMATCH",
+      ...sends("InvalidAttempt", "InvalidProof", "InvalidVersion", "Unauthorized"),
+    ],
     example: { answers: [2, 1, 1, 0, 1, 1] } satisfies DiagnoseRequest,
   },
   "POST /api/sales": {
@@ -149,6 +172,7 @@ export const OPERATIONS: Record<string, Operation> = {
     description:
       "고객과 상품으로 청약 전 신청(초안)을 만듭니다. 상품의 최신 설명서 버전을 씁니다. 원장 거래는 보내지 않습니다.",
     responses: sale("만든 판매 건(status: draft)"),
+    errors: ["PRODUCT_NOT_REGISTERED", "STORED_RECORD_MISMATCH"],
     example: {
       productId: els.id,
       customerNo: DEMO_CUSTOMER_NO,
@@ -161,14 +185,32 @@ export const OPERATIONS: Record<string, Operation> = {
     description:
       "판매 건의 상태, 적합 여부, 승인 필요 여부, 처리 기록을 돌려줍니다. 청약 뒤의 상태는 원장에서 읽습니다.",
     responses: sale("판매 건"),
+    errors: ["SALE_NOT_FOUND", "STORED_RECORD_MISMATCH"],
   },
   "POST /api/sales/:id/action/subscribe": {
     operationId: "subscribeSale",
     tag: "판매 채널 연동",
     summary: "청약",
     description:
-      "고객 키로 청약 거래를 보냅니다. 부적합이면 `higherRiskConfirmed`가 true여야 합니다. 녹취·숙려 대상이면 `recordingConsent`가 true여야 하고, 서버가 녹취록 지문을 기록합니다. 최신 회차가 3 이상이면 관리자 승인(`approveSale`)이 먼저 필요합니다. 조건이 빠지면 409와 함께 `code`로 이유를 알립니다: `needs_diagnosis`, `needs_higher_risk`, `needs_approval`, `needs_recording`, `product_changed`, `wrong_state`(중단한 신청). 이미 청약한 건은 거래를 다시 보내지 않습니다.",
+      "고객 키로 청약 거래를 보냅니다. 부적합이면 `higherRiskConfirmed`가 true여야 합니다. 녹취·숙려 대상이면 `recordingConsent`가 true여야 하고, 서버가 녹취록 지문을 기록합니다. 최신 회차가 3 이상이면 관리자 승인(`approveSale`)이 먼저 필요합니다. 조건이 빠지면 409와 함께 `code`로 이유를 알립니다: `DIAGNOSIS_REQUIRED`, `HIGHER_RISK_CONFIRMATION_REQUIRED`, `APPROVAL_REQUIRED`, `RECORDING_CONSENT_REQUIRED`, `PRODUCT_VERSION_CHANGED`, `SALE_ABANDONED`. 이미 청약한 건은 거래를 다시 보내지 않습니다.",
     responses: sale("청약한 판매 건(status: subscribed)"),
+    errors: [
+      "SALE_NOT_FOUND",
+      "APPROVAL_REQUIRED",
+      "DIAGNOSIS_REQUIRED",
+      "HIGHER_RISK_CONFIRMATION_REQUIRED",
+      "RECORDING_CONSENT_REQUIRED",
+      "PRODUCT_VERSION_CHANGED",
+      "SALE_ABANDONED",
+      "STORED_RECORD_MISMATCH",
+      ...sends(
+        "MissingRecords",
+        "InvalidAttempt",
+        "InvalidVersion",
+        "InvalidState",
+        "Unauthorized",
+      ),
+    ],
     example: {
       explanationSeconds: 180,
       higherRiskConfirmed: true,
@@ -182,6 +224,11 @@ export const OPERATIONS: Record<string, Operation> = {
     description:
       "고객 키로 가입을 확정합니다. 녹취·숙려 대상은 `coolingEndsAt`이 지나야 합니다. 그전에는 원장이 `TooEarly`로 거절합니다. 이미 확정한 건은 거래를 다시 보내지 않습니다.",
     responses: sale("확정한 판매 건(status: confirmed)"),
+    errors: [
+      "SALE_NOT_FOUND",
+      ...sends("TooEarly", "InvalidState", "Unauthorized"),
+      "CONFIRM_NOT_ALLOWED",
+    ],
   },
   "POST /api/sales/:id/action/withdraw": {
     operationId: "withdrawSale",
@@ -189,6 +236,11 @@ export const OPERATIONS: Record<string, Operation> = {
     summary: "청약 철회",
     description: "최종 확인 전의 청약을 고객 키로 철회합니다.",
     responses: sale("철회한 판매 건(status: withdrawn)"),
+    errors: [
+      "SALE_NOT_FOUND",
+      "WITHDRAW_NOT_ALLOWED",
+      ...sends("InvalidState", "Unauthorized"),
+    ],
   },
   "POST /api/sales/:id/action/abandon": {
     operationId: "abandonSale",
@@ -197,6 +249,7 @@ export const OPERATIONS: Record<string, Operation> = {
     description:
       "청약 전 신청을 중단합니다. 원장 거래는 없습니다. 이미 기록한 진단 회차는 원장에 남습니다.",
     responses: sale("중단한 판매 건(status: abandoned)"),
+    errors: ["SALE_NOT_FOUND", "SALE_ALREADY_SUBSCRIBED", "STORED_RECORD_MISMATCH"],
   },
   "GET /api/sales/:id/export/:kind": {
     operationId: "exportSale",
@@ -210,6 +263,12 @@ export const OPERATIONS: Record<string, Operation> = {
         schema: { oneOf: [receiptSchema, originalSchema] },
       },
     },
+    errors: [
+      "SALE_NOT_FOUND",
+      "SUBSCRIPTION_TX_NOT_FOUND",
+      "EXPORT_NOT_ALLOWED",
+      "STORED_RECORD_MISMATCH",
+    ],
   },
 
   // ── 판매사 콘솔 ───────────────────────────────────────────
@@ -222,6 +281,11 @@ export const OPERATIONS: Record<string, Operation> = {
     responses: {
       200: { description: "등록한 기준 버전", schema: ruleEntrySchema },
     },
+    errors: [
+      "RULE_DOCUMENT_INVALID",
+      "RULE_ALREADY_REGISTERED",
+      ...sends("InvalidVersion", "Unauthorized"),
+    ],
     example: { document: DEMO_RULE },
   },
   "POST /api/products": {
@@ -233,6 +297,10 @@ export const OPERATIONS: Record<string, Operation> = {
     responses: {
       200: { description: "등록한 상품 버전", schema: productEntrySchema },
     },
+    errors: [
+      "PRODUCT_DOCUMENT_INVALID",
+      ...sends("InvalidVersion", "Unauthorized"),
+    ],
     example: { document: els.document },
   },
   "POST /api/register": {
@@ -247,6 +315,7 @@ export const OPERATIONS: Record<string, Operation> = {
         schema: registerResponseSchema,
       },
     },
+    errors: sends("InvalidVersion", "Unauthorized"),
   },
   "GET /api/sales": {
     operationId: "listSales",
@@ -257,6 +326,7 @@ export const OPERATIONS: Record<string, Operation> = {
     responses: {
       200: { description: "판매 건 목록", schema: arrayOf(saleSchema) },
     },
+    errors: ["STORED_RECORD_MISMATCH"],
   },
   "POST /api/sales/:id/action/approve": {
     operationId: "approveSale",
@@ -265,6 +335,13 @@ export const OPERATIONS: Record<string, Operation> = {
     description:
       "최신 회차가 3 이상인 고객의 청약 전에 승인자 키로 승인 서명을 만듭니다. 서명은 청약 거래에 들어갑니다. 고객이 다시 진단하면 새로 승인해야 합니다.",
     responses: sale("승인한 판매 건(approvedAttempt 포함)"),
+    errors: [
+      "SALE_NOT_FOUND",
+      "APPROVAL_NOT_NEEDED",
+      "SALE_ABANDONED",
+      "SALE_ALREADY_SUBSCRIBED",
+      "STORED_RECORD_MISMATCH",
+    ],
   },
   "POST /api/sales/:id/action/settle": {
     operationId: "settleSale",
@@ -273,6 +350,11 @@ export const OPERATIONS: Record<string, Operation> = {
     description:
       "확정한 건의 결제 완료를 업무 인프라 키로 원장에 기록합니다. 이미 기록했으면 거래를 다시 보내지 않습니다.",
     responses: sale("결제를 기록한 판매 건(settled: true)"),
+    errors: [
+      "SALE_NOT_FOUND",
+      "SETTLEMENT_NOT_ALLOWED",
+      ...sends("InvalidState", "Unauthorized"),
+    ],
   },
   "GET /api/traces": {
     operationId: "listTraces",
@@ -293,7 +375,6 @@ export const OPERATIONS: Record<string, Operation> = {
     responses: {
       200: { description: "API 키 목록", schema: arrayOf(apiKeySchema) },
     },
-    noConflict: true,
   },
   "POST /api/keys": {
     operationId: "issueApiKey",
@@ -304,6 +385,7 @@ export const OPERATIONS: Record<string, Operation> = {
     responses: {
       200: { description: "발급한 키와 키 원문", schema: issuedApiKeySchema },
     },
+    errors: ["API_KEY_LIMIT_REACHED"],
     example: { name: "증권사 앱 운영 서버" } satisfies IssueApiKeyRequest,
   },
   "POST /api/keys/:id/revoke": {
@@ -315,6 +397,7 @@ export const OPERATIONS: Record<string, Operation> = {
     responses: {
       200: { description: "폐기한 키", schema: apiKeySchema },
     },
+    errors: ["API_KEY_NOT_FOUND"],
   },
   "POST /api/demo/tamper": {
     operationId: "simulateTamper",
@@ -325,6 +408,7 @@ export const OPERATIONS: Record<string, Operation> = {
     responses: {
       200: { description: "시뮬레이션 결과", schema: tamperResponseSchema },
     },
+    errors: ["ATTEMPT_NOT_RECORDED", "RPC_UNAVAILABLE"],
     example: { customerNo: DEMO_CUSTOMER_NO, attempt: 1 } satisfies TamperRequest,
   },
 
@@ -357,7 +441,6 @@ export const OPERATIONS: Record<string, Operation> = {
         } satisfies HealthResponse,
       },
     },
-    noConflict: true,
   },
   "GET /api/openapi.json": {
     operationId: "getOpenApi",
@@ -368,7 +451,6 @@ export const OPERATIONS: Record<string, Operation> = {
     responses: {
       200: { description: "OpenAPI 3.1 문서", schema: { type: "object" } },
     },
-    noConflict: true,
   },
   "GET /api/docs": {
     operationId: "getDocs",
@@ -384,7 +466,6 @@ export const OPERATIONS: Record<string, Operation> = {
         example: '<!doctype html>\n<html lang="ko">\n…\n</html>',
       },
     },
-    noConflict: true,
   },
 };
 

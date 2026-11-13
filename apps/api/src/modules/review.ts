@@ -11,11 +11,7 @@ import { note } from "./transactions.ts";
 export async function approve(svc: FundService, record: StoredSale) {
   await ensureDraft(svc, record);
   const attempt = await readAttemptCount(svc, record.customerRef);
-  if (attempt < 3)
-    throw new CodedError(
-      "승인할 필요가 없는 신청입니다. 3회차 미만 진단한 고객은 승인 없이 청약할 수 있습니다.",
-      "wrong_state",
-    );
+  if (attempt < 3) throw new CodedError("APPROVAL_NOT_NEEDED");
   if (record.approval?.attempt === attempt) return;
   record.approval = {
     attempt,

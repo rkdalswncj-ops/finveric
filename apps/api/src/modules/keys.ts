@@ -38,15 +38,10 @@ export function listApiKeys(svc: FundService): ApiKeyDto[] {
 export function issueApiKey(svc: FundService, name: string): IssuedApiKeyDto {
   const label = name.trim();
   if (!label)
-    throw new CodedError(
-      "키 이름이 비어 있습니다. 키를 쓰는 곳을 알 수 있는 이름을 보내세요.",
-      "invalid_input",
-    );
+    // 요청 스키마(공백 아닌 글자 하나 이상)가 먼저 거절한다. 서비스를 직접 부를 때도 같은 오류를 낸다.
+    throw new CodedError("INVALID_REQUEST");
   if (svc.repository.apiKeys().filter(active).length >= MAX_ACTIVE_API_KEYS)
-    throw new CodedError(
-      `사용 중인 API 키는 ${MAX_ACTIVE_API_KEYS}개까지입니다. 쓰지 않는 키를 폐기한 뒤 발급하세요.`,
-      "limit_reached",
-    );
+    throw new CodedError("API_KEY_LIMIT_REACHED");
   const key = API_KEY_PREFIX + randomBytes(24).toString("base64url");
   const stored: StoredApiKey = {
     id: `key_${randomBytes(6).toString("hex")}`,
@@ -63,11 +58,7 @@ export function issueApiKey(svc: FundService, name: string): IssuedApiKeyDto {
 /** 키를 폐기한다. 이미 폐기한 키는 그대로 돌려준다. */
 export function revokeApiKey(svc: FundService, id: string): ApiKeyDto {
   const key = svc.repository.apiKeys().find((k) => k.id === id);
-  if (!key)
-    throw new CodedError(
-      "찾을 수 없는 API 키입니다. 키 목록을 다시 읽어 키 ID를 확인하세요.",
-      "not_found",
-    );
+  if (!key) throw new CodedError("API_KEY_NOT_FOUND");
   if (!key.revokedAt) {
     key.revokedAt = new Date().toISOString();
     svc.repository.save();

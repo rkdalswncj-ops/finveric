@@ -26,6 +26,6 @@
 - `Badge`와 `Notice`의 `tone`은 `Tone`(`neutral`, `info`, `success`, `warning`, `danger`)이다. 상태 색 표(`sales.ts`의 `STATUS_TONES` 등)도 `Tone`으로 적는다.
 - 두 페이지 이상이 쓰는 표시 계산과 요소만 둔다. 한 페이지만 쓰는 화면이나 업무 규칙은 여기에 두지 않는다. 그 페이지의 폴더(`apps/web/src/<페이지>/`)에 둔다. 판정과 계산은 `packages/core`에 둔다.
 - `api.ts`는 판매사 API 클라이언트다. auditor 페이지는 이 클라이언트로 GET만 보낸다.
-- API 응답을 해석하는 곳은 `api()` 하나다. 실패하면 `ApiError`를 던진다. 서버에 닿지 못했거나 본문이 JSON이 아니면 `code`가 `offline`이고 문장은 `OFFLINE_MESSAGE`(합니다체)다. 고객 화면은 `code`로 고객 문장을 고른다.
+- API 응답을 해석하는 곳은 `api()` 하나다. 실패하면 `ApiError`를 던진다. `ApiError`는 응답의 `type`, `code`, `ledgerError`와 HTTP 상태를 갖는다. 서버에 닿지 못했거나 본문이 JSON이 아니면 `type`이 `offline`이고 `code`가 없다. 문장은 `OFFLINE_MESSAGE`(합니다체)다. 판매사 콘솔과 감독기관은 `message`(API 문장)를 보여 준다. 고객 화면은 `type`(필요하면 `code`)으로 고객 문장을 고른다.
 - `api<T>()`의 `T`와 요청 본문 타입은 `@finveric/core/api`의 DTO를 쓴다. 요청 본문에는 `satisfies DiagnoseRequest`처럼 DTO를 붙인다. 화면에서 응답 타입을 손으로 만들지 않는다.
 - `public/`의 `deployment*.json`은 `scripts/deploy.ts`와 `scripts/dev.ts`가 쓴다. Git에 넣지 않는다. Vercel 빌드는 `deploy/<network>/deployment.json`을 사이트 루트에 넣는다.

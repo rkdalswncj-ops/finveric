@@ -90,11 +90,7 @@ async function subscribedRecord(svc: FundService, id: string) {
   if (record.traces.some((t) => t.status === "pending" && t.txHash))
     await reconcile(svc);
   const chain = await readSale(svc, record.id);
-  if (chain.status === 0)
-    throw new CodedError(
-      "청약하지 않은 판매 건입니다. 청약한 뒤에 증명서와 원본을 받을 수 있습니다.",
-      "wrong_state",
-    );
+  if (chain.status === 0) throw new CodedError("EXPORT_NOT_ALLOWED");
   return { record, chain };
 }
 const confirmedTx = (record: StoredSale, action: string) =>
@@ -111,11 +107,7 @@ export async function receipt(
   const product = storedProduct(svc, chain.productId, chain.productVersion);
   const diagnosis = await readDiagnosis(svc, record.customerRef, chain.attempt);
   const subscribeTx = confirmedTx(record, "subscribe");
-  if (!subscribeTx)
-    throw new CodedError(
-      "판매 기록에서 확정한 청약 거래를 찾을 수 없습니다. 온체인 처리 기록에서 청약 거래를 확인하세요.",
-      "not_found",
-    );
+  if (!subscribeTx) throw new CodedError("SUBSCRIPTION_TX_NOT_FOUND");
   const confirmTx =
     chain.status === 2 ? confirmedTx(record, "confirm") : undefined;
   return {
@@ -154,8 +146,8 @@ export async function original(
       );
     if (!stored)
       throw new CodedError(
-        `판매 기록에 ${attempt}회차 진단 원본이 없습니다. 판매 기록 저장소가 같은 원장의 기록인지 확인하세요.`,
-        "unavailable",
+        "STORED_RECORD_MISMATCH",
+        `${attempt}회차 진단 원본이 판매 기록에 없습니다.`,
       );
     attempts.push({
       attempt,

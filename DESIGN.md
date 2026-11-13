@@ -28,8 +28,8 @@ colors:
   selection: "#DCE8FF"
   selection-foreground: "#173E91"
   scrollbar: "#848E9A"
-  method-post: "#6D28D9"
-  method-post-surface: "#F3EEFF"
+  method-post: "#217005"
+  method-post-surface: "#EEF7E9"
   shadow: "#191F282E"
   overlay: "#191F2873"
 typography:
@@ -154,7 +154,7 @@ YAML의 색상을 [shadcn/ui 테마 변수](https://ui.shadcn.com/docs/theming)�
 - `Badge`와 `Notice`의 `tone`은 `neutral`, `info`, `success`, `warning`, `danger` 다섯 가지다(`apps/web/src/shared/components.tsx`의 `Tone`). 색 이름(`blue` 등)은 쓰지 않는다.
 - 선택한 행과 고른 기록은 `primary-surface` 바탕에 더해 왼쪽 3px `primary` 막대로 표시한다. 현재 메뉴도 같은 막대를 쓴다. 가로 메뉴(640px 이하)에서는 아래 막대, 증권사 앱의 탭 막대에서는 위 막대다. 색만으로 상태를 나타내지 않는다.
 
-`primary-surface`는 선택한 행, 현재 메뉴, 파란 배지, 처리 중·대기 상자의 바탕이다. `product-fund`, `product-elb`와 각 `-surface`는 증권사 앱 예시의 상품 유형 기호에만 쓴다. 펀드 기호는 `success`와 색상이 겹치지 않는 청록이다. ELS 기호는 `primary`를 쓴다. `selection`은 끌어서 고른 글자, `scrollbar`는 스크롤 막대에 쓴다. `scrollbar`는 `muted` 바탕에서 3:1 이상이다. `shadow`는 떠 있는 요소(콘솔의 오류 알림, 아래 동작 막대)와 표 스크롤 가장자리의 그림자, `overlay`는 확인 창 뒤의 덮개다. `method-post`와 `method-post-surface`는 API 문서의 POST 배지에만 쓴다. GET 배지는 `primary`다. 메서드에는 상태 색을 쓰지 않는다. 색 값은 `apps/web/src/shared/theme.css`의 `:root`에만 둔다. API 문서만 쓰는 메서드 색은 `apps/api/src/docs/page.ts`의 `:root`에 둔다.
+`primary-surface`는 선택한 행, 현재 메뉴, 파란 배지, 처리 중·대기 상자의 바탕이다. `product-fund`, `product-elb`와 각 `-surface`는 증권사 앱 예시의 상품 유형 기호에만 쓴다. 펀드 기호는 `success`와 색상이 겹치지 않는 청록이다. ELS 기호는 `primary`를 쓴다. `selection`은 끌어서 고른 글자, `scrollbar`는 스크롤 막대에 쓴다. `scrollbar`는 `muted` 바탕에서 3:1 이상이다. `shadow`는 떠 있는 요소(콘솔의 오류 알림, 아래 동작 막대)와 표 스크롤 가장자리의 그림자, `overlay`는 확인 창 뒤의 덮개다. `method-post`와 `method-post-surface`는 API 문서의 POST 배지에만 쓴다. GET은 `primary`(파랑), POST는 `method-post`(초록)다. Stripe·Scalar 관례를 따른다. POST 초록은 `success`와 색상이 다른 연두 계열이고, 상태 배지에는 쓰지 않는다. 메서드에는 상태 색을 쓰지 않는다. 색 값은 `apps/web/src/shared/theme.css`의 `:root`에만 둔다. API 문서만 쓰는 메서드 색은 `apps/api/src/docs/page.ts`의 `:root`에 둔다.
 
 ## Typography
 
@@ -252,7 +252,7 @@ YAML의 색상을 [shadcn/ui 테마 변수](https://ui.shadcn.com/docs/theming)�
 ## Do's and Don'ts
 
 - 고객 문구는 해요체로 쓴다. 결과 제목에는 `가입 요청을 받았어요`, `마지막으로 가입 의사를 확인해요`, `가입이 확정됐어요`처럼 현재 상태를 적는다. 진입 화면, 판매사 콘솔, 감독기관 화면은 기관이 읽으므로 합니다체로 쓴다. 독립 검증의 검사 설명도 화면의 말투를 따른다(`verifySale`의 `voice`).
-- 오류 문구는 읽는 사람에 맞추고, 원인과 다음 행동을 함께 쓴다. API 오류 문장(`error`)과 판매사 콘솔·감독기관 화면은 합니다체다. 고객 화면은 API 문장을 보여 주지 않고, 오류의 `code`로 고른 해요체 문장을 쓴다. 고객 문장에는 원장 용어와 판매사 콘솔에서만 할 수 있는 안내를 쓰지 않는다.
+- 오류 문구는 읽는 사람에 맞추고, 원인과 다음 행동을 함께 쓴다. API 오류 문장(`error`)과 판매사 콘솔·감독기관 화면은 합니다체다. 고객 화면은 API 문장을 보여 주지 않고, 오류의 `type`(더 분명한 문장이 필요하면 `code`)으로 고른 해요체 문장을 쓴다. 고객 문장에는 원장 용어와 판매사 콘솔에서만 할 수 있는 안내를 쓰지 않는다.
 - 가입 확정은 지정한 원장에서 성공 영수증, 같은 판매 ID의 이벤트, 상태를 대조한 뒤 표시한다. 결제 기록은 별도 상태로 표시한다. 단순 파일 지문 일치와 가입 조건 검증 완료를 구분한다.
 - 실제 서비스 화면으로 만든다. 화면 문구에 `시연`, `모의`, `테스트용`을 쓰지 않는다. 발표용 조작 버튼을 두지 않는다. 네트워크 배지(`Anvil 테스트 원장`, `Sepolia 테스트넷`)는 연결한 환경을 알리므로 그대로 쓴다. 원장에 등록한 기준·상품 이름은 바꾸지 않는다. 바꾸면 해시가 바뀐다.
 - 디자인 규칙을 변경할 때 이 파일과 해당 UI를 함께 수정한다. 레퍼런스 버전을 바꿀 때는 커밋 링크를 갱신한다.

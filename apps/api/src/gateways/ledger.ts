@@ -17,7 +17,8 @@ import {
   type LedgerError,
   type Role,
 } from "@finveric/core";
-import { CodedError, ledgerRejectionMessage } from "../errors.ts";
+import { ledgerErrorCode } from "@finveric/core/errors";
+import { CodedError } from "../errors.ts";
 import type { FundService } from "../service.ts";
 
 /** 원장 연동에 필요한 실행 맥락: 역할 키, 배포 설정, RPC 클라이언트. */
@@ -98,10 +99,13 @@ export async function readBlockTime(chain: Chain) {
   return Number((await chain.client.getBlock()).timestamp);
 }
 
-/** 원장이 거절한 호출. 오류 이름은 원장의 사용자 정의 오류다. 응답의 `code`는 `rejected`다. */
+/**
+ * 원장이 거절한 호출. 오류 이름은 원장의 사용자 정의 오류다.
+ * 응답의 `type`은 `rejected`, `code`는 `LEDGER_<이름>`(이름을 모르면 `LEDGER_REJECTED`)이다.
+ */
 export class LedgerRejection extends CodedError {
   constructor(readonly error?: LedgerError) {
-    super(ledgerRejectionMessage(error), "rejected", error);
+    super(ledgerErrorCode(error));
   }
 }
 function rejection(error: unknown) {

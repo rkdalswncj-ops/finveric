@@ -3,13 +3,16 @@
 // 설명·분류·성공 응답은 operations.ts에서, 인증·오류·공통 설명은 이 파일에서 더한다.
 // 응답 스키마는 문서에만 넣는다. 경로의 schema.response에 넣으면 직렬화에 쓰여 필드가 빠진다.
 import type { FastifyDynamicSwaggerOptions } from "@fastify/swagger";
+import { errorResponseSchema } from "@finveric/core/api";
 import {
   ERROR_CODES,
-  errorResponseSchema,
-  type ErrorResponse,
-} from "@finveric/core/api";
-import { LEDGER_ERRORS } from "@finveric/core";
-import { HTTP_ERRORS, ledgerRejectionMessage } from "../errors.ts";
+  ERROR_TYPES,
+  errorBody,
+  LEDGER_ERROR_CODES,
+  type ErrorCode,
+  type ErrorType,
+} from "@finveric/core/errors";
+import { LEDGER_ERRORS, type LedgerError } from "@finveric/core";
 import {
   API_KEY_ID_EXAMPLE,
   CHANNEL_TAG,
@@ -38,6 +41,8 @@ const PARAMETER_DESCRIPTIONS: Record<string, string> = {
 type MediaType = { schema?: unknown; example?: unknown };
 type OperationObject = {
   operationId?: string;
+  /** 이 경로가 돌려줄 수 있는 오류 `code`. 경로만의 오류와 공통 오류다. 문서 화면의 경로별 오류 표가 읽는다. */
+  "x-errors"?: ErrorCode[];
   parameters?: {
     in: string;
     name: string;
@@ -51,16 +56,78 @@ type OperationObject = {
 type Spec = {
   paths: Record<string, Record<string, OperationObject>>;
   components?: Record<string, unknown>;
-  /** 오류 `code` 표. 문서 화면의 오류 코드 표가 읽는다. OpenAPI는 `x-` 확장을 허용한다. */
-  "x-error-codes"?: {
-    code: string;
+  /** 오류 `type` 표. 문서 화면의 오류 코드 표가 읽는다. OpenAPI는 `x-` 확장을 허용한다. */
+  "x-error-types"?: {
+    type: ErrorType;
     status: readonly number[];
     meaning: string;
     action: string;
   }[];
-  /** 원장 오류 이름(`ledgerError`)과 이유, 다음 행동. */
-  "x-ledger-errors"?: { name: string; meaning: string }[];
+  /** 오류 `code` 표. `common`은 경로마다 자동으로 더하는 공통 오류다. */
+  "x-error-codes"?: {
+    code: ErrorCode;
+    type: ErrorType;
+    status: number;
+    message: string;
+    description: string;
+    common: boolean;
+    ledgerError?: LedgerError;
+  }[];
+  /** 원장 오류 이름(`ledgerError`)과 그 `code`, 이유와 다음 행동. */
+  "x-ledger-errors"?: { name: LedgerError; code: ErrorCode; meaning: string }[];
 };
+
+const tick = (text: string) => `\`${text}\``;
+/** 오류 응답 상태마다 문서 설명의 첫 문장. 뒤에 그 경로의 `code` 목록을 붙인다. */
+const STATUS_TEXT: Record<number, string> = {
+  400: "경로 값이나 본문이 스키마와 다르거나, 값 검사에 맞지 않습니다.",
+  401: "접근 코드나 API 키가 맞지 않습니다.",
+  403: "허용하지 않은 출처이거나, API 키로 부를 수 없는 경로입니다.",
+  404: "경로 값의 대상이 없습니다.",
+  409: "업무 규칙이나 원장이 요청을 거절했거나, 처리를 끝내지 못했습니다.",
+  413: "본문이 64KB를 넘습니다.",
+  415: "본문 형식(`Content-Type`)이 JSON이 아닙니다.",
+  429: "요청 한도를 넘었습니다.",
+};
+
+/**
+ * 경로마다 자동으로 더하는 공통 오류. 인증, 출처·범위 검사, 요청 형식, 요청 한도, 저장소, 처리하지 못한 오류다.
+ * 상태마다 먼저 나온 `code`가 응답 예시가 된다.
+ */
+function commonErrors(options: {
+  method: string;
+  open: boolean;
+  channel: boolean;
+  input: boolean;
+}): ErrorCode[] {
+  const { method, open, channel, input } = options;
+  const post = method === "post";
+  const codes: ErrorCode[] = [];
+  // POST는 본문을 JSON으로 읽는다. 본문 스키마가 없어도 잘못된 JSON은 400, 64KB 초과는 413, JSON이 아니면 415다.
+  if (input || post) codes.push("INVALID_REQUEST");
+  if (post) codes.push("BODY_TOO_LARGE", "UNSUPPORTED_MEDIA_TYPE");
+  if (!open) {
+    codes.push("ACCESS_CODE_INVALID", "API_KEY_INVALID");
+    // API 키로 판매 채널 연동 밖의 경로를 부르면 403이다. POST는 출처도 검사한다.
+    if (!channel) codes.push("API_KEY_SCOPE_DENIED");
+    if (post) codes.push("ORIGIN_NOT_ALLOWED");
+    // 공개 경로가 아니면 판매 기록 저장소를 읽는다(API 키 확인 포함).
+    codes.push(
+      "INTERNAL_ERROR",
+      "STORE_UNAVAILABLE",
+      "STORE_LOCK_BUSY",
+      "STORE_LOCK_EXPIRED",
+    );
+  }
+  codes.push("RATE_LIMITED");
+  return codes;
+}
+
+/** `type`별 `code` 목록(설명의 오류 코드 묶음). */
+const codesOf = (type: ErrorType) =>
+  (Object.keys(ERROR_CODES) as ErrorCode[]).filter(
+    (code) => ERROR_CODES[code].type === type,
+  );
 
 /** title이 있는 스키마를 `components.schemas`로 옮기고 그 자리를 `$ref`로 바꾼다. */
 class Components {
@@ -117,30 +184,34 @@ export function openApiOptions(
           "### 출처 검사",
           "POST 요청에 `Origin` 헤더가 있으면 출처를 검사합니다. API와 같은 도메인, `WEB_ORIGIN`에 등록한 출처, 로컬 개발 서버(5173 포트)만 받습니다. 다른 출처는 403을 돌려줍니다. 서버 간 호출처럼 `Origin` 헤더가 없으면 검사하지 않습니다.",
           "### 오류",
-          '오류 본문은 `{ "error": "<한국어 문장>", "code": "<이유>", "ledgerError": "<원장 오류 이름>" }`입니다. `error`와 `code`는 모든 오류 응답에 있습니다.',
-          "`error`는 판매사 개발자와 판매사 콘솔이 읽는 합니다체 문장입니다. 원인과 다음 행동을 적습니다. 고객 화면에는 `error`를 그대로 보여 주지 않습니다. `code`(원장 거절이면 `ledgerError`도)로 고객용 문장을 고릅니다. 모르는 `code`는 `unavailable`처럼 다룹니다.",
+          '오류 본문은 `{ "error": "<한국어 문장>", "type": "<종류>", "code": "<상황>", "ledgerError": "<원장 오류 이름>" }`입니다. `error`, `type`, `code`는 모든 오류 응답에 있습니다.',
+          "`type`은 오류의 종류입니다. HTTP 상태를 정합니다. 연동 앱은 `type`으로 처리 방법을 고릅니다. `code`는 상황 하나를 가리키는 `UPPER_SNAKE_CASE` 값입니다. 값은 바뀌지 않습니다. 더 자세히 나눌 때 씁니다. 모르는 `code`는 `type`으로 다루고, 모르는 `type`은 `unavailable`처럼 다룹니다.",
+          "`error`는 판매사 개발자와 판매사 콘솔이 읽는 합니다체 문장입니다. 원인과 다음 행동을 적습니다. 고객 화면에는 `error`를 그대로 보여 주지 않습니다. `type`과 `code`(원장 거절이면 `ledgerError`)로 고객용 문장을 고릅니다. 경로마다 생길 수 있는 `code`는 그 경로의 오류 응답 설명과 `x-errors`에 있습니다.",
           [
             "- 400: 경로 값이나 본문이 스키마와 다르거나, 본문이 올바른 JSON이 아니거나, 값 검사에 맞지 않습니다(`invalid_input`).",
-            "- 401: 접근 코드가 없거나 다릅니다. 또는 없는 API 키, 폐기한 API 키입니다.",
-            "- 403: 허용하지 않은 출처입니다. 또는 API 키로 부를 수 없는 경로입니다.",
+            "- 401: 접근 코드가 없거나 다릅니다. 또는 없는 API 키, 폐기한 API 키입니다(`unauthorized`).",
+            "- 403: 허용하지 않은 출처입니다. 또는 API 키로 부를 수 없는 경로입니다(`forbidden`).",
             "- 404: 없는 경로이거나, 경로 값의 대상(판매 건, API 키, 청약 거래)이 없습니다(`not_found`).",
-            "- 409: 업무 규칙이나 원장이 요청을 거절했습니다. RPC·저장소 연결 실패도 409입니다(`unavailable`). `code`로 이유를 나눕니다.",
-            "- 413: 본문이 64KB를 넘습니다.",
-            "- 415: 본문 형식(`Content-Type`)이 JSON이 아닙니다.",
-            "- 429: 같은 API 키로, 키가 없으면 같은 IP에서 1분에 120번을 넘게 요청했습니다.",
-            "- 503: `GET /api/health`의 점검이 실패했습니다. Vercel 함수가 시작 검사에 실패해도 503입니다.",
+            "- 409: 업무 규칙이나 원장이 요청을 거절했습니다. RPC·저장소 연결 실패도 409입니다(`unavailable`). `type`과 `code`로 이유를 나눕니다.",
+            "- 413: 본문이 64KB를 넘습니다(`BODY_TOO_LARGE`).",
+            "- 415: 본문 형식(`Content-Type`)이 JSON이 아닙니다(`UNSUPPORTED_MEDIA_TYPE`).",
+            "- 429: 같은 API 키로, 키가 없으면 같은 IP에서 1분에 120번을 넘게 요청했습니다(`RATE_LIMITED`).",
+            "- 503: `GET /api/health`의 점검이 실패했습니다. Vercel 함수가 시작 검사에 실패해도 503입니다(`API_START_FAILED`).",
           ].join("\n"),
           "### 오류 코드",
-          "`code`의 값, HTTP 상태, 뜻과 다음 행동은 다음과 같습니다. 같은 표가 문서 루트의 `x-error-codes`에 있습니다.",
-          Object.entries(ERROR_CODES)
-            .map(
-              ([code, { status, meaning, action }]) =>
-                `- \`${code}\` (${status.join("·")}): ${meaning} ${action}`,
-            )
+          "`type`마다 HTTP 상태, 뜻, 다음 행동과 그 `code`는 다음과 같습니다. 같은 표가 문서 루트의 `x-error-types`와 `x-error-codes`에 있습니다. `code`마다 문장과 설명은 `x-error-codes`에 있습니다.",
+          (Object.keys(ERROR_TYPES) as ErrorType[])
+            .map((type) => {
+              const { status, meaning, action } = ERROR_TYPES[type];
+              return `- \`${type}\` (${status.join("·")}): ${meaning} ${action} \`code\`: ${codesOf(type).map(tick).join(", ")}.`;
+            })
             .join("\n"),
           "`ledgerError`의 값과 이유, 다음 행동은 다음과 같습니다. 같은 표가 `x-ledger-errors`에 있습니다.",
-          Object.entries(LEDGER_ERRORS)
-            .map(([name, reason]) => `- \`${name}\`: ${reason}`)
+          (Object.keys(LEDGER_ERRORS) as LedgerError[])
+            .map(
+              (name) =>
+                `- \`${name}\` (\`${LEDGER_ERROR_CODES[name]}\`): ${LEDGER_ERRORS[name]}`,
+            )
             .join("\n"),
           "### 값 형식",
           "원장의 uint256 값(커밋먼트, 블록 번호, 원장 시각 등)은 10진수 문자열입니다. 판매 ID도 10진수 문자열입니다. 해시와 주소는 `0x`로 시작하는 16진수입니다. 응답에 없는 선택 필드는 키를 넣지 않습니다.",
@@ -181,49 +252,12 @@ export function openApiOptions(
   };
 }
 
-/** 성공 응답, 공통 오류, 인증, 예시를 더한다. */
+/** 성공 응답, 경로별 오류, 인증, 예시를 더한다. */
 function finish(spec: Spec, publicPaths: ReadonlySet<string>) {
   const components = new Components();
   const byId = new Map(
     Object.values(OPERATIONS).map((op) => [op.operationId, op]),
   );
-  const error = (description: string, example: ErrorResponse) => ({
-    description,
-    content: json(components.ref(errorResponseSchema), example),
-  });
-  const errors = {
-    BadRequest: error(
-      "경로 값이나 본문이 스키마와 다릅니다. 본문이 올바른 JSON이 아닌 경우, 값 검사에 맞지 않는 경우(최신 기준과 맞지 않는 답변, 기준·상품 원문 오류)도 포함합니다. `code`는 `invalid_input`입니다.",
-      HTTP_ERRORS.badRequest,
-    ),
-    Unauthorized: error(
-      "접근 코드가 없거나 다릅니다. 또는 API 키가 없는 키이거나 폐기한 키입니다. 접근 코드는 서버에 설정한 경우에만 검사하고, API 키는 보내면 항상 검사합니다. `code`는 `unauthorized`입니다.",
-      HTTP_ERRORS.accessCode,
-    ),
-    Forbidden: error(
-      "POST 요청의 `Origin` 헤더 출처가 API와 같은 도메인도 아니고 허용 목록(`WEB_ORIGIN`)에도 없습니다. 또는 API 키로 `판매 채널 연동` 밖의 경로를 불렀습니다. `code`는 `forbidden`입니다.",
-      HTTP_ERRORS.apiKeyScope,
-    ),
-    NotFound: error(
-      "경로 값의 대상이 없습니다. 없는 판매 건, 없는 API 키, 판매 기록에 없는 청약 거래입니다. `code`는 `not_found`입니다.",
-      { error: "판매 건을 찾을 수 없습니다. 판매 ID를 확인하세요.", code: "not_found" },
-    ),
-    Conflict: error(
-      "업무 규칙이나 원장이 요청을 거절했습니다. RPC·저장소 연결 실패도 포함합니다. `error`에 이유와 다음 행동을 적습니다. `code`와 `ledgerError`로 이유를 나눕니다.",
-      {
-        error: ledgerRejectionMessage("TooEarly"),
-        code: "rejected",
-        ledgerError: "TooEarly",
-      },
-    ),
-    TooManyRequests: error(
-      "같은 API 키로, 키가 없으면 같은 IP에서 1분에 120번을 넘게 요청했습니다. `code`는 `rate_limited`입니다.",
-      HTTP_ERRORS.rateLimited,
-    ),
-  };
-  const shared = (name: keyof typeof errors) => ({
-    $ref: `#/components/responses/${name}`,
-  });
 
   for (const [path, item] of Object.entries(spec.paths)) {
     const fastifyPath = path.replace(/\{(\w+)\}/g, ":$1");
@@ -249,18 +283,31 @@ function finish(spec: Spec, publicPaths: ReadonlySet<string>) {
               }
             : {}),
         };
-      // POST는 본문을 JSON으로 읽는다. 본문 스키마가 없어도 잘못된 JSON은 400이다.
-      if (op.parameters?.length || op.requestBody || method === "post")
-        responses[400] = shared("BadRequest");
       const channel = operation.tag === CHANNEL_TAG;
-      if (!open) responses[401] = shared("Unauthorized");
-      // 403: POST의 출처 검사, 또는 API 키로 판매 채널 연동 밖의 경로를 부른 경우.
-      if (!open && (method === "post" || !channel))
-        responses[403] = shared("Forbidden");
-      // 404: 경로 값(`{id}`)으로 찾는 대상이 없을 때. 없는 경로의 404는 경로마다 적지 않는다.
-      if (path.includes("{id}")) responses[404] = shared("NotFound");
-      if (!operation.noConflict) responses[409] = shared("Conflict");
-      responses[429] = shared("TooManyRequests");
+      // 오류 응답은 이 경로의 `code`에서 만든다. 상태마다 설명에 `code` 목록을, 예시에 처음 나온 `code`를 넣는다.
+      // 없는 경로(ROUTE_NOT_FOUND)와 시작 실패(API_START_FAILED)는 모든 주소의 오류라 경로마다 적지 않는다.
+      const codes = [
+        ...new Set([
+          ...(operation.errors ?? []),
+          ...commonErrors({
+            method,
+            open,
+            channel,
+            input: !!(op.parameters?.length || op.requestBody),
+          }),
+        ]),
+      ];
+      op["x-errors"] = codes;
+      const byStatus = new Map<number, ErrorCode[]>();
+      for (const code of codes) {
+        const status = ERROR_CODES[code].status;
+        byStatus.set(status, [...(byStatus.get(status) ?? []), code]);
+      }
+      for (const [status, list] of byStatus)
+        responses[status] = {
+          description: `${STATUS_TEXT[status]} \`code\`: ${list.map(tick).join(", ")}.`,
+          content: json(components.ref(errorResponseSchema), errorBody(list[0])),
+        };
       op.responses = Object.fromEntries(
         Object.entries(responses).sort(([a], [b]) => Number(a) - Number(b)),
       );
@@ -302,16 +349,22 @@ function finish(spec: Spec, publicPaths: ReadonlySet<string>) {
       ]),
   );
   // 오류 코드 표. API 설명의 목록과 같은 값이다. 문서 화면은 이 확장으로 표를 그린다.
-  spec["x-error-codes"] = Object.entries(ERROR_CODES).map(
-    ([code, { status, meaning, action }]) => ({ code, status, meaning, action }),
+  spec["x-error-types"] = (Object.keys(ERROR_TYPES) as ErrorType[]).map(
+    (type) => ({ type, ...ERROR_TYPES[type] }),
   );
-  spec["x-ledger-errors"] = Object.entries(LEDGER_ERRORS).map(
-    ([name, meaning]) => ({ name, meaning }),
+  spec["x-error-codes"] = (Object.keys(ERROR_CODES) as ErrorCode[]).map(
+    (code) => ({ code, ...ERROR_CODES[code] }),
+  );
+  spec["x-ledger-errors"] = (Object.keys(LEDGER_ERRORS) as LedgerError[]).map(
+    (name) => ({
+      name,
+      code: LEDGER_ERROR_CODES[name],
+      meaning: LEDGER_ERRORS[name],
+    }),
   );
   spec.components = {
     ...spec.components,
     schemas: components.schemas,
-    responses: errors,
     securitySchemes: {
       accessCode: {
         type: "http",

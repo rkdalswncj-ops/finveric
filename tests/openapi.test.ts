@@ -3,9 +3,15 @@ import assert from "node:assert/strict";
 import { PUBLIC_PATHS } from "../apps/api/src/app.ts";
 import { offlineApp } from "./offline-app.ts";
 import { OPERATIONS, TAGS } from "../apps/api/src/docs/operations.ts";
-import { HTTP_ERRORS } from "../apps/api/src/errors.ts";
-import { ERROR_CODES, type ErrorCode } from "@finveric/core/api";
-import { LEDGER_ERRORS } from "@finveric/core";
+import {
+  ERROR_CODES,
+  ERROR_TYPES,
+  errorBody,
+  LEDGER_ERROR_CODES,
+  type ErrorCode,
+  type ErrorType,
+} from "@finveric/core/errors";
+import { LEDGER_ERRORS, type LedgerError } from "@finveric/core";
 
 /** 해요체 끝맺음. API 오류 문장은 합니다체(지시는 "-세요")로 쓴다. */
 const HAEYO = /(어|아|에|해|예|워|돼|봐)요[.?!]|주세요/;
@@ -138,48 +144,150 @@ test("OpenAPI 3.1 문서가 등록한 모든 경로를 분류와 operationId로 
     ].schema.$ref,
     "#/components/schemas/Sale",
   );
+  // 모든 오류 응답에 type과 code가 있다. 둘 다 core의 목록에서 고른다.
+  const errorSchema = spec.components.schemas.Error;
+  assert.deepEqual(errorSchema.required, ["error", "type", "code"]);
+  assert.deepEqual(errorSchema.properties.type.enum, Object.keys(ERROR_TYPES));
+  assert.deepEqual(errorSchema.properties.code.enum, Object.keys(ERROR_CODES));
+  // 경로마다 오류 응답은 그 경로의 code(x-errors)에서 만든다. 예시는 그 상태의 첫 code다.
+  const confirm = documented.get("POST /api/sales/:id/action/confirm");
   assert.equal(
-    spec.components.responses.Conflict.content["application/json"].schema.$ref,
+    confirm.responses[409].content["application/json"].schema.$ref,
     "#/components/schemas/Error",
   );
-  // 모든 오류 응답에 code가 있다. 문서는 모든 code와 HTTP 상태를 설명한다.
-  const errorSchema = spec.components.schemas.Error;
-  assert.deepEqual(errorSchema.required, ["error", "code"]);
-  assert.deepEqual(errorSchema.properties.code.enum, Object.keys(ERROR_CODES));
-  for (const [name, response] of Object.entries<any>(
-    spec.components.responses,
-  )) {
-    const example = response.content["application/json"].example;
-    assert.ok(example.code in ERROR_CODES, `${name}: 예시에 code 없음`);
-    assert.match(example.error, /^[가-힣]/, name);
-    assert.doesNotMatch(example.error, HAEYO, name);
+  assert.deepEqual(
+    confirm.responses[409].content["application/json"].example,
+    errorBody("LEDGER_TOO_EARLY"),
+  );
+  for (const [key, op] of documented) {
+    const codes: ErrorCode[] = op["x-errors"];
+    assert.ok(Array.isArray(codes), `${key}: x-errors 없음`);
+    assert.equal(new Set(codes).size, codes.length, `${key}: code 중복`);
+    const statuses = new Set(codes.map((code) => ERROR_CODES[code].status));
+    for (const [status, response] of Object.entries<any>(op.responses)) {
+      if (Number(status) < 400 || op.operationId === "getHealth") continue;
+      assert.ok(statuses.has(Number(status)), `${key} ${status}: code 없음`);
+      const example = response.content["application/json"].example;
+      assert.equal(
+        ERROR_CODES[example.code as ErrorCode].status,
+        Number(status),
+      );
+      assert.ok(codes.includes(example.code), `${key} ${status}: 예시 code`);
+      assert.deepEqual(example, errorBody(example.code), `${key} ${status}`);
+      for (const code of codes.filter(
+        (c) => ERROR_CODES[c].status === Number(status),
+      ))
+        assert.ok(
+          response.description.includes(`\`${code}\``),
+          `${key} ${status}: 설명에 ${code} 없음`,
+        );
+    }
+    for (const status of statuses)
+      assert.ok(op.responses[status], `${key}: ${status} 응답 없음`);
   }
-  for (const [code, { status }] of Object.entries(ERROR_CODES))
+  for (const type of Object.keys(ERROR_TYPES) as ErrorType[])
     assert.ok(
-      spec.info.description.includes(`\`${code}\` (${status.join("·")})`),
+      spec.info.description.includes(
+        `\`${type}\` (${ERROR_TYPES[type].status.join("·")})`,
+      ),
+      `API 설명에 ${type} 없음`,
+    );
+  for (const code of Object.keys(ERROR_CODES))
+    assert.ok(
+      spec.info.description.includes(`\`${code}\``),
       `API 설명에 ${code} 없음`,
     );
   // 문서 화면의 오류 코드 표는 x- 확장에서 읽는다. core의 표와 같아야 한다.
   assert.deepEqual(
+    spec["x-error-types"],
+    (Object.keys(ERROR_TYPES) as ErrorType[]).map((type) => ({
+      type,
+      status: [...ERROR_TYPES[type].status],
+      meaning: ERROR_TYPES[type].meaning,
+      action: ERROR_TYPES[type].action,
+    })),
+  );
+  assert.deepEqual(
     spec["x-error-codes"],
-    Object.entries(ERROR_CODES).map(([code, { status, meaning, action }]) => ({
+    (Object.keys(ERROR_CODES) as ErrorCode[]).map((code) => ({
       code,
-      status: [...status],
-      meaning,
-      action,
+      ...ERROR_CODES[code],
     })),
   );
   assert.deepEqual(
     spec["x-ledger-errors"],
-    Object.entries(LEDGER_ERRORS).map(([name, meaning]) => ({ name, meaning })),
+    (Object.keys(LEDGER_ERRORS) as LedgerError[]).map((name) => ({
+      name,
+      code: LEDGER_ERROR_CODES[name],
+      meaning: LEDGER_ERRORS[name],
+    })),
   );
-  for (const { code, meaning, action } of spec["x-error-codes"]) {
+  for (const { type, meaning, action } of spec["x-error-types"]) {
     for (const text of [meaning, action]) {
+      assert.match(text, /[가-힣]/, type);
+      assert.doesNotMatch(text, HAEYO, type);
+    }
+    assert.match(action, /다\.$/, `${type}: 다음 행동은 문장으로 끝난다`);
+  }
+  // code의 문장은 원인과 다음 행동(합니다체, 지시는 "-세요")이다. 설명은 문장으로 끝난다.
+  for (const { code, message, description } of spec["x-error-codes"]) {
+    for (const text of [message, description]) {
       assert.match(text, /[가-힣]/, code);
       assert.doesNotMatch(text, HAEYO, code);
     }
-    assert.match(action, /다\.$/, `${code}: 다음 행동은 문장으로 끝난다`);
+    // 오류 처리기는 한글로 시작하는 문장만 그대로 보낸다(app.ts).
+    assert.match(message, /^[가-힣]/, `${code}: 한글로 시작`);
+    assert.match(message, /(다|세요)\.$/, `${code}: 문장`);
+    assert.ok(message.split(". ").length >= 2, `${code}: 원인과 다음 행동`);
+    assert.match(description, /다\.$/, `${code}: 설명`);
   }
+});
+
+test("오류 code는 이름이 하나뿐이고, 공통 오류이거나 어떤 경로의 문서에 있다", async (t) => {
+  const app = await offlineApp(t);
+  const spec = (await app.inject({ url: "/api/openapi.json" })).json();
+  const codes = Object.keys(ERROR_CODES) as ErrorCode[];
+  for (const code of codes)
+    assert.match(code, /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/, code);
+  assert.equal(new Set(codes).size, codes.length);
+  // 원장 거절은 LEDGER_ + 원장 오류 이름(대문자 밑줄 표기)이다.
+  for (const name of Object.keys(LEDGER_ERRORS) as LedgerError[]) {
+    const code = LEDGER_ERROR_CODES[name];
+    assert.equal(
+      code,
+      `LEDGER_${name.replace(/(?<!^)([A-Z])/g, "_$1").toUpperCase()}`,
+    );
+    assert.equal(ERROR_CODES[code].type, "rejected");
+    assert.equal(ERROR_CODES[code].ledgerError, name);
+    assert.deepEqual(errorBody(code).ledgerError, name);
+  }
+  assert.equal(errorBody("LEDGER_REJECTED").ledgerError, undefined);
+  // 상태는 type의 기본 상태다. 413, 415, 503만 type의 다른 상태를 쓴다.
+  for (const code of codes) {
+    const { type, status } = ERROR_CODES[code];
+    assert.ok(
+      (ERROR_TYPES[type].status as readonly number[]).includes(status),
+      `${code}: ${type}에 없는 상태 ${status}`,
+    );
+  }
+  const documented = new Set<string>();
+  for (const item of Object.values<Record<string, any>>(spec.paths))
+    for (const op of Object.values<any>(item))
+      for (const code of op["x-errors"]) documented.add(code);
+  for (const code of codes)
+    assert.ok(
+      ERROR_CODES[code].common || documented.has(code),
+      `${code}: 어느 경로의 문서에도 없고 공통 오류도 아니다`,
+    );
+  // 경로만의 오류 목록(operations.ts)에는 공통 오류를 적지 않는다. 문서 생성이 더한다.
+  for (const [key, operation] of Object.entries(OPERATIONS))
+    for (const code of operation.errors ?? [])
+      assert.ok(!ERROR_CODES[code].common, `${key}: 공통 오류 ${code}`);
+  // detail은 기본 문장 뒤에 붙는다.
+  assert.equal(
+    errorBody("RULE_DOCUMENT_INVALID", "기준 이름을 쓰세요.").error,
+    `${ERROR_CODES.RULE_DOCUMENT_INVALID.message} 기준 이름을 쓰세요.`,
+  );
 });
 
 test("API 문서 화면은 외부 파일 없이 한 HTML로 열린다", async (t) => {
@@ -195,9 +303,11 @@ test("API 문서 화면은 외부 파일 없이 한 HTML로 열린다", async (t
   assert.doesNotMatch(page.body, /https?:\/\//);
   // 화면 문구에 시연·모의·테스트용을 쓰지 않는다(DESIGN.md). 데이터는 문서에서 읽는다.
   assert.doesNotMatch(page.body, /시연|모의|테스트용/);
-  // 오류 코드 표는 x- 확장으로 그린다. 요청 예시는 인증 값을 환경 변수에서 읽는다.
+  // 오류 코드 표와 경로별 오류 표는 x- 확장으로 그린다. 요청 예시는 인증 값을 환경 변수에서 읽는다.
+  assert.match(page.body, /x-error-types/);
   assert.match(page.body, /x-error-codes/);
   assert.match(page.body, /x-ledger-errors/);
+  assert.match(page.body, /x-errors/);
   assert.match(page.body, /FINVERIC_API_KEY/);
   assert.match(page.body, /FINVERIC_ACCESS_CODE/);
 });
@@ -220,21 +330,23 @@ test("접근 코드를 설정해도 상태 확인·설정·API 문서는 열리�
     payload: {},
   });
   assert.equal(missing.statusCode, 404);
-  assert.deepEqual(missing.json(), HTTP_ERRORS.notFound);
+  assert.deepEqual(missing.json(), errorBody("ROUTE_NOT_FOUND"));
 });
 
-/** 응답의 상태 코드와 `code`를 확인한다. 문장은 우리가 쓴 합니다체 문장이다. */
+/** 응답의 상태 코드, `code`, `type`을 확인한다. 문장은 우리가 쓴 합니다체 문장이다. */
 function assertError(
   response: { statusCode: number; json(): any; body: string },
   status: number,
   code: ErrorCode,
 ) {
   assert.equal(response.statusCode, status, response.body);
+  assert.equal(ERROR_CODES[code].status, status, code);
   const body = response.json();
   assert.equal(body.code, code, response.body);
+  assert.equal(body.type, ERROR_CODES[code].type, response.body);
   assert.match(body.error, /^[가-힣]/, response.body);
   assert.doesNotMatch(body.error, HAEYO, response.body);
-  assert.deepEqual(Object.keys(body).sort(), ["code", "error"]);
+  assert.deepEqual(Object.keys(body).sort(), ["code", "error", "type"]);
 }
 
 test("Fastify·플러그인·접근 검사의 오류도 원래 상태 코드와 code를 보낸다", async (t) => {
@@ -247,27 +359,31 @@ test("Fastify·플러그인·접근 검사의 오류도 원래 상태 코드와 
   const json = { ...auth, "content-type": "application/json" };
 
   // 잘못된 JSON 400, 스키마 400, 본문 초과 413, 본문 형식 415.
-  assertError(await post(json, "{"), 400, "invalid_input");
-  assertError(await post(json, "{}"), 400, "invalid_input");
+  assertError(await post(json, "{"), 400, "INVALID_REQUEST");
+  assertError(await post(json, "{}"), 400, "INVALID_REQUEST");
   assertError(
     await post(json, JSON.stringify({ name: "x".repeat(70_000) })),
     413,
-    "invalid_input",
+    "BODY_TOO_LARGE",
   );
   assertError(
     await post({ ...auth, "content-type": "application/xml" }, "<x/>"),
     415,
-    "invalid_input",
+    "UNSUPPORTED_MEDIA_TYPE",
   );
   // 접근 코드 401, API 키 401, 허용하지 않은 출처 403, API 키 범위 403, 없는 경로 404.
-  assertError(await app.inject({ url: "/api/sales" }), 401, "unauthorized");
+  assertError(
+    await app.inject({ url: "/api/sales" }),
+    401,
+    "ACCESS_CODE_INVALID",
+  );
   assertError(
     await app.inject({
       url: "/api/sales",
       headers: { authorization: `Bearer fvk_${"A".repeat(32)}` },
     }),
     401,
-    "unauthorized",
+    "API_KEY_INVALID",
   );
   assertError(
     await post(
@@ -278,31 +394,31 @@ test("Fastify·플러그인·접근 검사의 오류도 원래 상태 코드와 
       }),
     ),
     403,
-    "forbidden",
+    "ORIGIN_NOT_ALLOWED",
   );
   assertError(
     await app.inject({ url: "/api/nothing", headers: auth }),
     404,
-    "not_found",
+    "ROUTE_NOT_FOUND",
   );
-  // 없는 판매 건은 404 not_found다(원장을 읽기 전에 끝난다).
+  // 없는 판매 건은 404 SALE_NOT_FOUND다(원장을 읽기 전에 끝난다).
   assertError(
     await app.inject({ url: "/api/sales/1/export/receipt", headers: auth }),
     404,
-    "not_found",
+    "SALE_NOT_FOUND",
   );
   // 요청 한도 429. 같은 IP의 요청을 센다.
   let last;
   for (let i = 0; i < 121; i++)
     last = await app.inject({ url: "/api/openapi.json" });
-  assertError(last!, 429, "rate_limited");
+  assertError(last!, 429, "RATE_LIMITED");
 });
 
-test("우리가 쓰지 않은 오류는 RPC 문장을 숨기고 unavailable로 보낸다", async (t) => {
+test("우리가 쓰지 않은 오류는 RPC 문장을 숨기고 INTERNAL_ERROR로 보낸다", async (t) => {
   // offline 스택의 RPC는 닫힌 포트다. 원장을 읽는 경로는 viem 오류로 끝난다.
   const app = await offlineApp(t);
   const failed = await app.inject({ url: "/api/rules" });
-  assertError(failed, 409, "unavailable");
-  assert.deepEqual(failed.json(), HTTP_ERRORS.unavailable);
+  assertError(failed, 409, "INTERNAL_ERROR");
+  assert.deepEqual(failed.json(), errorBody("INTERNAL_ERROR"));
   assert.doesNotMatch(failed.body, /127\.0\.0\.1|http/);
 });

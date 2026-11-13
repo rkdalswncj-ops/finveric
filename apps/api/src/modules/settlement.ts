@@ -8,11 +8,7 @@ import { send } from "./transactions.ts";
 export async function settle(svc: FundService, record: StoredSale) {
   const state = await readSale(svc, record.id);
   if (state.settledAt > 0n) return;
-  if (state.status !== 2)
-    throw new CodedError(
-      "최종 확인한 가입만 결제를 기록할 수 있습니다. 판매 건을 다시 읽어 현재 상태를 확인하세요.",
-      "wrong_state",
-    );
+  if (state.status !== 2) throw new CodedError("SETTLEMENT_NOT_ALLOWED");
   await send(svc, "infrastructure", "recordSettlement", [BigInt(record.id)], {
     event: "SettlementRecorded",
     match: (log) =>

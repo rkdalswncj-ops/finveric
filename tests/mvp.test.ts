@@ -48,10 +48,10 @@ import {
 import type {
   CustomerDto,
   DiagnosisDto,
-  ErrorCode,
   ErrorResponse,
   SaleDto,
 } from "@finveric/core/api";
+import { ERROR_CODES, type ErrorCode } from "@finveric/core/errors";
 
 const [els, fund, elb] = DEMO_PRODUCTS;
 const CUSTOMER = DEMO_CUSTOMER_NO;
@@ -198,7 +198,10 @@ test(
       assert.equal(response.statusCode, 200, response.body);
       return response.json() as T;
     };
-    /** 거절 응답의 상태 코드와 `code`를 확인한다. 연동 앱은 문장 대신 `code`로 안내를 고른다. */
+    /**
+     * 거절 응답의 상태 코드, `code`, `type`을 확인한다. 연동 앱은 문장 대신 `type`과 `code`로 안내를 고른다.
+     * `type`과 상태는 core의 오류 목록(`ERROR_CODES`)과 같아야 한다.
+     */
     const rejectBody = async (
       path: string,
       status: number,
@@ -207,8 +210,10 @@ test(
     ) => {
       const response = await call(path, body);
       assert.equal(response.statusCode, status, response.body);
+      assert.equal(ERROR_CODES[code].status, status, code);
       const failure = response.json() as ErrorResponse;
       assert.equal(failure.code, code, response.body);
+      assert.equal(failure.type, ERROR_CODES[code].type, response.body);
       return failure;
     };
     const reject = async (
@@ -249,26 +254,36 @@ test(
       "기준 등록 전 진단·신청과 형식이 틀린 입력을 거절한다",
       async () => {
         assert.match(
-          await reject(`/customers/${CUSTOMER}/diagnose`, 409, "not_ready", {
-            answers: ANSWERS[0],
-          }),
+          await reject(
+            `/customers/${CUSTOMER}/diagnose`,
+            409,
+            "RULE_NOT_REGISTERED",
+            {
+              answers: ANSWERS[0],
+            },
+          ),
           /진단 기준을 먼저 등록/,
         );
-        await reject("/sales", 409, "not_ready", {
+        await reject("/sales", 409, "PRODUCT_NOT_REGISTERED", {
           productId: els.id,
           customerNo: CUSTOMER,
         });
-        await reject(`/customers/${CUSTOMER}/diagnose`, 400, "invalid_input", {
-          answers: [5],
-        });
-        await reject(`/customers/C_0001/diagnose`, 400, "invalid_input", {
+        await reject(
+          `/customers/${CUSTOMER}/diagnose`,
+          400,
+          "INVALID_REQUEST",
+          {
+            answers: [5],
+          },
+        );
+        await reject(`/customers/C_0001/diagnose`, 400, "INVALID_REQUEST", {
           answers: [0],
         });
-        await reject("/sales", 400, "invalid_input", {
+        await reject("/sales", 400, "INVALID_REQUEST", {
           productId: "0x01",
           customerNo: CUSTOMER,
         });
-        await reject("/sales/123", 404, "not_found");
+        await reject("/sales/123", 404, "SALE_NOT_FOUND");
         const rules = await request("/rules");
         assert.equal(rules.length, 1);
         assert.equal(rules[0].registered, false);
@@ -341,7 +356,7 @@ test(
         await reject(
           `/sales/${stale.id}/action/subscribe`,
           409,
-          "product_changed",
+          "PRODUCT_VERSION_CHANGED",
           {
             explanationSeconds: 60,
             higherRiskConfirmed: false,
@@ -364,13 +379,13 @@ test(
             [2, true],
           ],
         );
-        await reject("/products", 400, "invalid_input", {
+        await reject("/products", 400, "INVALID_REQUEST", {
           document: {
             ...fund.document,
             cards: fund.document.cards.slice(0, 4),
           },
         });
-        await reject("/products", 400, "invalid_input", {
+        await reject("/products", 400, "INVALID_REQUEST", {
           document: { ...fund.document, riskGrade: 7 },
         });
       },
@@ -410,12 +425,18 @@ test(
               { singleThread: true },
             ),
           );
-        await reject(`/customers/${CUSTOMER}/diagnose`, 400, "invalid_input", {
-          answers: [3, 0, 0, 0, 0, 0],
-        });
-        await reject(`/customers/${CUSTOMER}/diagnose`, 400, "invalid_input", {
-          answers: [0, 0, 0],
-        });
+        await reject(
+          `/customers/${CUSTOMER}/diagnose`,
+          400,
+          "ANSWERS_NOT_MATCHING_RULE",
+          { answers: [3, 0, 0, 0, 0, 0] },
+        );
+        await reject(
+          `/customers/${CUSTOMER}/diagnose`,
+          400,
+          "ANSWERS_NOT_MATCHING_RULE",
+          { answers: [0, 0, 0] },
+        );
         assert.equal(
           (await request<CustomerDto>(`/customers/${CUSTOMER}`)).diagnoses
             .length,
@@ -473,7 +494,7 @@ test(
         await reject(
           `/sales/${draft.id}/action/subscribe`,
           409,
-          "needs_diagnosis",
+          "DIAGNOSIS_REQUIRED",
           subscribeBody,
         );
         const first = await diagnose(ANSWERS[0]);
@@ -487,7 +508,7 @@ test(
         await reject(
           `/sales/${draft.id}/action/approve`,
           409,
-          "wrong_state",
+          "APPROVAL_NOT_NEEDED",
           {},
         );
         const abandoned = await action(draft.id, "abandon");
@@ -495,7 +516,7 @@ test(
         await reject(
           `/sales/${draft.id}/action/subscribe`,
           409,
-          "wrong_state",
+          "SALE_ABANDONED",
           subscribeBody,
         );
 
@@ -565,7 +586,7 @@ test(
         assert.equal(result.rejected, true);
         assert.equal(result.error, "InvalidAttempt");
         assert.match(result.reason, /회차/);
-        await reject("/demo/tamper", 409, "wrong_state", {
+        await reject("/demo/tamper", 409, "ATTEMPT_NOT_RECORDED", {
           customerNo: CUSTOMER,
           attempt: 9,
         });
@@ -672,7 +693,7 @@ test(
           await reject(
             `/sales/${saleId}/action/subscribe`,
             409,
-            "needs_approval",
+            "APPROVAL_REQUIRED",
             body,
           ),
           /관리자 승인/,
@@ -684,7 +705,7 @@ test(
           await reject(
             `/sales/${saleId}/action/subscribe`,
             409,
-            "needs_higher_risk",
+            "HIGHER_RISK_CONFIRMATION_REQUIRED",
             { ...body, higherRiskConfirmed: false },
           ),
           /추가 위험 확인/,
@@ -693,7 +714,7 @@ test(
           await reject(
             `/sales/${saleId}/action/subscribe`,
             409,
-            "needs_recording",
+            "RECORDING_CONSENT_REQUIRED",
             { ...body, recordingConsent: false },
           ),
           /녹취/,
@@ -701,7 +722,7 @@ test(
         await reject(
           `/sales/${saleId}/action/subscribe`,
           400,
-          "invalid_input",
+          "INVALID_REQUEST",
           {
             ...body,
             explanationSeconds: 0,
@@ -740,12 +761,12 @@ test(
         const tooEarly = await rejectBody(
           `/sales/${saleId}/action/confirm`,
           409,
-          "rejected",
+          "LEDGER_TOO_EARLY",
           {},
         );
         assert.match(tooEarly.error, /숙려기간/);
-        // 연동 앱은 문장 대신 code와 원장 오류 이름으로 고객 안내를 고른다.
-        assert.equal(tooEarly.code, "rejected");
+        // 연동 앱은 문장 대신 type, code, 원장 오류 이름으로 고객 안내를 고른다.
+        assert.equal(tooEarly.type, "rejected");
         assert.equal(tooEarly.ledgerError, "TooEarly");
         assert.equal(await blockNumber(), before);
         const traces = await request("/traces");
@@ -770,7 +791,7 @@ test(
         await reject(
           `/sales/${saleId}/action/withdraw`,
           409,
-          "wrong_state",
+          "WITHDRAW_NOT_ALLOWED",
           {},
         );
         const repeated = await blockNumber();
@@ -790,7 +811,12 @@ test(
         bondId = bond.id;
         assert.equal(bond.suitable, true);
         assert.equal(bond.protectedSale, false);
-        await reject(`/sales/${bond.id}/action/settle`, 409, "wrong_state", {});
+        await reject(
+          `/sales/${bond.id}/action/settle`,
+          409,
+          "SETTLEMENT_NOT_ALLOWED",
+          {},
+        );
         await action(bond.id, "approve");
         const subscribed = await action(bond.id, "subscribe", {
           explanationSeconds: 45,
@@ -825,7 +851,7 @@ test(
         await reject(
           `/sales/${withdrawn.id}/action/confirm`,
           409,
-          "wrong_state",
+          "CONFIRM_NOT_ALLOWED",
           {},
         );
       },

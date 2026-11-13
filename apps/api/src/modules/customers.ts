@@ -81,10 +81,7 @@ export async function diagnose(
   const ref = customerRef(svc, customerNo);
   const rule = await latestRule(svc);
   if (!answersFit(rule.document, answers))
-    throw new CodedError(
-      "답변이 최신 진단 기준과 맞지 않습니다. 최신 기준의 문항마다 선택지 번호 하나를 보내세요.",
-      "invalid_input",
-    );
+    throw new CodedError("ANSWERS_NOT_MATCHING_RULE");
   await ensureNoPending(svc);
   const attempt = (await readAttemptCount(svc, ref)) + 1;
   const salt = randomField();
@@ -114,10 +111,7 @@ export async function diagnose(
   } catch {
     proofTrace.status = "failed";
     svc.repository.save();
-    throw new CodedError(
-      "진단 증명을 만들지 못했습니다. 잠시 뒤 진단을 다시 요청하세요.",
-      "unavailable",
-    );
+    throw new CodedError("PROOF_GENERATION_FAILED");
   }
   proofTrace.status = "confirmed";
   // 공개 신호만 남긴다. 답변·임의값·총점은 넣지 않는다.

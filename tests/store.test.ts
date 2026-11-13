@@ -85,9 +85,10 @@ test("다른 인스턴스가 잠금을 오래 잡으면 기다리다가 거절�
   await sleep(20);
   await assert.rejects(
     waiter.lock(async () => undefined),
-    (error: Error & { code?: string }) =>
+    (error: Error & { code?: string; type?: string }) =>
       /다른 요청을 처리하고 있습니다/.test(error.message) &&
-      error.code === "unavailable",
+      error.code === "STORE_LOCK_BUSY" &&
+      error.type === "unavailable",
   );
   await held;
   assert.equal(await waiter.lock(async () => "ok"), "ok");
@@ -109,8 +110,10 @@ test("저장소 오류에 연결 주소나 토큰을 노출하지 않는다", as
       error.message,
       "판매 기록 저장소에 연결하지 못했습니다. 잠시 뒤 다시 요청하세요.",
     );
-    // 오류 응답의 code. 연동 앱은 이 값으로 "잠시 후 다시 시도" 안내를 고른다.
-    assert.equal((error as Error & { code?: string }).code, "unavailable");
+    // 오류 응답의 type과 code. 연동 앱은 type으로 "잠시 후 다시 시도" 안내를 고른다.
+    const coded = error as Error & { code?: string; type?: string };
+    assert.equal(coded.type, "unavailable");
+    assert.equal(coded.code, "STORE_UNAVAILABLE");
     return true;
   });
 });

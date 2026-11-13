@@ -48,10 +48,7 @@ export async function ensureNoPending(svc: FundService) {
   if (!svc.repository.hasPendingTransaction()) return;
   await reconcile(svc);
   if (svc.repository.hasPendingTransaction())
-    throw new CodedError(
-      "미확정 거래가 있습니다. 영수증을 확인한 뒤 다시 요청하세요.",
-      "pending",
-    );
+    throw new CodedError("TRANSACTION_PENDING");
 }
 
 export type SendOptions = {
@@ -108,10 +105,7 @@ export async function send(
     ) {
       trace.status = "failed";
       svc.repository.save();
-      throw new CodedError(
-        "성공 영수증에서 이번 요청의 이벤트를 찾을 수 없습니다. 온체인 처리 기록에서 거래를 확인하세요.",
-        "unavailable",
-      );
+      throw new CodedError("RECEIPT_EVENT_MISSING");
     }
     trace.event = options.event;
     trace.status = "confirmed";
@@ -130,17 +124,12 @@ export async function send(
         "거래를 제출하지 못했습니다. RPC 연결과 테스트 ETH 잔액을 확인하세요.";
     }
     svc.repository.save();
-    if (trace.status === "pending")
-      throw new CodedError(
-        "거래 영수증이 아직 없습니다. 온체인 처리 화면에서 해시를 확인하세요.",
-        "pending",
-      );
-    throw error instanceof Error && /^[가-힣]/.test(error.message)
-      ? error
-      : new CodedError(
-          "처리를 완료하지 못했습니다. 온체인 처리 기록을 확인하세요.",
-          "unavailable",
-        );
+    if (trace.status === "pending") throw new CodedError("RECEIPT_PENDING");
+    if (error instanceof Error && /^[가-힣]/.test(error.message)) throw error;
+    // 거래 해시가 없으면 원장 거절이 아닌 이유(RPC 연결, 가스비)로 보내지 못했다.
+    // 해시가 있으면 오류 처리기가 INTERNAL_ERROR로 보낸다.
+    if (!trace.txHash) throw new CodedError("TRANSACTION_NOT_SUBMITTED");
+    throw error;
   }
 }
 

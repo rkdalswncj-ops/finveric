@@ -24,7 +24,6 @@ import {
   FileStore,
   type SaleStore,
 } from "./repositories/store.ts";
-import { CodedError } from "./errors.ts";
 import { SaleRepository } from "./repositories/sales.ts";
 import {
   readChainId,
@@ -209,9 +208,9 @@ export class FundService {
         await settlement.settle(this, record);
         break;
       default:
-        throw new CodedError(
-          "지원하지 않는 판매 건 동작입니다. API 문서에서 동작 이름을 확인하세요.",
-          "invalid_input",
+        // 경로는 SALE_ACTIONS마다 하나씩 있다. 없는 동작은 경로 없음(404)으로 끝난다.
+        throw new Error(
+          `지원하지 않는 판매 건 동작입니다: ${action satisfies never}`,
         );
     }
     return this.publicSale(record);

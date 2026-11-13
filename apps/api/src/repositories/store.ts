@@ -57,10 +57,7 @@ export class FileStore implements SaleStore {
     try {
       accessSync(dirname(this.file), constants.R_OK | constants.W_OK);
     } catch {
-      throw new CodedError(
-        "판매 기록 파일에 접근하지 못했습니다.",
-        "unavailable",
-      );
+      throw new CodedError("STORE_UNAVAILABLE");
     }
   }
 }
@@ -108,11 +105,7 @@ export class RedisStore implements SaleStore {
       error?: string;
     };
     // Upstash 오류 본문에는 저장소 주소가 들어갈 수 있다. 우리가 쓴 문장만 내보낸다.
-    if (!response.ok || body.error)
-      throw new CodedError(
-        "판매 기록 저장소에 연결하지 못했습니다. 잠시 뒤 다시 요청하세요.",
-        "unavailable",
-      );
+    if (!response.ok || body.error) throw new CodedError("STORE_UNAVAILABLE");
     return body.result;
   }
   async read() {
@@ -121,16 +114,13 @@ export class RedisStore implements SaleStore {
   }
   async ping() {
     if ((await this.command(["PING"])) !== "PONG")
-      throw new CodedError(
-        "판매 기록 저장소가 응답하지 않습니다.",
-        "unavailable",
-      );
+      throw new CodedError("STORE_UNAVAILABLE");
   }
   async write(data: string) {
+    // 저장은 잠금 안에서만 부른다(`SaleRepository.save`). 여기에 닿으면 코드 오류다.
     if (!this.owner)
-      throw new CodedError(
+      throw new Error(
         "판매 기록은 잠금 안에서만 저장할 수 있습니다. 잠시 뒤 다시 요청하세요.",
-        "unavailable",
       );
     const written = await this.command([
       "EVAL",
@@ -141,11 +131,7 @@ export class RedisStore implements SaleStore {
       this.owner,
       data,
     ]);
-    if (Number(written) !== 1)
-      throw new CodedError(
-        "판매 기록 잠금이 만료되었습니다. 처리 기록을 확인한 뒤 다시 요청하세요.",
-        "unavailable",
-      );
+    if (Number(written) !== 1) throw new CodedError("STORE_LOCK_EXPIRED");
   }
   async lock<T>(operation: () => Promise<T>) {
     const owner = randomUUID();
@@ -161,11 +147,7 @@ export class RedisStore implements SaleStore {
         ttl,
       ]);
       if (result === "OK") break;
-      if (Date.now() >= deadline)
-        throw new CodedError(
-          "다른 요청을 처리하고 있습니다. 잠시 뒤 다시 요청하세요.",
-          "unavailable",
-        );
+      if (Date.now() >= deadline) throw new CodedError("STORE_LOCK_BUSY");
       await new Promise((resolve) =>
         setTimeout(resolve, 200 + Math.random() * 300),
       );

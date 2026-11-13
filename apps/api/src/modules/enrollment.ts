@@ -30,16 +30,9 @@ import { note, send } from "./transactions.ts";
 
 /** 원장에 청약 기록이 없고 중단하지 않은 신청인지 확인한다. */
 export async function ensureDraft(svc: FundService, record: StoredSale) {
-  if (record.abandonedAt)
-    throw new CodedError(
-      "중단한 신청입니다. 고객이 다시 가입하려면 새로 신청해야 합니다.",
-      "wrong_state",
-    );
+  if (record.abandonedAt) throw new CodedError("SALE_ABANDONED");
   if ((await readSale(svc, record.id)).status !== 0)
-    throw new CodedError(
-      "이미 청약한 신청입니다. 판매 건을 다시 읽어 현재 상태를 확인하세요.",
-      "wrong_state",
-    );
+    throw new CodedError("SALE_ALREADY_SUBSCRIBED");
 }
 
 /** 고객과 상품의 최신 버전으로 신청(초안)을 만든다. 원장 거래는 없다. */
@@ -111,35 +104,22 @@ export async function subscribe(
     (await readLatestProductVersion(svc, record.productId)) !==
     record.productVersion
   )
-    throw new CodedError(
-      "상품 설명서가 새 버전으로 바뀌었습니다. 이 신청을 중단하고 새 버전으로 다시 신청하세요.",
-      "product_changed",
-    );
+    throw new CodedError("PRODUCT_VERSION_CHANGED");
   const product = storedProduct(svc, record.productId, record.productVersion);
   const attempt = await readAttemptCount(svc, record.customerRef);
-  if (attempt === 0)
-    throw new CodedError(
-      "투자성향 진단 기록이 없습니다. 고객의 진단을 먼저 기록하세요.",
-      "needs_diagnosis",
-    );
+  if (attempt === 0) throw new CodedError("DIAGNOSIS_REQUIRED");
   const diagnosis = await readDiagnosis(svc, record.customerRef, attempt);
   const suitable = isSuitable(product.document.riskGrade, diagnosis.limit);
   const protectedSale = isProtectedSale(product.document, diagnosis, suitable);
   if (!suitable && !request.higherRiskConfirmed)
-    throw new CodedError(
-      "투자성향에 맞지 않는 상품입니다. 고객에게 부적합 사실을 알리고 추가 위험 확인을 받아야 청약할 수 있습니다.",
-      "needs_higher_risk",
-    );
+    throw new CodedError("HIGHER_RISK_CONFIRMATION_REQUIRED");
   if (attempt >= 3 && record.approval?.attempt !== attempt)
     throw new CodedError(
-      `관리자 승인이 필요합니다. ${attempt}회차 진단이므로 소비자보호 담당이 회차 이력을 보고 승인한 뒤 청약하세요.`,
-      "needs_approval",
+      "APPROVAL_REQUIRED",
+      `최신 회차는 ${attempt}회차입니다.`,
     );
   if (protectedSale && !request.recordingConsent)
-    throw new CodedError(
-      "녹취 대상 상품입니다. 고객의 녹취 동의를 받아야 청약할 수 있습니다.",
-      "needs_recording",
-    );
+    throw new CodedError("RECORDING_CONSENT_REQUIRED");
   const recording = protectedSale ? mockRecording(record, product) : undefined;
   record.explanationSeconds = request.explanationSeconds;
   record.recording = recording;
@@ -174,11 +154,7 @@ export async function subscribe(
 export async function confirm(svc: FundService, record: StoredSale) {
   const state = await readSale(svc, record.id);
   if (state.status === 2) return;
-  if (state.status !== 1)
-    throw new CodedError(
-      "청약한 신청만 최종 확인할 수 있습니다. 판매 건을 다시 읽어 현재 상태를 확인하세요.",
-      "wrong_state",
-    );
+  if (state.status !== 1) throw new CodedError("CONFIRM_NOT_ALLOWED");
   await send(svc, "customer", "confirm", [BigInt(record.id)], {
     event: "EnrollmentConfirmed",
     match: (log) =>
@@ -192,11 +168,7 @@ export async function confirm(svc: FundService, record: StoredSale) {
 export async function withdraw(svc: FundService, record: StoredSale) {
   const state = await readSale(svc, record.id);
   if (state.status === 3) return;
-  if (state.status !== 1)
-    throw new CodedError(
-      "최종 확인 전의 청약만 철회할 수 있습니다. 판매 건을 다시 읽어 현재 상태를 확인하세요.",
-      "wrong_state",
-    );
+  if (state.status !== 1) throw new CodedError("WITHDRAW_NOT_ALLOWED");
   await send(svc, "customer", "withdraw", [BigInt(record.id)], {
     event: "SaleWithdrawn",
     match: (log) =>

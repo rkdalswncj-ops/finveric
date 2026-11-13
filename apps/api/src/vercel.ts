@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { FastifyInstance } from "fastify";
-import type { ErrorResponse } from "@finveric/core/api";
+import { ERROR_CODES, errorBody } from "@finveric/core/errors";
 import { FundService } from "./service.ts";
 import { createApp } from "./app.ts";
 
@@ -20,12 +20,13 @@ export function normalizeApiUrl(url = "/") {
   return parsed.pathname + parsed.search;
 }
 
-const safeMessage = (error: unknown) =>
+/** 시작 검사가 쓴 문장. RPC 오류처럼 우리가 쓰지 않은 문장은 내보내지 않는다. */
+const authored = (error: unknown) =>
   error instanceof Error &&
   /^[가-힣]/.test(error.message) &&
   !error.message.includes("http")
     ? error.message
-    : "API를 시작하지 못했습니다. 배포 설정과 RPC를 확인하세요.";
+    : undefined;
 
 let ready: Promise<FastifyInstance> | undefined;
 async function start() {
@@ -49,13 +50,10 @@ export default async function handler(
   try {
     app = await ready;
   } catch (error) {
-    res.statusCode = 503;
+    res.statusCode = ERROR_CODES.API_START_FAILED.status;
     res.setHeader("content-type", "application/json; charset=utf-8");
-    const body: ErrorResponse = {
-      error: safeMessage(error),
-      code: "unavailable",
-    };
-    res.end(JSON.stringify(body));
+    const body = errorBody("API_START_FAILED");
+    res.end(JSON.stringify({ ...body, error: authored(error) ?? body.error }));
     return;
   }
   req.url = normalizeApiUrl(req.url);

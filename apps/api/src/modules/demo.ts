@@ -18,10 +18,7 @@ export async function tamper(
 ): Promise<TamperResponse> {
   const ref = customerRef(svc, customerNo);
   if (attempt > (await readAttemptCount(svc, ref)))
-    throw new CodedError(
-      "아직 기록하지 않은 회차입니다. 이미 기록한 회차를 고르세요.",
-      "wrong_state",
-    );
+    throw new CodedError("ATTEMPT_NOT_RECORDED");
   const recorded = await readDiagnosis(svc, ref, attempt);
   // 투자성향을 한 단계 올리고 권유 가능 등급을 한 단계 넓힌 결과로 바꾸려 한다.
   const profile = Math.min(5, recorded.profile + 1);
@@ -48,10 +45,7 @@ export async function tamper(
     if (!(error instanceof LedgerRejection)) {
       trace.status = "failed";
       svc.repository.save();
-      throw new CodedError(
-        "원장 시뮬레이션을 하지 못했습니다. RPC 연결을 확인하세요.",
-        "unavailable",
-      );
+      throw new CodedError("RPC_UNAVAILABLE");
     }
     trace.status = "failed";
     trace.detail = { attempt, error: error.error, reason: error.message };

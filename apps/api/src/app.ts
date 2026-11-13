@@ -1,16 +1,13 @@
-import Fastify from "fastify";
+import Fastify, { type FastifyReply } from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import { timingSafeEqual } from "node:crypto";
 import { json } from "@finveric/core";
-import {
-  API_KEY_PREFIX,
-  errorStatus,
-  type ErrorResponse,
-} from "@finveric/core/api";
+import { API_KEY_PREFIX, type ErrorResponse } from "@finveric/core/api";
+import { ERROR_CODES, errorBody, type ErrorCode } from "@finveric/core/errors";
 import { openApiOptions } from "./docs/openapi.ts";
-import { CodedError, HTTP_ERRORS } from "./errors.ts";
+import { CodedError } from "./errors.ts";
 import { CHANNEL_TAG, tagOf } from "./docs/operations.ts";
 import { FundService } from "./service.ts";
 import { customerRoutes } from "./routes/customers.ts";
@@ -49,6 +46,9 @@ export function sameSiteOrigin(headers: Record<string, unknown>) {
   const proto = first(headers["x-forwarded-proto"] as string | undefined);
   return host ? `${proto ?? "http"}://${host}` : undefined;
 }
+/** 경로 밖에서 정하는 오류(접근 검사, Fastify·플러그인의 4xx, 없는 경로)를 보낸다. 상태는 `code`의 상태다. */
+const fail = (reply: FastifyReply, code: ErrorCode) =>
+  reply.code(ERROR_CODES[code].status).send(errorBody(code));
 /** `Authorization: Bearer <값>`의 값. 접근 코드나 API 키다. */
 const bearer = (headers: { authorization?: string }) =>
   (headers.authorization ?? "").replace(/^Bearer /, "");
@@ -98,16 +98,16 @@ export async function createApp(service = new FundService()) {
     if (supplied.startsWith(API_KEY_PREFIX)) {
       // API 키: 증권사 앱 서버가 쓴다. 접근 코드 설정과 관계없이 항상 확인한다.
       if (!(await service.authenticateApiKey(supplied)))
-        return reply.code(401).send(HTTP_ERRORS.apiKey);
+        return fail(reply, "API_KEY_INVALID");
       const url = req.routeOptions.url;
       if (url && tagOf(req.method, url) !== CHANNEL_TAG)
-        return reply.code(403).send(HTTP_ERRORS.apiKeyScope);
+        return fail(reply, "API_KEY_SCOPE_DENIED");
     } else if (token) {
       // 접근 코드: 판매사 콘솔과 증권사 앱 예시가 쓴다. 모든 경로를 부를 수 있다.
       const given = Buffer.from(supplied);
       const expected = Buffer.from(token);
       if (given.length !== expected.length || !timingSafeEqual(given, expected))
-        return reply.code(401).send(HTTP_ERRORS.accessCode);
+        return fail(reply, "ACCESS_CODE_INVALID");
     }
     if (
       req.method === "POST" &&
@@ -115,7 +115,7 @@ export async function createApp(service = new FundService()) {
       req.headers.origin !== sameSiteOrigin(req.headers) &&
       !origins.includes(req.headers.origin)
     )
-      return reply.code(403).send(HTTP_ERRORS.origin);
+      return fail(reply, "ORIGIN_NOT_ALLOWED");
   });
   app.setSerializerCompiler(() => (value) => json(value));
   app.addHook("preSerialization", async (_req, _reply, payload) =>
@@ -123,41 +123,37 @@ export async function createApp(service = new FundService()) {
   );
   app.setErrorHandler((error, _req, reply) => {
     if (error && typeof error === "object" && "validation" in error)
-      return reply.code(400).send(HTTP_ERRORS.badRequest);
+      return fail(reply, "INVALID_REQUEST");
     // Fastify와 플러그인이 정한 4xx(잘못된 JSON 400, 본문 초과 413, 본문 형식 415, 요청 한도 429)는 상태 코드를 유지한다.
     const status = (error as { statusCode?: number } | undefined)?.statusCode;
     if (status && status >= 400 && status < 500)
       return reply
         .code(status)
         .send(
-          status === 429
-            ? HTTP_ERRORS.rateLimited
-            : status === 413
-              ? HTTP_ERRORS.bodyTooLarge
-              : status === 415
-                ? HTTP_ERRORS.unsupportedMediaType
-                : HTTP_ERRORS.badRequest,
+          errorBody(
+            status === 429
+              ? "RATE_LIMITED"
+              : status === 413
+                ? "BODY_TOO_LARGE"
+                : status === 415
+                  ? "UNSUPPORTED_MEDIA_TYPE"
+                  : "INVALID_REQUEST",
+          ),
         );
     const message = error instanceof Error ? error.message : "";
     // Errors from RPC providers may contain credential-bearing URLs. Only return our authored messages.
     const authored = /^[가-힣]/.test(message) && !message.includes("http");
-    // 모든 오류 응답에 code가 있다. 모듈은 CodedError를 던진다.
-    // code가 없는 오류는 RPC·저장소 실패나 처리하지 못한 오류로 본다(`unavailable`).
+    // 모든 오류 응답에 type과 code가 있다. 모듈은 CodedError를 던진다.
+    // code가 없는 오류는 INTERNAL_ERROR다. 우리가 쓴 문장이면 그 문장을 보낸다.
     const body: ErrorResponse = !authored
-      ? HTTP_ERRORS.unavailable
+      ? errorBody("INTERNAL_ERROR")
       : error instanceof CodedError
-        ? {
-            error: message,
-            code: error.code,
-            ...(error.ledgerError ? { ledgerError: error.ledgerError } : {}),
-          }
-        : { error: message, code: "unavailable" };
-    // 상태는 code로 정한다. 값 검사 오류 400, 없는 대상 404, 나머지 업무 오류와 처리 실패 409.
-    reply.code(errorStatus(body.code)).send(body);
+        ? error.body
+        : { ...errorBody("INTERNAL_ERROR"), error: message };
+    // 상태는 type으로 정한다(`ERROR_CODES`의 status). 값 검사 오류 400, 없는 대상 404, 나머지 업무 오류와 처리 실패 409.
+    reply.code(ERROR_CODES[body.code].status).send(body);
   });
-  app.setNotFoundHandler((_req, reply) =>
-    reply.code(404).send(HTTP_ERRORS.notFound),
-  );
+  app.setNotFoundHandler((_req, reply) => fail(reply, "ROUTE_NOT_FOUND"));
   // 경로는 업무별 플러그인이다. 모두 /api 아래에 등록한다.
   // 위에서 등록한 훅(접근 코드·출처 검사), 직렬화, 오류 처리를 플러그인이 물려받는다.
   await app.register(systemRoutes, {

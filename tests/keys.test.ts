@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { MAX_ACTIVE_API_KEYS } from "@finveric/core/api";
-import { HTTP_ERRORS } from "../apps/api/src/errors.ts";
+import { errorBody } from "@finveric/core/errors";
 import { offlineStack } from "./offline-app.ts";
 import { responseChecker } from "./openapi-check.ts";
 
@@ -96,7 +96,7 @@ test("API 키는 판매 채널 연동 API만 부르고, 폐기하면 401이다",
   // 판매 채널 연동: 인증과 범위를 통과하고 없는 판매 건(404)으로 끝난다.
   const channel = await inject({ url: CHANNEL_URL, headers: bearer(key) });
   assert.equal(channel.statusCode, 404);
-  assert.equal(channel.json().code, "not_found");
+  assert.equal(channel.json().code, "SALE_NOT_FOUND");
 
   // 판매사 콘솔 API는 키로 부를 수 없다. 키로 새 키를 만들 수도 없다.
   for (const request of [
@@ -107,13 +107,13 @@ test("API 키는 판매 채널 연동 API만 부르고, 폐기하면 401이다",
   ]) {
     const res = await inject({ ...request, headers: bearer(key) });
     assert.equal(res.statusCode, 403, request.url);
-    assert.deepEqual(res.json(), HTTP_ERRORS.apiKeyScope);
+    assert.deepEqual(res.json(), errorBody("API_KEY_SCOPE_DENIED"));
   }
 
   // 접근 코드도 키도 없으면 401이다.
   const anonymous = await inject({ url: CHANNEL_URL });
   assert.equal(anonymous.statusCode, 401);
-  assert.deepEqual(anonymous.json(), HTTP_ERRORS.accessCode);
+  assert.deepEqual(anonymous.json(), errorBody("ACCESS_CODE_INVALID"));
 
   // 마지막 사용 시각이 남는다.
   const used = (
@@ -130,7 +130,7 @@ test("API 키는 판매 채널 연동 API만 부르고, 폐기하면 401이다",
   assert.ok(revoked.json().revokedAt);
   const after = await inject({ url: CHANNEL_URL, headers: bearer(key) });
   assert.equal(after.statusCode, 401);
-  assert.deepEqual(after.json(), HTTP_ERRORS.apiKey);
+  assert.deepEqual(after.json(), errorBody("API_KEY_INVALID"));
 });
 
 test("접근 코드를 설정하지 않아도 보낸 API 키는 확인한다", async (t) => {
@@ -140,7 +140,8 @@ test("접근 코드를 설정하지 않아도 보낸 API 키는 확인한다", a
     headers: bearer(`fvk_${"A".repeat(32)}`),
   });
   assert.equal(unknown.statusCode, 401);
-  assert.equal(unknown.json().code, "unauthorized");
+  assert.equal(unknown.json().type, "unauthorized");
+  assert.equal(unknown.json().code, "API_KEY_INVALID");
   const { key } = await issue(inject, "개발 서버");
   assert.equal(
     (await inject({ url: "/api/keys", headers: bearer(key) })).statusCode,
@@ -154,7 +155,7 @@ test("접근 코드를 설정하지 않아도 보낸 API 키는 확인한다", a
     url: `/api/keys/key_${"0".repeat(12)}/revoke`,
   });
   assert.equal(missing.statusCode, 404);
-  assert.equal(missing.json().code, "not_found");
+  assert.equal(missing.json().code, "API_KEY_NOT_FOUND");
 });
 
 test(`사용 중인 API 키는 ${MAX_ACTIVE_API_KEYS}개까지다`, async (t) => {
@@ -168,8 +169,10 @@ test(`사용 중인 API 키는 ${MAX_ACTIVE_API_KEYS}개까지다`, async (t) =>
     payload: { name: "하나 더" },
   });
   assert.equal(over.statusCode, 409);
-  assert.equal(over.json().code, "limit_reached");
-  assert.match(over.json().error, /20개까지/);
+  assert.equal(over.json().type, "limit_reached");
+  assert.equal(over.json().code, "API_KEY_LIMIT_REACHED");
+  // 문장의 한도는 core의 상수와 같아야 한다.
+  assert.match(over.json().error, new RegExp(`${MAX_ACTIVE_API_KEYS}개까지`));
   await inject({ method: "POST", url: `/api/keys/${keys[0].id}/revoke` });
   await issue(inject, "하나 더");
   // 이름은 공백만으로 쓸 수 없다.
@@ -179,7 +182,7 @@ test(`사용 중인 API 키는 ${MAX_ACTIVE_API_KEYS}개까지다`, async (t) =>
     payload: { name: "   " },
   });
   assert.equal(blank.statusCode, 400);
-  assert.equal(blank.json().code, "invalid_input");
+  assert.equal(blank.json().code, "INVALID_REQUEST");
 });
 
 test("요청 한도는 API 키마다 센다", async (t) => {
@@ -190,9 +193,9 @@ test("요청 한도는 API 키마다 센다", async (t) => {
   for (let i = 0; i < 121; i++)
     last = await inject({ url: CHANNEL_URL, headers: bearer(first.key) });
   assert.equal(last?.statusCode, 429);
-  assert.deepEqual(last?.json(), HTTP_ERRORS.rateLimited);
+  assert.deepEqual(last?.json(), errorBody("RATE_LIMITED"));
   // 같은 IP라도 다른 키는 따로 센다.
   const other = await inject({ url: CHANNEL_URL, headers: bearer(second.key) });
   assert.equal(other.statusCode, 404);
-  assert.equal(other.json().code, "not_found");
+  assert.equal(other.json().code, "SALE_NOT_FOUND");
 });
