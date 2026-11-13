@@ -99,7 +99,7 @@ repositories/  판매 기록 조회·추가·삭제·저장과 잠금     gatewa
 - `code`가 없는 오류는 오류 처리기가 `unavailable`로 보낸다. 우리가 쓴 문장이면 그 문장을, 아니면 일반 문장(`HTTP_ERRORS.unavailable`)을 보낸다.
 - 경로 밖의 오류(접근 코드·API 키 401, 범위·출처 403, 없는 경로 404, Fastify와 플러그인의 4xx)는 `HTTP_ERRORS`의 문장과 `code`를 쓴다.
 - `code`를 더하거나 바꾸면 `ERROR_CODES`, 증권사 앱 예시의 `customerMessage()`(`apps/web/src/channel/App.tsx`), 이 파일을 함께 고친다.
-- 업무 오류는 409다. 없는 판매 건과 API 키도 409(`not_found`)다. Fastify와 플러그인이 정한 4xx(잘못된 JSON 400, 본문 초과 413, 본문 형식 415, 요청 한도 429)는 상태 코드를 유지한다. 없는 경로는 404다.
+- HTTP 상태는 `code`로 정한다(`errorStatus`, `@finveric/core/api`). 값 검사 오류(`invalid_input`)는 400, 없는 판매 건·API 키·청약 거래(`not_found`)는 404, 나머지 업무 오류와 처리 실패(`unavailable`)는 409다. 경로 값(`{id}`)이 있는 경로는 문서에 404를 적는다. Fastify와 플러그인이 정한 4xx(잘못된 JSON 400, 본문 초과 413, 본문 형식 415, 요청 한도 429)는 상태 코드를 유지한다. 없는 경로는 404다.
 - 공개 조회와 로그에 답변·총점·임의값·고객 번호·개인키·승인 서명을 넣지 않는다. 고객은 가명 ID로만 표시한다.
 - 고객 가명 ID 비밀값은 `CUSTOMER_REF_SECRET`이다. 없으면 판매사 키에서 만든다. 비밀값을 바꾸면 같은 고객의 회차가 이어지지 않는다.
 

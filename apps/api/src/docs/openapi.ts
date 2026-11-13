@@ -111,11 +111,11 @@ export function openApiOptions(
           '오류 본문은 `{ "error": "<한국어 문장>", "code": "<이유>", "ledgerError": "<원장 오류 이름>" }`입니다. `error`와 `code`는 모든 오류 응답에 있습니다.',
           "`error`는 판매사 개발자와 판매사 콘솔이 읽는 합니다체 문장입니다. 원인과 다음 행동을 적습니다. 고객 화면에는 `error`를 그대로 보여 주지 않습니다. `code`(원장 거절이면 `ledgerError`도)로 고객용 문장을 고릅니다. 모르는 `code`는 `unavailable`처럼 다룹니다.",
           [
-            "- 400: 경로 값이나 본문이 스키마와 다르거나, 본문이 올바른 JSON이 아닙니다.",
+            "- 400: 경로 값이나 본문이 스키마와 다르거나, 본문이 올바른 JSON이 아니거나, 값 검사에 맞지 않습니다(`invalid_input`).",
             "- 401: 접근 코드가 없거나 다릅니다. 또는 없는 API 키, 폐기한 API 키입니다.",
             "- 403: 허용하지 않은 출처입니다. 또는 API 키로 부를 수 없는 경로입니다.",
-            "- 404: 없는 경로입니다.",
-            "- 409: 업무 규칙이나 원장이 요청을 거절했습니다. 없는 판매 건, RPC·저장소 연결 실패도 409입니다. `code`로 이유를 나눕니다.",
+            "- 404: 없는 경로이거나, 경로 값의 대상(판매 건, API 키, 청약 거래)이 없습니다(`not_found`).",
+            "- 409: 업무 규칙이나 원장이 요청을 거절했습니다. RPC·저장소 연결 실패도 409입니다(`unavailable`). `code`로 이유를 나눕니다.",
             "- 413: 본문이 64KB를 넘습니다.",
             "- 415: 본문 형식(`Content-Type`)이 JSON이 아닙니다.",
             "- 429: 같은 API 키로, 키가 없으면 같은 IP에서 1분에 120번을 넘게 요청했습니다.",
@@ -183,7 +183,7 @@ function finish(spec: Spec, publicPaths: ReadonlySet<string>) {
   });
   const errors = {
     BadRequest: error(
-      "경로 값이나 본문이 스키마와 다릅니다. 본문이 올바른 JSON이 아닌 경우도 포함합니다. `code`는 `invalid_input`입니다.",
+      "경로 값이나 본문이 스키마와 다릅니다. 본문이 올바른 JSON이 아닌 경우, 값 검사에 맞지 않는 경우(최신 기준과 맞지 않는 답변, 기준·상품 원문 오류)도 포함합니다. `code`는 `invalid_input`입니다.",
       HTTP_ERRORS.badRequest,
     ),
     Unauthorized: error(
@@ -194,8 +194,12 @@ function finish(spec: Spec, publicPaths: ReadonlySet<string>) {
       "POST 요청의 `Origin` 헤더 출처가 API와 같은 도메인도 아니고 허용 목록(`WEB_ORIGIN`)에도 없습니다. 또는 API 키로 `판매 채널 연동` 밖의 경로를 불렀습니다. `code`는 `forbidden`입니다.",
       HTTP_ERRORS.apiKeyScope,
     ),
+    NotFound: error(
+      "경로 값의 대상이 없습니다. 없는 판매 건, 없는 API 키, 판매 기록에 없는 청약 거래입니다. `code`는 `not_found`입니다.",
+      { error: "판매 건을 찾을 수 없습니다. 판매 ID를 확인하세요.", code: "not_found" },
+    ),
     Conflict: error(
-      "업무 규칙이나 원장이 요청을 거절했습니다. 없는 판매 건, RPC·저장소 연결 실패도 포함합니다. `error`에 이유와 다음 행동을 적습니다. `code`와 `ledgerError`로 이유를 나눕니다.",
+      "업무 규칙이나 원장이 요청을 거절했습니다. RPC·저장소 연결 실패도 포함합니다. `error`에 이유와 다음 행동을 적습니다. `code`와 `ledgerError`로 이유를 나눕니다.",
       {
         error: ledgerRejectionMessage("TooEarly"),
         code: "rejected",
@@ -240,6 +244,8 @@ function finish(spec: Spec, publicPaths: ReadonlySet<string>) {
       // 403: POST의 출처 검사, 또는 API 키로 판매 채널 연동 밖의 경로를 부른 경우.
       if (!open && (method === "post" || !channel))
         responses[403] = shared("Forbidden");
+      // 404: 경로 값(`{id}`)으로 찾는 대상이 없을 때. 없는 경로의 404는 경로마다 적지 않는다.
+      if (path.includes("{id}")) responses[404] = shared("NotFound");
       if (!operation.noConflict) responses[409] = shared("Conflict");
       responses[429] = shared("TooManyRequests");
       op.responses = Object.fromEntries(

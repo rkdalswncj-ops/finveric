@@ -10,7 +10,7 @@ import { responseChecker } from "./openapi-check.ts";
 // API 키: 발급, 저장, 범위, 폐기, 요청 한도. 원장 없이 실행한다.
 const ACCESS_CODE = "keys-test-token-32-characters-00000000";
 const SALE = "1";
-/** 판매 채널 연동 경로. 원장을 읽지 않고 판매 건이 없다는 409로 끝난다. */
+/** 판매 채널 연동 경로. 원장을 읽지 않고 판매 건이 없다는 404로 끝난다. */
 const CHANNEL_URL = `/api/sales/${SALE}/export/receipt`;
 const bearer = (value: string) => ({ authorization: `Bearer ${value}` });
 
@@ -93,9 +93,9 @@ test("API 키는 판매 채널 연동 API만 부르고, 폐기하면 401이다",
   const { inject } = await keysApp(t);
   const { id, key } = await issue(inject, "운영 서버", ACCESS_CODE);
 
-  // 판매 채널 연동: 인증과 범위를 통과하고 업무 오류(409)로 끝난다.
+  // 판매 채널 연동: 인증과 범위를 통과하고 없는 판매 건(404)으로 끝난다.
   const channel = await inject({ url: CHANNEL_URL, headers: bearer(key) });
-  assert.equal(channel.statusCode, 409);
+  assert.equal(channel.statusCode, 404);
   assert.equal(channel.json().code, "not_found");
 
   // 판매사 콘솔 API는 키로 부를 수 없다. 키로 새 키를 만들 수도 없다.
@@ -153,7 +153,7 @@ test("접근 코드를 설정하지 않아도 보낸 API 키는 확인한다", a
     method: "POST",
     url: `/api/keys/key_${"0".repeat(12)}/revoke`,
   });
-  assert.equal(missing.statusCode, 409);
+  assert.equal(missing.statusCode, 404);
   assert.equal(missing.json().code, "not_found");
 });
 
@@ -193,6 +193,6 @@ test("요청 한도는 API 키마다 센다", async (t) => {
   assert.deepEqual(last?.json(), HTTP_ERRORS.rateLimited);
   // 같은 IP라도 다른 키는 따로 센다.
   const other = await inject({ url: CHANNEL_URL, headers: bearer(second.key) });
-  assert.equal(other.statusCode, 409);
+  assert.equal(other.statusCode, 404);
   assert.equal(other.json().code, "not_found");
 });

@@ -268,7 +268,7 @@ test(
           productId: "0x01",
           customerNo: CUSTOMER,
         });
-        await reject("/sales/123", 409, "not_found");
+        await reject("/sales/123", 404, "not_found");
         const rules = await request("/rules");
         assert.equal(rules.length, 1);
         assert.equal(rules[0].registered, false);
@@ -410,10 +410,10 @@ test(
               { singleThread: true },
             ),
           );
-        await reject(`/customers/${CUSTOMER}/diagnose`, 409, "invalid_input", {
+        await reject(`/customers/${CUSTOMER}/diagnose`, 400, "invalid_input", {
           answers: [3, 0, 0, 0, 0, 0],
         });
-        await reject(`/customers/${CUSTOMER}/diagnose`, 409, "invalid_input", {
+        await reject(`/customers/${CUSTOMER}/diagnose`, 400, "invalid_input", {
           answers: [0, 0, 0],
         });
         assert.equal(

@@ -423,9 +423,9 @@ export type ExportResponse = {
  */
 export const ERROR_CODES = {
   invalid_input: {
-    status: [400, 409, 413, 415],
+    status: [400, 413, 415],
     meaning:
-      "요청 형식이나 값이 맞지 않습니다. 400·413·415는 경로 값, 본문 형식, 본문 크기 오류입니다. 409는 업무 검사 오류입니다(최신 기준과 맞지 않는 답변, 기준·상품 원문 오류). 요청을 고친 뒤 다시 보냅니다.",
+      "요청 형식이나 값이 맞지 않습니다. 400은 경로 값과 본문 형식 오류, 그리고 값 검사 오류(최신 기준과 맞지 않는 답변, 기준·상품 원문 오류)입니다. 413은 본문 크기, 415는 본문 형식(Content-Type) 오류입니다. 요청을 고친 뒤 다시 보냅니다.",
   },
   unauthorized: {
     status: [401],
@@ -438,9 +438,9 @@ export const ERROR_CODES = {
       "허용하지 않은 출처의 POST 요청입니다. 또는 API 키로 `판매 채널 연동` 밖의 경로를 불렀습니다.",
   },
   not_found: {
-    status: [404, 409],
+    status: [404],
     meaning:
-      "404는 없는 경로입니다. 409는 없는 판매 건, 없는 API 키, 판매 기록에 없는 청약 거래입니다. ID를 확인합니다.",
+      "없는 경로, 없는 판매 건, 없는 API 키, 판매 기록에 없는 청약 거래입니다. 경로와 ID를 확인합니다.",
   },
   rate_limited: {
     status: [429],
@@ -506,6 +506,18 @@ export const ERROR_CODES = {
   { status: readonly number[]; meaning: string }
 >;
 export type ErrorCode = keyof typeof ERROR_CODES;
+/**
+ * 모듈이 던진 업무 오류(`CodedError`)의 HTTP 상태. 값 검사 오류는 400, 없는 대상은 404, 나머지 업무 오류는 409다.
+ * 401·403·413·415·429와 경로 없음 404는 인증 검사와 Fastify가 정한다.
+ */
+export function errorStatus(code: ErrorCode): number {
+  if (code === "invalid_input") return 400;
+  if (code === "not_found") return 404;
+  if (code === "unauthorized") return 401;
+  if (code === "forbidden") return 403;
+  if (code === "rate_limited") return 429;
+  return 409;
+}
 
 /**
  * 오류 응답. `error`는 우리가 쓴 한국어 문장이다(합니다체). 원인과 다음 행동을 적는다.

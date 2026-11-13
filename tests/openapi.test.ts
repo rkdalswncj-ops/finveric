@@ -258,10 +258,10 @@ test("Fastify·플러그인·접근 검사의 오류도 원래 상태 코드와 
     404,
     "not_found",
   );
-  // 업무 오류: 없는 판매 건은 409 not_found다(원장을 읽기 전에 끝난다).
+  // 없는 판매 건은 404 not_found다(원장을 읽기 전에 끝난다).
   assertError(
     await app.inject({ url: "/api/sales/1/export/receipt", headers: auth }),
-    409,
+    404,
     "not_found",
   );
   // 요청 한도 429. 같은 IP의 요청을 센다.

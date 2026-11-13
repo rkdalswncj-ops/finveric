@@ -67,7 +67,7 @@ const CUSTOMER_MESSAGES: Readonly<
 
 /**
  * 오류를 고객에게 보여 줄 문장으로 바꾼다. API 응답의 `code`로만 고른다. API 문장(`error`)은 보이지 않는다.
- * 모르는 `code`나 `code`가 없는 응답은 `unavailable` 문장이다. 없는 경로(404)도 같다.
+ * 모르는 `code`나 `code`가 없는 응답은 `unavailable` 문장이다. `not_found`(404)는 없는 판매 건으로 안내한다.
  * 원장·거래·영수증 같은 말과 판매사 콘솔에서만 할 수 있는 안내를 고객에게 보이지 않는다.
  * 화면이 직접 던진 오류(해요체)만 그 문장을 그대로 쓴다.
  */
@@ -76,12 +76,11 @@ function customerMessage(error: unknown) {
     return error instanceof Error && /^[가-힣]/.test(error.message)
       ? error.message
       : UNAVAILABLE;
-  const { code, ledgerError, status } = error;
+  const { code, ledgerError } = error;
   if (code === "rejected")
     return ledgerError && Object.hasOwn(CUSTOMER_LEDGER_ERRORS, ledgerError)
       ? CUSTOMER_LEDGER_ERRORS[ledgerError]
       : UNAVAILABLE;
-  if (code === "not_found" && status === 404) return UNAVAILABLE;
   return code && Object.hasOwn(CUSTOMER_MESSAGES, code)
     ? CUSTOMER_MESSAGES[code]
     : UNAVAILABLE;

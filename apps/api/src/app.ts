@@ -4,7 +4,11 @@ import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import { timingSafeEqual } from "node:crypto";
 import { json } from "@finveric/core";
-import { API_KEY_PREFIX, type ErrorResponse } from "@finveric/core/api";
+import {
+  API_KEY_PREFIX,
+  errorStatus,
+  type ErrorResponse,
+} from "@finveric/core/api";
 import { openApiOptions } from "./docs/openapi.ts";
 import { CodedError, HTTP_ERRORS } from "./errors.ts";
 import { CHANNEL_TAG, tagOf } from "./docs/operations.ts";
@@ -148,7 +152,8 @@ export async function createApp(service = new FundService()) {
             ...(error.ledgerError ? { ledgerError: error.ledgerError } : {}),
           }
         : { error: message, code: "unavailable" };
-    reply.code(409).send(body);
+    // 상태는 code로 정한다. 값 검사 오류 400, 없는 대상 404, 나머지 업무 오류와 처리 실패 409.
+    reply.code(errorStatus(body.code)).send(body);
   });
   app.setNotFoundHandler((_req, reply) =>
     reply.code(404).send(HTTP_ERRORS.notFound),
