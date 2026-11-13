@@ -1,149 +1,134 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" font-family="-apple-system, 'Apple SD Gothic Neo', Pretendard, 'Noto Sans KR', 'Malgun Gothic', sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="660" viewBox="0 0 1200 660" font-family="-apple-system, 'Apple SD Gothic Neo', Pretendard, 'Noto Sans KR', 'Malgun Gothic', sans-serif">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#4E5968"/>
-    </marker>
-    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#8B95A1"/>
     </marker>
     <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#116149"/>
     </marker>
   </defs>
 
-  <rect width="1200" height="760" rx="24" fill="#FFFFFF"/>
-  <rect x="0.5" y="0.5" width="1199" height="759" rx="24" fill="none" stroke="#E5E8EB"/>
+  <rect width="1200" height="660" rx="24" fill="#FFFFFF"/>
+  <rect x="0.5" y="0.5" width="1199" height="659" rx="24" fill="none" stroke="#E5E8EB"/>
   <text x="40" y="52" font-size="22" font-weight="700" fill="#191F28">FINVERIC 서비스 아키텍처</text>
-  <text x="40" y="78" font-size="14" fill="#4E5968">누가 어떤 자격으로 부르고 기록이 어디에 남는지 · 외부 시연 배포(Vercel · Upstash · Sepolia) 기준</text>
+  <text x="40" y="78" font-size="14" fill="#4E5968">외부 시연 배포 기준</text>
 
-  <!-- 판매사 -->
-  <rect x="32" y="108" width="232" height="508" rx="18" fill="#F4F6FA" stroke="#D9DEE7"/>
-  <text x="50" y="136" font-size="15" font-weight="700" fill="#191F28">판매사 (B2B)</text>
-  <text x="50" y="156" font-size="12" fill="#8B95A1">증권사 · 은행 · 판매원칙 책임</text>
+  <g transform="translate(60 0)">
+  <!-- Vercel -->
+  <rect x="246" y="124" width="516" height="336" rx="18" fill="#F4F6FA" stroke="#D9DEE7"/>
+  <text x="266" y="154" font-size="15" font-weight="700" fill="#191F28">▲ Vercel</text>
+  <text x="266" y="174" font-size="12" fill="#8B95A1">프로젝트 하나 · 웹과 API가 같은 도메인</text>
 
-  <rect x="48" y="176" width="200" height="72" rx="12" fill="#FFFFFF" stroke="#B0B8C1" stroke-dasharray="6 5"/>
-  <text x="64" y="202" font-size="15" font-weight="700" fill="#191F28">고객</text>
-  <text x="64" y="222" font-size="13" fill="#4E5968">증권사 앱에서 가입한다</text>
-  <text x="64" y="239" font-size="12" fill="#8B95A1">FINVERIC 화면은 쓰지 않는다</text>
-  <path d="M148 248 V266" stroke="#4E5968" stroke-width="1.4" marker-end="url(#arrow)"/>
-
-  <rect x="48" y="268" width="200" height="112" rx="12" fill="#FFFFFF" stroke="#E5E8EB"/>
-  <text x="64" y="294" font-size="15" font-weight="700" fill="#191F28">증권사 앱 · 앱 서버</text>
-  <text x="64" y="316" font-size="13" fill="#4E5968">진단 · 설명 · 청약 화면</text>
-  <text x="64" y="335" font-size="13" fill="#4E5968">API 키는 앱 서버에 둔다</text>
-  <text x="64" y="362" font-size="12" fill="#8B95A1">시연은 /channel/ 예시</text>
-
-  <rect x="48" y="398" width="200" height="100" rx="12" fill="#FFFFFF" stroke="#E5E8EB"/>
-  <text x="64" y="424" font-size="15" font-weight="700" fill="#191F28">소비자보호 담당</text>
-  <text x="64" y="446" font-size="13" fill="#4E5968">기준 · 상품 등록</text>
-  <text x="64" y="465" font-size="13" fill="#4E5968">관리자 승인 · 위험 신호</text>
-  <text x="64" y="484" font-size="13" fill="#4E5968">API 키 발급 · 폐기</text>
-
-  <rect x="48" y="514" width="200" height="86" rx="12" fill="#FFFFFF" stroke="#E5E8EB"/>
-  <text x="64" y="540" font-size="15" font-weight="700" fill="#191F28">원본 보관</text>
-  <text x="64" y="562" font-size="13" fill="#4E5968">답변 · 설명서 · 녹취</text>
-  <text x="64" y="582" font-size="12" fill="#8B95A1">고객도 증명서를 받는다</text>
-
-  <!-- FINVERIC -->
-  <rect x="344" y="108" width="412" height="508" rx="18" fill="#F4F6FA" stroke="#D9DEE7"/>
-  <text x="362" y="136" font-size="15" font-weight="700" fill="#191F28">FINVERIC 서비스</text>
-  <text x="362" y="156" font-size="12" fill="#8B95A1">Vercel 프로젝트 하나 · 웹과 API가 같은 도메인</text>
-
-  <rect x="360" y="176" width="380" height="72" rx="12" fill="#FFFFFF" stroke="#E5E8EB"/>
-  <text x="376" y="200" font-size="14" font-weight="700" fill="#191F28">웹 · 정적 파일</text>
-  <text x="376" y="221" font-size="12" font-family="SFMono-Regular, Menlo, Consolas, monospace" fill="#2563EB">/client/ · /channel/ · /auditor/ · /api/docs</text>
-  <text x="376" y="239" font-size="12" fill="#8B95A1">Vite 앱 하나 · 페이지마다 번들을 나눈다</text>
-
-  <rect x="360" y="268" width="380" height="228" rx="12" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.5"/>
-  <text x="376" y="294" font-size="15" font-weight="700" fill="#191F28">API <tspan font-size="13" font-family="SFMono-Regular, Menlo, Consolas, monospace" fill="#2563EB">/api</tspan></text>
-  <text x="376" y="313" font-size="12" fill="#8B95A1">Vercel 함수 · Fastify 5 · OpenAPI 3.1</text>
-
-  <rect x="376" y="328" width="168" height="72" rx="10" fill="#EEF4FF" stroke="#C7D7FE"/>
-  <text x="390" y="350" font-size="13" font-weight="700" fill="#1D4ED8">인증</text>
-  <text x="390" y="369" font-size="12" fill="#4E5968">API 키 → 연동 API만</text>
-  <text x="390" y="387" font-size="12" fill="#4E5968">접근 코드 → 콘솔 API</text>
-
-  <rect x="556" y="328" width="168" height="72" rx="10" fill="#EEF4FF" stroke="#C7D7FE"/>
-  <text x="570" y="350" font-size="13" font-weight="700" fill="#1D4ED8">판정 · 증명</text>
-  <text x="570" y="369" font-size="12" fill="#4E5968">적합성 판정</text>
-  <text x="570" y="387" font-size="12" fill="#4E5968">Groth16 증명 생성</text>
-
-  <rect x="376" y="410" width="168" height="72" rx="10" fill="#EEF4FF" stroke="#C7D7FE"/>
-  <text x="390" y="432" font-size="13" font-weight="700" fill="#1D4ED8">원장 송신</text>
-  <text x="390" y="451" font-size="12" fill="#4E5968">역할 키로 서명한다</text>
-  <text x="390" y="469" font-size="12" fill="#4E5968">영수증까지 기다린다</text>
-
-  <rect x="556" y="410" width="168" height="72" rx="10" fill="#EEF4FF" stroke="#C7D7FE"/>
-  <text x="570" y="432" font-size="13" font-weight="700" fill="#1D4ED8">역할 키 · 환경 변수</text>
-  <text x="570" y="451" font-size="12" fill="#4E5968">판매사 · 승인</text>
-  <text x="570" y="469" font-size="12" fill="#4E5968">고객 · 인프라</text>
-
-  <path d="M550 496 V514" stroke="#4E5968" stroke-width="1.4" marker-end="url(#arrow)"/>
-  <text x="560" y="510" font-size="11" fill="#4E5968">REST</text>
-
-  <rect x="360" y="516" width="380" height="84" rx="12" fill="#FFFFFF" stroke="#E5E8EB"/>
-  <rect x="360" y="516" width="6" height="84" rx="3" fill="#DC382D"/>
-  <text x="382" y="542" font-size="14" font-weight="700" fill="#191F28">판매 기록 저장소 · Upstash Redis</text>
-  <text x="382" y="563" font-size="13" fill="#4E5968">판매 건 · 진단 원본 · 처리 기록 · API 키 해시</text>
-  <text x="382" y="583" font-size="12" fill="#8B95A1">쓰기 잠금 · 로컬은 .local/ 파일</text>
-
-  <!-- 공개 원장 -->
-  <rect x="796" y="108" width="372" height="328" rx="18" fill="#F4F6FA" stroke="#D9DEE7"/>
-  <circle cx="819" cy="131" r="5" fill="#627EEA"/>
-  <text x="832" y="136" font-size="15" font-weight="700" fill="#191F28">공개 원장 · Sepolia</text>
-  <text x="814" y="156" font-size="12" fill="#8B95A1">누구나 같은 원장을 조회한다 · 로컬은 Anvil</text>
-
-  <rect x="812" y="176" width="340" height="156" rx="12" fill="#FFFFFF" stroke="#E5E8EB"/>
-  <text x="828" y="200" font-size="14" font-weight="700" fill="#191F28">FundLedger v5 · Groth16Verifier</text>
-  <text x="828" y="220" font-size="12" fill="#8B95A1">단계 순서와 조건을 원장이 판정한다</text>
-  <g font-size="12">
-    <text x="828" y="244" font-weight="700" fill="#191F28">판매사 키</text>
-    <text x="900" y="244" font-family="SFMono-Regular, Menlo, Consolas, monospace" fill="#4E5968">registerRule · registerProduct</text>
-    <text x="900" y="261" font-family="SFMono-Regular, Menlo, Consolas, monospace" fill="#4E5968">recordDiagnosis</text>
-    <text x="828" y="280" font-weight="700" fill="#191F28">승인 키</text>
-    <text x="900" y="280" fill="#4E5968">서명만 만든다 · subscribe에 담긴다</text>
-    <text x="828" y="299" font-weight="700" fill="#191F28">고객 키</text>
-    <text x="900" y="299" font-family="SFMono-Regular, Menlo, Consolas, monospace" fill="#4E5968">subscribe · confirm · withdraw</text>
-    <text x="828" y="318" font-weight="700" fill="#191F28">인프라 키</text>
-    <text x="900" y="318" font-family="SFMono-Regular, Menlo, Consolas, monospace" fill="#4E5968">recordSettlement</text>
   </g>
 
-  <rect x="812" y="344" width="340" height="76" rx="12" fill="#FFFFFF" stroke="#E5E8EB"/>
-  <g font-size="12">
-    <text x="828" y="368" font-weight="700" fill="#191F28">남긴다</text>
-    <text x="916" y="368" fill="#4E5968">기준·설명서 원문 · 커밋먼트</text>
-    <text x="916" y="386" fill="#4E5968">판정 · 증명 · 단계 기록</text>
-    <text x="828" y="408" font-weight="700" fill="#191F28">남기지 않는다</text>
-    <text x="916" y="408" fill="#4E5968">답변·총점·임의값·개인정보</text>
+  <!-- 사용자 -->
+  <g text-anchor="middle">
+    <rect x="82" y="192" width="56" height="56" rx="14" fill="#F2F4F6" stroke="#D9DEE7"/>
+    <g fill="none" stroke="#4E5968" stroke-width="2">
+      <rect x="95" y="206" width="30" height="11" rx="3"/>
+      <rect x="95" y="223" width="30" height="11" rx="3"/>
+    </g>
+    <circle cx="101" cy="211.5" r="1.6" fill="#4E5968"/>
+    <circle cx="101" cy="228.5" r="1.6" fill="#4E5968"/>
+    <text x="110" y="272" font-size="14" font-weight="700" fill="#191F28">증권사 앱 서버</text>
+    <text x="110" y="289" font-size="12" fill="#8B95A1">판매사 시스템</text>
+
+    <circle cx="110" cy="350" r="28" fill="#F2F4F6" stroke="#D9DEE7"/>
+    <g fill="none" stroke="#4E5968" stroke-width="2.2" stroke-linecap="round">
+      <circle cx="110" cy="342" r="7"/>
+      <path d="M97 364 C97 353 123 353 123 364"/>
+    </g>
+    <text x="110" y="402" font-size="14" font-weight="700" fill="#191F28">소비자보호 담당</text>
+    <text x="110" y="419" font-size="12" fill="#8B95A1">판매사 직원</text>
+
+    <circle cx="110" cy="512" r="28" fill="#EAF6EF" stroke="#B7DEC8"/>
+    <g fill="none" stroke="#116149" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M94 506 L110 496 L126 506 Z"/>
+      <path d="M100 509 V522 M106.7 509 V522 M113.3 509 V522 M120 509 V522"/>
+      <path d="M93 526 H127"/>
+    </g>
+    <text x="110" y="564" font-size="14" font-weight="700" fill="#191F28">감독기관</text>
+    <text x="110" y="581" font-size="12" fill="#8B95A1">검사 · 분쟁조정</text>
   </g>
 
-  <!-- 감독기관 -->
-  <rect x="796" y="476" width="372" height="140" rx="18" fill="#FFFFFF" stroke="#116149" stroke-width="1.5"/>
-  <text x="814" y="504" font-size="15" font-weight="700" fill="#191F28">감독기관 (B2G)</text>
-  <text x="814" y="527" font-size="13" fill="#4E5968">검사 · 분쟁조정 때 원장을 조회한다</text>
-  <text x="814" y="547" font-size="13" fill="#4E5968">/auditor/ 화면이 RPC로 직접 읽는다</text>
-  <text x="814" y="567" font-size="13" fill="#4E5968">판매사가 낸 원본을 원장과 대조한다</text>
-  <text x="814" y="594" font-size="13" font-weight="700" fill="#116149">판매사 API를 거치지 않는다</text>
+  <g transform="translate(60 0)">
+  <!-- 웹 -->
+  <g text-anchor="middle">
+    <rect x="358" y="318" width="64" height="64" rx="16" fill="#EEF4FF" stroke="#C7D7FE"/>
+    <g fill="none" stroke="#2563EB" stroke-width="2">
+      <rect x="372" y="336" width="36" height="28" rx="4"/>
+      <path d="M372 344 H408"/>
+    </g>
+    <circle cx="377" cy="340" r="1.3" fill="#2563EB"/>
+    <circle cx="381" cy="340" r="1.3" fill="#2563EB"/>
+    <circle cx="385" cy="340" r="1.3" fill="#2563EB"/>
+    <text x="390" y="404" font-size="15" font-weight="700" fill="#191F28">웹</text>
+    <text x="390" y="422" font-size="12" fill="#8B95A1">React · Vite</text>
+    <text x="390" y="440" font-size="12" fill="#8B95A1">판매사 콘솔 · 감독기관 화면</text>
+  </g>
+
+  <!-- API -->
+  <g text-anchor="middle">
+    <rect x="588" y="318" width="64" height="64" rx="16" fill="#EEF4FF" stroke="#2563EB" stroke-width="1.5"/>
+    <text x="620" y="358" font-size="22" font-weight="700" font-family="SFMono-Regular, Menlo, Consolas, monospace" fill="#2563EB">{ }</text>
+    <text x="620" y="404" font-size="15" font-weight="700" fill="#191F28">API</text>
+    <text x="620" y="422" font-size="12" fill="#8B95A1">Fastify · Vercel 함수</text>
+    <text x="620" y="440" font-size="12" fill="#8B95A1">ZKP 증명 · 원장 기록</text>
+  </g>
+
+  </g>
+
+  <!-- 외부 서비스 -->
+  <g text-anchor="middle" transform="translate(110 0)">
+    <rect x="898" y="118" width="64" height="64" rx="16" fill="#24292F"/>
+    <g fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round">
+      <circle cx="922" cy="136" r="3.5"/>
+      <circle cx="922" cy="164" r="3.5"/>
+      <circle cx="940" cy="144" r="3.5"/>
+      <path d="M922 139.5 V160.5"/>
+      <path d="M940 147.5 C940 156 922 152 922 160"/>
+    </g>
+    <text x="930" y="204" font-size="15" font-weight="700" fill="#191F28">GitHub</text>
+    <text x="930" y="222" font-size="12" fill="#8B95A1">push하면 빌드 · 배포</text>
+
+    <rect x="898" y="268" width="64" height="64" rx="16" fill="#FDECEA" stroke="#F5C2BD"/>
+    <g fill="none" stroke="#DC382D" stroke-width="2">
+      <ellipse cx="930" cy="290" rx="16" ry="5"/>
+      <path d="M914 290 V310 A16 5 0 0 0 946 310 V290"/>
+      <path d="M914 300 A16 5 0 0 0 946 300"/>
+    </g>
+    <text x="930" y="354" font-size="15" font-weight="700" fill="#191F28">Upstash Redis</text>
+    <text x="930" y="372" font-size="12" fill="#8B95A1">판매 기록</text>
+
+    <rect x="898" y="468" width="64" height="64" rx="16" fill="#EEF0FD" stroke="#C9D0F8"/>
+    <path d="M930 480 L942 501 L930 508 L918 501 Z" fill="#627EEA"/>
+    <path d="M930 511 L942 504 L930 521 L918 504 Z" fill="#8A9EF0"/>
+    <text x="930" y="554" font-size="15" font-weight="700" fill="#191F28">Ethereum Sepolia</text>
+    <text x="930" y="572" font-size="12" fill="#8B95A1">판매 단계 원장 · ZKP 검증</text>
+  </g>
 
   <!-- 연결 -->
-  <path d="M248 324 H358" fill="none" stroke="#4E5968" stroke-width="1.6" marker-end="url(#arrow)"/>
-  <text x="304" y="316" font-size="11" text-anchor="middle" fill="#4E5968">API 키</text>
-  <text x="304" y="340" font-size="11" text-anchor="middle" fill="#8B95A1">연동 API</text>
+  <g font-size="11" text-anchor="middle" stroke-linejoin="round">
+    <path d="M140 220 H680 V316" fill="none" stroke="#4E5968" stroke-width="1.6" marker-end="url(#arrow)"/>
+    <text x="223" y="212" fill="#4E5968">API 키</text>
 
-  <path d="M248 446 H358" fill="none" stroke="#4E5968" stroke-width="1.6" marker-end="url(#arrow)"/>
-  <text x="304" y="438" font-size="11" text-anchor="middle" fill="#4E5968">판매사 콘솔</text>
-  <text x="304" y="462" font-size="11" text-anchor="middle" fill="#8B95A1">접근 코드</text>
+    <path d="M140 350 H416" fill="none" stroke="#4E5968" stroke-width="1.6" marker-end="url(#arrow)"/>
+    <text x="223" y="342" fill="#4E5968">접근 코드</text>
 
-  <path d="M742 300 H810" fill="none" stroke="#4E5968" stroke-width="1.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
-  <text x="776" y="292" font-size="11" text-anchor="middle" fill="#4E5968" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round" paint-order="stroke">거래 송신</text>
-  <text x="776" y="316" font-size="11" text-anchor="middle" fill="#8B95A1" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round" paint-order="stroke">이벤트 조회</text>
+    <path d="M484 350 H646" fill="none" stroke="#4E5968" stroke-width="1.6" marker-end="url(#arrow)"/>
+    <text x="565" y="342" fill="#4E5968">HTTPS</text>
 
-  <path d="M982 474 V440" fill="none" stroke="#116149" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrow-green)"/>
-  <text x="992" y="462" font-size="12" font-weight="600" fill="#116149">RPC 조회</text>
+    <path d="M714 350 H930 V300 H1006" fill="none" stroke="#4E5968" stroke-width="1.6" marker-end="url(#arrow)"/>
+    <text x="968" y="292" fill="#4E5968">REST</text>
+    <path d="M714 350 H930 V488 H1006" fill="none" stroke="#4E5968" stroke-width="1.6" marker-end="url(#arrow)"/>
+    <text x="968" y="480" fill="#4E5968">거래 · 조회</text>
 
-  <path d="M148 600 V648 H982 V620" fill="none" stroke="#8B95A1" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#arrow-gray)"/>
-  <text x="566" y="668" font-size="12" text-anchor="middle" fill="#4E5968">분쟁 때 판매사가 원본을 낸다 → 감독기관이 원장과 대조한다</text>
+    <path d="M1006 150 H824" fill="none" stroke="#4E5968" stroke-width="1.6" marker-end="url(#arrow)"/>
+    <text x="915" y="142" fill="#4E5968">빌드 · 배포</text>
 
-  <text x="40" y="708" font-size="12" fill="#8B95A1">MVP는 역할 키 네 개를 FINVERIC API가 함께 보관한다. 실제 서비스는 허가형 블록체인을 가정하고, 판매사 · 감독기관 · 협회가 노드를 운영한다.</text>
-  <text x="40" y="728" font-size="12" fill="#8B95A1">로컬: docker compose up → 컨테이너 하나가 Anvil · API · 웹을 실행하고, 판매 기록은 .local/ 파일에 쓴다.</text>
+    <path d="M140 512 H1006" fill="none" stroke="#116149" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrow-green)"/>
+    <text x="573" y="503" font-size="12" font-weight="600" fill="#116149">원장 직접 조회 · 판매사 API를 거치지 않는다</text>
+  </g>
+
+  <text x="40" y="628" font-size="12" fill="#8B95A1">로컬에서는 Docker 컨테이너 하나가 같은 구성을 실행한다. 원장은 Anvil, 판매 기록은 파일에 둔다.</text>
 </svg>
