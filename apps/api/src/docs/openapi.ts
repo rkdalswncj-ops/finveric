@@ -51,6 +51,15 @@ type OperationObject = {
 type Spec = {
   paths: Record<string, Record<string, OperationObject>>;
   components?: Record<string, unknown>;
+  /** 오류 `code` 표. 문서 화면의 오류 코드 표가 읽는다. OpenAPI는 `x-` 확장을 허용한다. */
+  "x-error-codes"?: {
+    code: string;
+    status: readonly number[];
+    meaning: string;
+    action: string;
+  }[];
+  /** 원장 오류 이름(`ledgerError`)과 이유, 다음 행동. */
+  "x-ledger-errors"?: { name: string; meaning: string }[];
 };
 
 /** title이 있는 스키마를 `components.schemas`로 옮기고 그 자리를 `$ref`로 바꾼다. */
@@ -121,14 +130,15 @@ export function openApiOptions(
             "- 429: 같은 API 키로, 키가 없으면 같은 IP에서 1분에 120번을 넘게 요청했습니다.",
             "- 503: `GET /api/health`의 점검이 실패했습니다. Vercel 함수가 시작 검사에 실패해도 503입니다.",
           ].join("\n"),
-          "`code`의 값과 HTTP 상태는 다음과 같습니다.",
+          "### 오류 코드",
+          "`code`의 값, HTTP 상태, 뜻과 다음 행동은 다음과 같습니다. 같은 표가 문서 루트의 `x-error-codes`에 있습니다.",
           Object.entries(ERROR_CODES)
             .map(
-              ([code, { status, meaning }]) =>
-                `- \`${code}\` (${status.join("·")}): ${meaning}`,
+              ([code, { status, meaning, action }]) =>
+                `- \`${code}\` (${status.join("·")}): ${meaning} ${action}`,
             )
             .join("\n"),
-          "`ledgerError`의 값과 이유는 다음과 같습니다.",
+          "`ledgerError`의 값과 이유, 다음 행동은 다음과 같습니다. 같은 표가 `x-ledger-errors`에 있습니다.",
           Object.entries(LEDGER_ERRORS)
             .map(([name, reason]) => `- \`${name}\`: ${reason}`)
             .join("\n"),
@@ -231,6 +241,9 @@ function finish(spec: Spec, publicPaths: ReadonlySet<string>) {
                 content: {
                   [response.contentType ?? "application/json"]: {
                     schema: components.ref(response.schema),
+                    ...(response.example === undefined
+                      ? {}
+                      : { example: response.example }),
                   },
                 },
               }
@@ -287,6 +300,13 @@ function finish(spec: Spec, publicPaths: ReadonlySet<string>) {
           Object.entries(item).sort(([, a], [, b]) => rank(a) - rank(b)),
         ),
       ]),
+  );
+  // 오류 코드 표. API 설명의 목록과 같은 값이다. 문서 화면은 이 확장으로 표를 그린다.
+  spec["x-error-codes"] = Object.entries(ERROR_CODES).map(
+    ([code, { status, meaning, action }]) => ({ code, status, meaning, action }),
+  );
+  spec["x-ledger-errors"] = Object.entries(LEDGER_ERRORS).map(
+    ([name, meaning]) => ({ name, meaning }),
   );
   spec.components = {
     ...spec.components,

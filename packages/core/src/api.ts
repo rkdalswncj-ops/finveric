@@ -417,93 +417,105 @@ export type ExportResponse = {
 };
 
 /**
- * 오류 응답의 `code`, 함께 오는 HTTP 상태, 뜻과 다음 행동. 모든 오류 응답에 `code`가 있다.
+ * 오류 응답의 `code`, 함께 오는 HTTP 상태, 뜻(`meaning`)과 다음 행동(`action`). 모든 오류 응답에 `code`가 있다.
  * 연동 앱은 `code`로 고객 안내를 고른다. `error` 문장은 판매사 개발자와 콘솔이 읽는다(합니다체).
- * API 문서의 오류 설명(`apps/api/src/docs/openapi.ts`)이 이 표를 그대로 쓴다. 문서 문구이므로 합니다체다.
+ * API 문서(`apps/api/src/docs/openapi.ts`)가 이 표를 그대로 쓴다. API 설명의 오류 코드 목록과 `x-error-codes`다. 문서 문구이므로 합니다체다.
  */
 export const ERROR_CODES = {
   invalid_input: {
     status: [400, 413, 415],
     meaning:
-      "요청 형식이나 값이 맞지 않습니다. 400은 경로 값과 본문 형식 오류, 그리고 값 검사 오류(최신 기준과 맞지 않는 답변, 기준·상품 원문 오류)입니다. 413은 본문 크기, 415는 본문 형식(Content-Type) 오류입니다. 요청을 고친 뒤 다시 보냅니다.",
+      "요청 형식이나 값이 맞지 않습니다. 400은 경로 값과 본문 형식 오류, 그리고 값 검사 오류(최신 기준과 맞지 않는 답변, 기준·상품 원문 오류)입니다. 413은 본문 크기, 415는 본문 형식(Content-Type) 오류입니다.",
+    action: "요청을 고친 뒤 다시 보냅니다.",
   },
   unauthorized: {
     status: [401],
     meaning:
-      "접근 코드가 없거나 다릅니다. 또는 없는 API 키나 폐기한 API 키입니다. 인증 헤더를 확인합니다.",
+      "접근 코드가 없거나 다릅니다. 또는 없는 API 키나 폐기한 API 키입니다.",
+    action: "인증 헤더를 확인합니다.",
   },
   forbidden: {
     status: [403],
     meaning:
       "허용하지 않은 출처의 POST 요청입니다. 또는 API 키로 `판매 채널 연동` 밖의 경로를 불렀습니다.",
+    action:
+      "출처를 `WEB_ORIGIN`에 등록하거나 서버에서 부릅니다. `판매 채널 연동` 밖의 경로는 접근 코드로 부릅니다.",
   },
   not_found: {
     status: [404],
     meaning:
-      "없는 경로, 없는 판매 건, 없는 API 키, 판매 기록에 없는 청약 거래입니다. 경로와 ID를 확인합니다.",
+      "없는 경로, 없는 판매 건, 없는 API 키, 판매 기록에 없는 청약 거래입니다.",
+    action: "경로와 ID를 확인합니다.",
   },
   rate_limited: {
     status: [429],
     meaning:
-      "같은 API 키로, 키가 없으면 같은 IP에서 1분에 120번을 넘게 요청했습니다. 1분 뒤 다시 요청합니다.",
+      "같은 API 키로, 키가 없으면 같은 IP에서 1분에 120번을 넘게 요청했습니다.",
+    action: "1분 뒤 다시 요청합니다.",
   },
   not_ready: {
     status: [409],
-    meaning:
-      "진단 기준이나 상품을 아직 원장에 등록하지 않았습니다. 판매사 콘솔에서 먼저 등록합니다.",
+    meaning: "진단 기준이나 상품을 아직 원장에 등록하지 않았습니다.",
+    action: "판매사 콘솔에서 먼저 등록합니다.",
   },
   needs_diagnosis: {
     status: [409],
-    meaning: "고객의 투자성향 진단 기록이 없습니다. 진단을 먼저 기록합니다.",
+    meaning: "고객의 투자성향 진단 기록이 없습니다.",
+    action: "진단을 먼저 기록합니다.",
   },
   needs_higher_risk: {
     status: [409],
-    meaning:
-      "투자성향에 맞지 않는 상품입니다. 고객에게 부적합 사실을 알리고 추가 위험 확인(`higherRiskConfirmed`)을 받습니다.",
+    meaning: "투자성향에 맞지 않는 상품입니다.",
+    action:
+      "고객에게 부적합 사실을 알리고 추가 위험 확인(`higherRiskConfirmed`)을 받습니다.",
   },
   needs_approval: {
     status: [409],
-    meaning:
-      "3회차 이상 진단한 고객입니다. 판매사 관리자 승인(`approveSale`)을 받은 뒤 청약합니다.",
+    meaning: "3회차 이상 진단한 고객입니다.",
+    action: "판매사 관리자 승인(`approveSale`)을 받은 뒤 청약합니다.",
   },
   needs_recording: {
     status: [409],
-    meaning:
-      "녹취 대상 상품입니다. 고객의 녹취 동의(`recordingConsent`)를 받습니다.",
+    meaning: "녹취 대상 상품입니다.",
+    action: "고객의 녹취 동의(`recordingConsent`)를 받습니다.",
   },
   product_changed: {
     status: [409],
-    meaning:
-      "신청 뒤 상품 설명서의 새 버전이 등록됐습니다. 이 신청을 중단하고 새 버전으로 다시 신청합니다.",
+    meaning: "신청 뒤 상품 설명서의 새 버전이 등록됐습니다.",
+    action: "이 신청을 중단하고 새 버전으로 다시 신청합니다.",
   },
   wrong_state: {
     status: [409],
     meaning:
-      "판매 건의 현재 상태에서 할 수 없는 요청입니다. 예: 중단한 신청의 청약, 청약 전 최종 확인·철회·내려받기, 승인 대상이 아닌 신청의 승인. 판매 건을 다시 읽어 상태를 확인합니다.",
+      "판매 건의 현재 상태에서 할 수 없는 요청입니다. 예: 중단한 신청의 청약, 청약 전 최종 확인·철회·내려받기, 승인 대상이 아닌 신청의 승인.",
+    action: "판매 건을 다시 읽어 상태를 확인합니다.",
   },
   limit_reached: {
     status: [409],
-    meaning:
-      "사용 중인 API 키 수가 한도에 닿았습니다. 쓰지 않는 키를 폐기한 뒤 발급합니다.",
+    meaning: "사용 중인 API 키 수가 한도에 닿았습니다.",
+    action: "쓰지 않는 키를 폐기한 뒤 발급합니다.",
   },
   pending: {
     status: [409],
-    meaning:
-      "앞선 원장 거래의 영수증을 아직 받지 못했습니다. 잠시 뒤 다시 요청합니다.",
+    meaning: "앞선 원장 거래의 영수증을 아직 받지 못했습니다.",
+    action: "잠시 뒤 다시 요청합니다.",
   },
   unavailable: {
     status: [409, 503],
     meaning:
-      "RPC·저장소 연결이 실패했거나 처리를 끝내지 못했습니다. 판매 기록과 원장이 어긋난 경우도 포함합니다. 503은 Vercel 함수의 시작 검사가 실패한 경우입니다. 잠시 뒤 다시 요청합니다.",
+      "RPC·저장소 연결이 실패했거나 처리를 끝내지 못했습니다. 판매 기록과 원장이 어긋난 경우도 포함합니다. 503은 Vercel 함수의 시작 검사가 실패한 경우입니다.",
+    action: "잠시 뒤 다시 요청합니다.",
   },
   rejected: {
     status: [409],
     meaning:
       "원장이 요청을 거절했습니다. `ledgerError`에 원장 오류 이름(예: `TooEarly`)이 있습니다. 이름을 모르면 `ledgerError`가 없습니다.",
+    action:
+      "`ledgerError`의 다음 행동을 따릅니다. 이름이 없으면 필수 기록과 현재 단계를 확인합니다.",
   },
 } as const satisfies Record<
   string,
-  { status: readonly number[]; meaning: string }
+  { status: readonly number[]; meaning: string; action: string }
 >;
 export type ErrorCode = keyof typeof ERROR_CODES;
 /**
@@ -599,7 +611,7 @@ export const errorResponseSchema = responseSchema<ErrorResponse>(
     code: {
       enum: Object.keys(ERROR_CODES),
       description:
-        "이유를 나타내는 값. 모든 오류 응답에 있습니다. 값마다 뜻은 API 설명의 오류 항목에 있습니다.",
+        "이유를 나타내는 값. 모든 오류 응답에 있습니다. 값마다 뜻과 다음 행동은 API 설명의 오류 코드 목록에 있습니다.",
     },
     ledgerError: {
       enum: Object.keys(LEDGER_ERRORS),

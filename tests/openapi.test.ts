@@ -5,6 +5,7 @@ import { offlineApp } from "./offline-app.ts";
 import { OPERATIONS, TAGS } from "../apps/api/src/docs/operations.ts";
 import { HTTP_ERRORS } from "../apps/api/src/errors.ts";
 import { ERROR_CODES, type ErrorCode } from "@finveric/core/api";
+import { LEDGER_ERRORS } from "@finveric/core";
 
 /** 해요체 끝맺음. API 오류 문장은 합니다체(지시는 "-세요")로 쓴다. */
 const HAEYO = /(어|아|에|해|예|워|돼|봐)요[.?!]|주세요/;
@@ -158,6 +159,27 @@ test("OpenAPI 3.1 문서가 등록한 모든 경로를 분류와 operationId로 
       spec.info.description.includes(`\`${code}\` (${status.join("·")})`),
       `API 설명에 ${code} 없음`,
     );
+  // 문서 화면의 오류 코드 표는 x- 확장에서 읽는다. core의 표와 같아야 한다.
+  assert.deepEqual(
+    spec["x-error-codes"],
+    Object.entries(ERROR_CODES).map(([code, { status, meaning, action }]) => ({
+      code,
+      status: [...status],
+      meaning,
+      action,
+    })),
+  );
+  assert.deepEqual(
+    spec["x-ledger-errors"],
+    Object.entries(LEDGER_ERRORS).map(([name, meaning]) => ({ name, meaning })),
+  );
+  for (const { code, meaning, action } of spec["x-error-codes"]) {
+    for (const text of [meaning, action]) {
+      assert.match(text, /[가-힣]/, code);
+      assert.doesNotMatch(text, HAEYO, code);
+    }
+    assert.match(action, /다\.$/, `${code}: 다음 행동은 문장으로 끝난다`);
+  }
 });
 
 test("API 문서 화면은 외부 파일 없이 한 HTML로 열린다", async (t) => {
@@ -173,6 +195,11 @@ test("API 문서 화면은 외부 파일 없이 한 HTML로 열린다", async (t
   assert.doesNotMatch(page.body, /https?:\/\//);
   // 화면 문구에 시연·모의·테스트용을 쓰지 않는다(DESIGN.md). 데이터는 문서에서 읽는다.
   assert.doesNotMatch(page.body, /시연|모의|테스트용/);
+  // 오류 코드 표는 x- 확장으로 그린다. 요청 예시는 인증 값을 환경 변수에서 읽는다.
+  assert.match(page.body, /x-error-codes/);
+  assert.match(page.body, /x-ledger-errors/);
+  assert.match(page.body, /FINVERIC_API_KEY/);
+  assert.match(page.body, /FINVERIC_ACCESS_CODE/);
 });
 
 test("접근 코드를 설정해도 상태 확인·설정·API 문서는 열리고 나머지는 401이다", async (t) => {

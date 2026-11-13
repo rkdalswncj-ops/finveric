@@ -22,6 +22,7 @@ import {
   tamperResponseSchema,
   traceSchema,
   type DiagnoseRequest,
+  type HealthResponse,
   type IssueApiKeyRequest,
   type OpenSaleRequest,
   type SubscribeRequest,
@@ -53,6 +54,8 @@ export type SuccessResponse = {
   description: string;
   contentType?: string;
   schema?: object;
+  /** 응답 예시. 없으면 문서 화면이 스키마에서 예시를 만든다. */
+  example?: unknown;
 };
 export type Operation = {
   operationId: string;
@@ -337,6 +340,21 @@ export const OPERATIONS: Record<string, Operation> = {
       503: {
         description: "점검 항목 가운데 하나 이상 실패. 본문 형식은 200과 같습니다.",
         schema: healthResponseSchema,
+        example: {
+          ok: false,
+          network: "local",
+          chainId: 31337,
+          ledger: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512",
+          checks: {
+            rpc: { ok: false, ms: 5001, error: "응답 시간이 초과되었습니다." },
+            ledger: {
+              ok: false,
+              ms: 5001,
+              error: "응답 시간이 초과되었습니다.",
+            },
+            store: { ok: true, ms: 2 },
+          },
+        } satisfies HealthResponse,
       },
     },
     noConflict: true,
@@ -363,6 +381,7 @@ export const OPERATIONS: Record<string, Operation> = {
         description: "HTML 화면",
         contentType: "text/html",
         schema: { type: "string" },
+        example: '<!doctype html>\n<html lang="ko">\n…\n</html>',
       },
     },
     noConflict: true,
