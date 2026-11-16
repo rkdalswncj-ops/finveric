@@ -42,14 +42,18 @@ export class ApiError extends Error {
 export type LoadState = "loading" | "ready" | "failed";
 
 /** 판매사 API를 부른다. 응답을 해석하는 곳은 여기 하나다. 실패하면 `ApiError`를 던진다. */
-export async function api<T>(path: string, body?: unknown): Promise<T> {
+export async function api<T>(
+  path: string,
+  body?: unknown,
+  credential = token(),
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/api${path}`, {
       method: body === undefined ? "GET" : "POST",
       headers: {
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-        ...(token() ? { Authorization: `Bearer ${token()}` } : {}),
+        ...(credential ? { Authorization: `Bearer ${credential}` } : {}),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });

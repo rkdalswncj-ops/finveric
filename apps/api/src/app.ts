@@ -2,9 +2,15 @@ import Fastify, { type FastifyReply } from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { json } from "@finveric/core";
-import { API_KEY_PREFIX, type ErrorResponse } from "@finveric/core/api";
+import {
+  API_KEY_PREFIX,
+  DEMO_SESSION_PREFIX,
+  type CustomerParams,
+  type ErrorResponse,
+  type OpenSaleRequest,
+} from "@finveric/core/api";
 import { ERROR_CODES, errorBody, type ErrorCode } from "@finveric/core/errors";
 import { openApiOptions } from "./docs/openapi.ts";
 import { CodedError } from "./errors.ts";
@@ -52,6 +58,29 @@ const fail = (reply: FastifyReply, code: ErrorCode) =>
 /** `Authorization: Bearer <값>`의 값. 접근 코드나 API 키다. */
 const bearer = (headers: { authorization?: string }) =>
   (headers.authorization ?? "").replace(/^Bearer /, "");
+const DEMO_SESSION = new RegExp(
+  `^${DEMO_SESSION_PREFIX}[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`,
+);
+/** 공개 시연으로 쓸 수 있는 기능. 판매 ID의 소유자는 저장소를 읽은 뒤 확인한다. */
+const DEMO_ROUTES = new Set([
+  "GET /api/rules",
+  "GET /api/products",
+  "GET /api/customers/:customerNo",
+  "POST /api/customers/:customerNo/diagnose",
+  "GET /api/sales",
+  "POST /api/sales",
+  "GET /api/sales/:id",
+  "GET /api/sales/:id/export/:kind",
+  "POST /api/sales/:id/action/abandon",
+  "POST /api/sales/:id/action/subscribe",
+  "POST /api/sales/:id/action/confirm",
+  "POST /api/sales/:id/action/withdraw",
+]);
+declare module "fastify" {
+  interface FastifyRequest {
+    demoCustomerNo?: string;
+  }
+}
 /** 접근 코드 없이 여는 경로: 상태 확인, 검증 설정, API 문서. */
 export const PUBLIC_PATHS: ReadonlySet<string> = new Set([
   "/api/health",
@@ -66,8 +95,10 @@ export async function createApp(service = new FundService()) {
     ajv: { customOptions: { removeAdditional: false, coerceTypes: false } },
   });
   const token = process.env.DEMO_TOKEN;
+  const publicChannel = process.env.FINVERIC_PUBLIC_CHANNEL === "1";
   if (
-    (service.env.network === "sepolia" ||
+    (publicChannel ||
+      service.env.network === "sepolia" ||
       process.env.NODE_ENV === "production") &&
     (!token || token.length < 32)
   )
@@ -88,22 +119,36 @@ export async function createApp(service = new FundService()) {
   });
   // 경로보다 먼저 등록한다. 이후에 등록한 경로로 /api/openapi.json을 만든다.
   await app.register(swagger, openApiOptions(PUBLIC_PATHS));
+  app.decorateRequest("demoCustomerNo");
   app.addHook("preHandler", async (req, reply) => {
-    if (
-      PUBLIC_PATHS.has(req.routeOptions.url ?? "") ||
-      req.method === "OPTIONS"
-    )
-      return;
+    const url = req.routeOptions.url ?? "";
     const supplied = bearer(req.headers);
-    if (supplied.startsWith(API_KEY_PREFIX)) {
+    if (publicChannel && DEMO_SESSION.test(supplied)) {
+      // 고객 번호나 원장의 가명 ID만 알아도 다른 탭의 세션을 만들 수 없게 한다.
+      const digest = createHmac("sha256", service.env.customerRefSecret)
+        .update(supplied)
+        .digest("hex");
+      req.demoCustomerNo = `D-${digest.slice(0, 30)}`;
+    }
+    if (PUBLIC_PATHS.has(url) || req.method === "OPTIONS") return;
+    if (req.demoCustomerNo) {
+      if (!DEMO_ROUTES.has(`${req.method} ${url}`))
+        return fail(reply, "DEMO_SCOPE_DENIED");
+      const customerNo =
+        (req.params as Partial<CustomerParams> | undefined)?.customerNo ??
+        (url === "/api/sales" && req.method === "POST"
+          ? (req.body as OpenSaleRequest).customerNo
+          : req.demoCustomerNo);
+      if (req.demoCustomerNo !== customerNo)
+        return fail(reply, "DEMO_SCOPE_DENIED");
+    } else if (supplied.startsWith(API_KEY_PREFIX)) {
       // API 키: 증권사 앱 서버가 쓴다. 접근 코드 설정과 관계없이 항상 확인한다.
       if (!(await service.authenticateApiKey(supplied)))
         return fail(reply, "API_KEY_INVALID");
-      const url = req.routeOptions.url;
       if (url && tagOf(req.method, url) !== CHANNEL_TAG)
         return fail(reply, "API_KEY_SCOPE_DENIED");
     } else if (token) {
-      // 접근 코드: 판매사 콘솔과 증권사 앱 예시가 쓴다. 모든 경로를 부를 수 있다.
+      // 접근 코드로 판매사 콘솔을 쓴다. 공개 시연을 끄면 증권사 앱 예시도 쓴다.
       const given = Buffer.from(supplied);
       const expected = Buffer.from(token);
       if (given.length !== expected.length || !timingSafeEqual(given, expected))
@@ -160,6 +205,7 @@ export async function createApp(service = new FundService()) {
     prefix: "/api",
     service,
     requiresToken: !!token,
+    publicChannel,
   });
   for (const routes of [
     registryRoutes,

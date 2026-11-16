@@ -302,6 +302,7 @@ export type HealthResponse = {
 export type ConfigResponse = {
   deployment: Deployment;
   requiresToken: boolean;
+  publicChannel?: boolean;
   demoCustomer: { number: string; ref: Hex };
 };
 export type ConfigDto = Wire<ConfigResponse>;
@@ -585,7 +586,12 @@ export const configResponseSchema = responseSchema<ConfigDto>(
     deployment: deploymentSchema,
     requiresToken: {
       type: "boolean",
-      description: "true면 공개 경로를 뺀 모든 요청에 접근 코드가 필요합니다.",
+      description: "true면 판매사 콘솔이 접근 코드를 확인합니다.",
+    },
+    publicChannel: {
+      type: "boolean",
+      description:
+        "true면 증권사 앱 예시가 탭별 시연 세션으로 가입할 수 있습니다.",
     },
     demoCustomer: responseSchema<ConfigDto["demoCustomer"]>(
       "DemoCustomer",
@@ -594,7 +600,7 @@ export const configResponseSchema = responseSchema<ConfigDto>(
       {},
     ),
   },
-  {},
+  { publicChannel: true },
 );
 
 const ruleDocumentResponse = {
@@ -888,6 +894,7 @@ export const originalSchema = responseSchema<OriginalBundle>(
 
 /** API 키 원문의 접두어. 접근 코드와 구분한다. */
 export const API_KEY_PREFIX = "fvk_";
+export const DEMO_SESSION_PREFIX = "fvd_";
 /** 동시에 쓸 수 있는 API 키 수. 폐기한 키는 세지 않는다. */
 export const MAX_ACTIVE_API_KEYS = 20;
 /** API 키로 부를 수 있는 범위. 지금은 `판매 채널 연동` API 하나다. */

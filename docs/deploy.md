@@ -65,6 +65,7 @@ Production과 Preview에 같은 값을 넣는다.
 | `NETWORK` | `sepolia` |
 | `RPC_URL` | Sepolia RPC 주소. 없으면 `https://ethereum-sepolia-rpc.publicnode.com`을 쓴다 |
 | `DEMO_TOKEN` | 32자 이상. `.env.sepolia`의 값 |
+| `FINVERIC_PUBLIC_CHANNEL` | `1`이면 링크를 받은 사람이 접근 코드 없이 증권사 앱 예시에서 가입한다 |
 | `DEPLOYER_PRIVATE_KEY` 외 역할 키 4개 | `.env.sepolia`의 값. `SELLER`, `APPROVER`, `CUSTOMER`, `INFRASTRUCTURE` |
 | `CUSTOMER_REF_SECRET` | 선택. 고객 가명 ID를 만드는 비밀값(0x로 시작하는 hex). 없으면 판매사 키에서 만든다 |
 
@@ -80,6 +81,8 @@ done
 ```
 
 `NETWORK=sepolia`도 같은 방법으로 넣는다. `WEB_ORIGIN`은 웹을 다른 도메인에 둘 때만 쓴다. 쉼표로 여러 출처를 지정한다.
+
+[ADR 0008](adr/0008-api-keys.md)의 증권사 앱 예시에는 공개 시연 설정을 추가했다. 방문자에게 판매사 콘솔 접근 코드를 공유할 필요가 없도록 브라우저 탭마다 자기 고객의 진단, 가입과 증빙에만 접근하는 세션을 만든다.
 
 ### 5. 배포 뒤 확인
 

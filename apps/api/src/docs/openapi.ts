@@ -111,6 +111,7 @@ function commonErrors(options: {
     // API 키로 판매 채널 연동 밖의 경로를 부르면 403이다. POST는 출처도 검사한다.
     if (!channel) codes.push("API_KEY_SCOPE_DENIED");
     if (post) codes.push("ORIGIN_NOT_ALLOWED");
+    codes.push("DEMO_SCOPE_DENIED");
     // 공개 경로가 아니면 판매 기록 저장소를 읽는다(API 키 확인 포함).
     codes.push(
       "INTERNAL_ERROR",
@@ -178,7 +179,8 @@ export function openApiOptions(
           "### 기본 주소",
           "모든 경로는 `/api`로 시작합니다. 서버 주소는 `/`입니다. 이 문서를 받은 서버(로컬, Docker, Vercel)에 그대로 요청합니다.",
           "### 접근 코드",
-          `서버에 접근 코드(\`DEMO_TOKEN\`)를 설정하면, 공개 경로를 뺀 모든 요청에 \`Authorization: Bearer <접근 코드>\` 헤더가 필요합니다. 코드가 없거나 다르면 401을 돌려줍니다. 공개 경로는 ${open}입니다. 설정 여부는 \`GET /api/config\`의 \`requiresToken\`으로 확인합니다.`,
+          `판매사 콘솔은 서버에 접근 코드(\`DEMO_TOKEN\`)를 설정한 경우 \`Authorization: Bearer <접근 코드>\` 헤더를 보냅니다. 코드가 없거나 다르면 401을 돌려줍니다. 공개 경로는 ${open}입니다. 접근 코드 설정 여부는 \`GET /api/config\`의 \`requiresToken\`으로 확인합니다.`,
+          "공개 시연을 켜면 증권사 앱 예시는 탭별 세션을 사용합니다. 세션으로 상품을 살펴보고 자기 고객의 진단, 가입과 증빙을 처리합니다. 공개 시연 설정 여부는 `GET /api/config`의 `publicChannel`로 확인합니다.",
           "### API 키",
           "증권사 앱 서버는 판매사 콘솔에서 발급한 API 키로 `판매 채널 연동` API를 부릅니다. `Authorization: Bearer fvk_...` 헤더로 보냅니다. 키 원문은 발급할 때 한 번만 보여 줍니다. 서버는 해시만 보관합니다. 키는 서버에만 두고 고객 앱이나 브라우저에 넣지 않습니다. API 키는 접근 코드 설정과 관계없이 항상 검사합니다. 없는 키나 폐기한 키는 401, `판매 채널 연동` 밖의 경로는 403입니다. 요청 한도는 키마다 셉니다.",
           "### 출처 검사",
@@ -190,7 +192,7 @@ export function openApiOptions(
           [
             "- 400: 경로 값이나 본문이 스키마와 다르거나, 본문이 올바른 JSON이 아니거나, 값 검사에 맞지 않습니다(`invalid_input`).",
             "- 401: 접근 코드가 없거나 다릅니다. 또는 없는 API 키, 폐기한 API 키입니다(`unauthorized`).",
-            "- 403: 허용하지 않은 출처입니다. 또는 API 키로 부를 수 없는 경로입니다(`forbidden`).",
+            "- 403: 허용하지 않은 출처입니다. 또는 API 키나 공개 시연 세션의 범위를 벗어났습니다(`forbidden`).",
             "- 404: 없는 경로이거나, 경로 값의 대상(판매 건, API 키, 청약 거래)이 없습니다(`not_found`).",
             "- 409: 업무 규칙이나 원장이 요청을 거절했습니다. RPC·저장소 연결 실패도 409입니다(`unavailable`). `type`과 `code`로 이유를 나눕니다.",
             "- 413: 본문이 64KB를 넘습니다(`BODY_TOO_LARGE`).",

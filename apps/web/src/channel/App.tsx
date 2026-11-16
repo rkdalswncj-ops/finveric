@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Route, Routes, useLocation, useNavigate } from "react-router";
 import { CUSTOMER_LEDGER_ERRORS } from "@finveric/core";
+import { DEMO_SESSION_PREFIX } from "@finveric/core/api";
 import type {
   ConfigDto,
   CustomerDto,
@@ -29,6 +30,16 @@ import { Records } from "./screens/Records.tsx";
 
 /** 진행 중인 가입 신청 번호. 탭마다 따로 보관한다. */
 const DRAFT_KEY = "finveric-draft";
+const SESSION_KEY = "finveric-channel-session";
+
+function publicChannelApi<T>(path: string, body?: unknown) {
+  let credential = sessionStorage.getItem(SESSION_KEY);
+  if (!credential) {
+    credential = DEMO_SESSION_PREFIX + crypto.randomUUID();
+    sessionStorage.setItem(SESSION_KEY, credential);
+  }
+  return api<T>(path, body, credential);
+}
 
 const UNAVAILABLE =
   "지금은 처리하지 못했어요. 잠시 후 다시 시도해 주세요. 계속 안 되면 판매사에 문의해 주세요.";
@@ -146,17 +157,28 @@ export function App() {
         : "",
     );
 
+  const request = useCallback(
+    <T,>(path: string, body?: unknown) =>
+      (configRef.current?.publicChannel ? publicChannelApi : api)<T>(
+        path,
+        body,
+      ),
+    [],
+  );
   const reload = useCallback(async () => {
-    const current = configRef.current ?? (await api<ConfigDto>("/config"));
-    if (!configRef.current) {
+    let current = configRef.current;
+    if (!current) {
+      current = await api<ConfigDto>("/config");
+      if (current.publicChannel)
+        current = await publicChannelApi<ConfigDto>("/config");
       configRef.current = current;
       setConfig(current);
     }
     const [newRules, newProducts, newSales, newCustomer] = await Promise.all([
-      api<RuleEntryDto[]>("/rules"),
-      api<ProductEntryDto[]>("/products"),
-      api<SaleDto[]>("/sales"),
-      api<CustomerDto>(
+      request<RuleEntryDto[]>("/rules"),
+      request<ProductEntryDto[]>("/products"),
+      request<SaleDto[]>("/sales"),
+      request<CustomerDto>(
         `/customers/${encodeURIComponent(current.demoCustomer.number)}`,
       ),
     ]);
@@ -167,7 +189,7 @@ export function App() {
     setLoad("ready");
     // 읽기에 성공하면 앞선 읽기 실패의 오류를 지운다. 처리 실패의 오류는 그대로 둔다.
     setFailure((current) => (current?.load ? undefined : current));
-  }, []);
+  }, [request]);
   /** 화면을 막지 않고 다시 읽는다. 승인 대기·숙려 화면이 쓴다. */
   const refresh = useCallback(() => reload().catch(() => undefined), [reload]);
   /**
@@ -176,14 +198,14 @@ export function App() {
    */
   const refreshSale = useCallback(
     (id: string) =>
-      api<SaleDto>(`/sales/${id}`)
+      request<SaleDto>(`/sales/${id}`)
         .then((next) =>
           setSales((list) =>
             list.map((sale) => (sale.id === next.id ? next : sale)),
           ),
         )
         .catch(() => undefined),
-    [],
+    [request],
   );
   useEffect(() => {
     reload().catch((e: unknown) => {
@@ -252,10 +274,10 @@ export function App() {
           throw new Error(
             "작성 중인 가입을 마치거나 중단한 뒤 새로 시작해 주세요.",
           );
-        await api<SaleDto>(`/sales/${activeDraft.id}/action/abandon`, {});
+        await request<SaleDto>(`/sales/${activeDraft.id}/action/abandon`, {});
       }
       if (!config) throw new Error("설정을 불러온 뒤 다시 시도해 주세요.");
-      const sale = await api<SaleDto>("/sales", {
+      const sale = await request<SaleDto>("/sales", {
         productId: productId as `0x${string}`,
         customerNo: config.demoCustomer.number,
       } satisfies OpenSaleRequest);
@@ -267,11 +289,11 @@ export function App() {
     });
   };
   const action = (id: string, name: SaleAction, label: string) =>
-    run(label, () => api<SaleDto>(`/sales/${id}/action/${name}`, {}));
+    run(label, () => request<SaleDto>(`/sales/${id}/action/${name}`, {}));
   const abandon = () =>
     activeDraft?.status === "draft" &&
     run("가입을 중단하고 있어요", async () => {
-      await api<SaleDto>(`/sales/${activeDraft.id}/action/abandon`, {});
+      await request<SaleDto>(`/sales/${activeDraft.id}/action/abandon`, {});
       // 신청 번호는 가입 화면을 떠난 뒤 지운다(아래 효과). 먼저 지우면 가입 화면이 잠깐 "진행 중인 가입이 없어요"로 바뀐다.
       navigate(fundPath(activeDraft.productId));
     });
@@ -289,7 +311,7 @@ export function App() {
   };
   const download = (id: string, kind: ExportKind) =>
     run("파일을 준비하고 있어요", async () => {
-      const value = await api<ExportResponse[ExportKind]>(
+      const value = await request<ExportResponse[ExportKind]>(
         `/sales/${id}/export/${kind}`,
       );
       saveFile(value, `finveric-${kind}-${id.slice(0, 10)}.json`);
@@ -323,7 +345,7 @@ export function App() {
       }}
       error={failure?.message}
     >
-      {config?.requiresToken && (
+      {config?.requiresToken && !config.publicChannel && (
         <AccessCodeForm
           connect={() => void run("연결하고 있어요", reload)}
           busy={!!busy}
@@ -370,6 +392,7 @@ export function App() {
               deployment={config?.deployment}
               busy={busy}
               run={run}
+              request={request}
               action={action}
               abandon={abandon}
               refresh={refresh}
