@@ -1,5 +1,9 @@
 # 핀베릭(FINVERIC), 투자상품 판매 기록 검증 플랫폼
 
+**[공개 시연 시작하기](https://finveric.vercel.app/channel/)**
+
+접근 코드나 지갑 연결 없이 가상 상품을 선택하고 투자성향 진단, 가입, ZKP 검증을 체험할 수 있다.
+
 ![FINVERIC 핀베릭 — 투자상품 판매 기록 검증 플랫폼](docs/assets/cover.png)
 
 ## 🎬 시연 영상
