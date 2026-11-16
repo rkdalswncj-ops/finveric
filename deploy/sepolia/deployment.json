@@ -1,0 +1,19 @@
+{
+  "ledgerVersion": 5,
+  "proofKeyHash": "af6d422af94b1229af8387ed4434ee3f51e1f1ad10a19ac91494a52aa37df1cb",
+  "chainId": 11155111,
+  "ledger": "0x2911aac787a7a4bfabcfd50be30a888591850258",
+  "verifier": "0x18dd12f1d5ce7de67b5290c0bde735cb5d6c593f",
+  "blockNumber": "12147136",
+  "rpcUrl": "https://ethereum-sepolia-rpc.publicnode.com",
+  "coolingPeriod": 60,
+  "roles": {
+    "deployer": "0x59B839BE55117C17094aF99866903c39d5EA05Cf",
+    "seller": "0xe5072c0B3364D37D5FCc5862999D2605a485175B",
+    "approver": "0x0499d9f2c0815A6fAA272b7904cD30e859B32a08",
+    "customer": "0x54f4861dec864A4990063588223FB22D548136b3",
+    "infrastructure": "0xcA87530C396da694768454685dc4557349294fc4"
+  },
+  "verifierCodeHash": "0xd121cdcd019fd5e4bf8b3be96163cdb49f2c3ee5fb0a85711bd129cb1806e461",
+  "ledgerCodeHash": "0xac12c44ae02ac1d2d8a848dbff58d03f6c2b38150aea739592c948dc4b800889"
+}
