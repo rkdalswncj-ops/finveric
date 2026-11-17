@@ -16,7 +16,7 @@
 
 | 자료                | 담당           | 위치                                                                                          | 상태      |
 | ------------------- | -------------- | --------------------------------------------------------------------------------------------- | --------- |
-| 팀프로젝트 공지     | 모두           | [공지 원본 PDF](references/team-project-guide.pdf), [일정·제출·평가 기준](references/team-project-guide.md) | 2026-11-17 반영 |
+| 팀프로젝트 공지     | 모두           | [공지 원본 PDF](references/팀프로젝트%20안내.pdf), [일정·제출·평가 기준](references/팀프로젝트%20안내%20참고%20메모.md) | 2026-11-17 반영 |
 | 제품 정의(PRD)      | 개발           | [docs/prd.md](prd.md)                                                                         | v5 초안   |
 | 시장 조사           | 자료조사       | [docs/market-research.md](market-research.md)                                                 | 팀 조사 반영, 일부 미대조 |
 | 아키텍처·흐름 그림  | 개발           | [architecture.png](assets/architecture.png), [architecture-local.png](assets/architecture-local.png), [flow.png](assets/flow.png), [cover.png](assets/cover.png) | 완료      |
