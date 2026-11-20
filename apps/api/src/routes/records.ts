@@ -18,8 +18,8 @@ export const recordRoutes: FastifyPluginAsync<{
       reply.header("Cache-Control", "no-store");
       return service.view<unknown>(() =>
         req.params.kind === "original"
-          ? service.original(req.params.id)
-          : service.receipt(req.params.id),
+          ? service.original(req.params.id, req.demoCustomerNo)
+          : service.receipt(req.params.id, req.demoCustomerNo),
       );
     },
   );

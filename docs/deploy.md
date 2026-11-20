@@ -17,9 +17,8 @@
 
 ## 현재 상태
 
-- 코드는 Vercel 배포를 지원한다. 로컬에서 `NETWORK=local npm run build:vercel`로 결과물을 만들었다. 번들 함수로 실제 증명 생성까지 확인했다.
-- Sepolia 원장은 아직 배포하지 않았다. 배포 지갑에 테스트 ETH를 충전해야 한다.
-- Vercel 프로젝트와 Upstash Redis는 아직 연결하지 않았다.
+- 공개 시연은 Vercel, Upstash Redis, Sepolia를 쓴다.
+- Sepolia 원장의 공개 배포 설정과 증명 파일은 `deploy/sepolia/`에 있다.
 
 ## 배포 순서
 
@@ -37,15 +36,20 @@ npm run deploy:sepolia
 npm run release:sepolia
 ```
 
-`release:sepolia`는 `deploy/sepolia/`에 배포본을 만든다. 배포본은 공개 배포 설정, 증명 키(zkey), 회로 WASM이다. 증명 키 지문이 배포한 Verifier와 다르면 만들지 않는다. `deploy/sepolia/`를 커밋한다. Vercel은 Git 저장소에서 빌드하는데 `.local/`과 `circuits/build/`는 Git에 없기 때문이다. 증명 키는 증명 생성에 쓰는 공개 파일이다. 개인키와 고객 원본은 넣지 않는다.
+`release:sepolia`는 `deploy/sepolia/`에 배포본을 만든다. 배포본은 공개 배포 설정, 증명 키(zkey), 회로 WASM이다. 증명 키 지문이 배포한 Verifier와 다르면 만들지 않는다. `main`에서 Vercel 빌드를 재현할 수 있도록 `deploy/sepolia/`를 커밋한다. 증명 키는 증명 생성에 쓰는 공개 파일이다. 개인키와 고객 원본은 넣지 않는다.
 
 ### 2. Vercel 프로젝트
 
-1. Vercel Hobby 계정에서 GitHub 저장소 `yhc125/finveric`을 가져온다.
-2. 빌드 설정은 `vercel.json`이 정한다. 설치 `npm ci`, 빌드 `npm run build:vercel`, 프레임워크 없음.
-3. Node.js 버전은 22.x를 쓴다. `package.json`의 `engines`와 같다.
+현재 공개 시연은 `main`을 체크아웃한 뒤 Vercel CLI로 배포한다. CLI에서 Vercel 프로젝트를 연결하고 아래 명령을 실행한다.
 
-`build:vercel`은 웹(페이지 세 개)을 빌드한다. 이어서 `.vercel/output`을 [Build Output API v3](https://vercel.com/docs/build-output-api) 형식으로 만든다. API는 esbuild로 한 파일에 묶는다. 증명 키, WASM, 배포 설정을 함수 디렉터리에 함께 넣는다. 배포본이 없거나 증명 키가 다르면 빌드를 멈춘다.
+```bash
+vercel build --prod
+vercel deploy --prebuilt --prod
+```
+
+빌드 설정은 `vercel.json`이 정한다. 설치는 `npm ci`를 쓴다. Node.js 버전은 22.x를 쓴다.
+
+`build:vercel`은 웹 페이지 네 개를 빌드한다. 이어서 `.vercel/output`을 [Build Output API v3](https://vercel.com/docs/build-output-api) 형식으로 만든다. API는 esbuild로 한 파일에 묶는다. 증명 키, WASM, 배포 설정을 함수 디렉터리에 함께 넣는다. 배포본이 없거나 증명 키가 다르면 빌드를 멈춘다.
 
 ### 3. Upstash Redis
 
@@ -64,7 +68,8 @@ Production과 Preview에 같은 값을 넣는다.
 | --- | --- |
 | `NETWORK` | `sepolia` |
 | `RPC_URL` | Sepolia RPC 주소. 없으면 `https://ethereum-sepolia-rpc.publicnode.com`을 쓴다 |
-| `DEMO_TOKEN` | 선택. 넣지 않는다(공개 체험). 넣으면 공개 경로 4개 밖의 모든 API가 접근 코드를 요구하고, 판매사 콘솔과 증권사 앱 예시가 입력 칸을 보여 준다. 넣을 때는 32자 이상 |
+| `FINVERIC_PUBLIC_CHANNEL` | 공개 시연에서는 `1`. 증권사 앱 예시는 브라우저 탭마다 가입 세션을 만든다 |
+| `DEMO_TOKEN` | 선택. 공개 시연에서는 비워 둔다. 콘솔에 접근 코드를 적용하려면 32자 이상으로 정한다 |
 | `DEPLOYER_PRIVATE_KEY` 외 역할 키 4개 | `.env.sepolia`의 값. `SELLER`, `APPROVER`, `CUSTOMER`, `INFRASTRUCTURE` |
 | `CUSTOMER_REF_SECRET` | 선택. 고객 가명 ID를 만드는 비밀값(0x로 시작하는 hex). 없으면 판매사 키에서 만든다 |
 
@@ -82,6 +87,8 @@ done
 ```
 
 `NETWORK=sepolia`도 같은 방법으로 넣는다. `WEB_ORIGIN`은 웹을 다른 도메인에 둘 때만 쓴다. 쉼표로 여러 출처를 지정한다.
+
+공개 시연에서는 판매사 콘솔과 감독기관 화면을 접근 코드 없이 연다. 증권사 앱 예시는 세션별로 자기 고객의 진단과 가입을 관리한다. 진단 답변 원본은 해당 가입 세션에서 내려받는다. 감독기관은 공개 원장과 증명서를 대조하며, 원본 파일을 전달받으면 함께 대조할 수 있다.
 
 ### 5. 배포 뒤 확인
 

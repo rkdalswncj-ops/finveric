@@ -45,11 +45,13 @@ import {
   type EvidenceReceipt,
   type OriginalBundle,
 } from "@finveric/core";
-import type {
-  CustomerDto,
-  DiagnosisDto,
-  ErrorResponse,
-  SaleDto,
+import {
+  DEMO_SESSION_PREFIX,
+  type ConfigDto,
+  type CustomerDto,
+  type DiagnosisDto,
+  type ErrorResponse,
+  type SaleDto,
 } from "@finveric/core/api";
 import { ERROR_CODES, type ErrorCode } from "@finveric/core/errors";
 
@@ -1131,6 +1133,92 @@ test(
         } finally {
           delete process.env.DEMO_TOKEN;
           await gated.close();
+        }
+      },
+    );
+
+    await t.test(
+      "공개 시연은 콘솔을 열고 가입 원본을 자기 고객의 세션에만 제공한다",
+      async () => {
+        process.env.FINVERIC_PUBLIC_CHANNEL = "1";
+        const publicApp = await createApp(service);
+        try {
+          const session = (suffix: string) => ({
+            authorization: `Bearer ${DEMO_SESSION_PREFIX}00000000-0000-4000-8000-00000000000${suffix}`,
+          });
+          const first = session("1");
+          const second = session("2");
+          const cfg = async (headers: typeof first) =>
+            (
+              await publicApp.inject({ url: "/api/config", headers })
+            ).json<ConfigDto>();
+          const [a, b] = await Promise.all([cfg(first), cfg(second)]);
+          assert.equal(a.publicChannel, true);
+          assert.equal(a.requiresToken, false);
+          for (const url of [
+            "/api/keys",
+            `/api/sales/${saleId}/export/receipt`,
+          ]) {
+            const response = await publicApp.inject({ url });
+            assert.equal(response.statusCode, 200, response.body);
+          }
+          const original = await publicApp.inject({
+            url: `/api/sales/${saleId}/export/original`,
+          });
+          assert.equal(original.statusCode, 403, original.body);
+          assert.equal(original.json().code, "DEMO_SCOPE_DENIED");
+          assert.notEqual(a.demoCustomer.ref, b.demoCustomer.ref);
+          assert.notEqual(a.demoCustomer.number, CUSTOMER);
+          const open = (customerNo: string) =>
+            publicApp.inject({
+              method: "POST",
+              url: "/api/sales",
+              headers: first,
+              payload: { productId: elb.id, customerNo },
+            });
+          const foreign = await open(b.demoCustomer.number);
+          assert.equal(foreign.statusCode, 403, foreign.body);
+          const created = await open(a.demoCustomer.number);
+          assert.equal(created.statusCode, 200, created.body);
+          const id = created.json<SaleDto>().id;
+          const list = async (headers: typeof first) =>
+            (await publicApp.inject({ url: "/api/sales", headers })).json<
+              SaleDto[]
+            >();
+          assert.deepEqual(
+            (await list(first)).map((sale) => sale.id),
+            [id],
+          );
+          assert.deepEqual(await list(second), []);
+          for (const url of [
+            `/api/sales/${id}`,
+            `/api/sales/${saleId}/export/original`,
+          ]) {
+            const response = await publicApp.inject({ url, headers: second });
+            assert.equal(response.statusCode, 404, response.body);
+          }
+          const attempt = await publicApp.inject({
+            method: "POST",
+            url: `/api/customers/${b.demoCustomer.number}/diagnose`,
+            headers: first,
+            payload: { answers: ANSWERS[0] },
+          });
+          assert.equal(attempt.statusCode, 403, attempt.body);
+          const approve = await publicApp.inject({
+            method: "POST",
+            url: `/api/sales/${id}/action/approve`,
+            headers: first,
+            payload: {},
+          });
+          assert.equal(approve.statusCode, 403, approve.body);
+          assert.equal(
+            (await publicApp.inject({ url: "/api/keys", headers: first }))
+              .statusCode,
+            403,
+          );
+        } finally {
+          delete process.env.FINVERIC_PUBLIC_CHANNEL;
+          await publicApp.close();
         }
       },
     );

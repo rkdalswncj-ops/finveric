@@ -85,8 +85,12 @@ export async function publicTraces(svc: FundService): Promise<Trace[]> {
     .sort((a, b) => a.at.localeCompare(b.at));
 }
 
-async function subscribedRecord(svc: FundService, id: string) {
-  const record = svc.repository.find(id);
+async function subscribedRecord(
+  svc: FundService,
+  id: string,
+  customerNo?: string,
+) {
+  const record = svc.find(id, customerNo);
   if (record.traces.some((t) => t.status === "pending" && t.txHash))
     await reconcile(svc);
   const chain = await readSale(svc, record.id);
@@ -102,8 +106,9 @@ const confirmedTx = (record: StoredSale, action: string) =>
 export async function receipt(
   svc: FundService,
   id: string,
+  customerNo?: string,
 ): Promise<EvidenceReceipt> {
-  const { record, chain } = await subscribedRecord(svc, id);
+  const { record, chain } = await subscribedRecord(svc, id, customerNo);
   const product = storedProduct(svc, chain.productId, chain.productVersion);
   const diagnosis = await readDiagnosis(svc, record.customerRef, chain.attempt);
   const subscribeTx = confirmedTx(record, "subscribe");
@@ -132,8 +137,9 @@ export async function receipt(
 export async function original(
   svc: FundService,
   id: string,
+  customerNo?: string,
 ): Promise<OriginalBundle> {
-  const { record, chain } = await subscribedRecord(svc, id);
+  const { record, chain } = await subscribedRecord(svc, id, customerNo);
   const attempts: OriginalAttempt[] = [];
   for (let attempt = 1; attempt <= chain.attempt; attempt++) {
     const onchain = await readDiagnosis(svc, record.customerRef, attempt);

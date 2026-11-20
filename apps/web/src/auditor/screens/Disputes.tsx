@@ -24,7 +24,7 @@ import {
   type SaleVerification,
   type VerifyOutcome,
 } from "@finveric/core/verify";
-import { api } from "../../shared/api.ts";
+import { api, ApiError } from "../../shared/api.ts";
 import { Button } from "../../shared/button.tsx";
 import {
   AccessCodeForm,
@@ -240,7 +240,17 @@ function SaleLookup({
         try {
           [evidence, witness] = await Promise.all([
             api<ExportResponse["receipt"]>(`/sales/${saleId}/export/receipt`),
-            api<ExportResponse["original"]>(`/sales/${saleId}/export/original`),
+            api<ExportResponse["original"]>(
+              `/sales/${saleId}/export/original`,
+            ).catch((error: unknown) => {
+              if (!(
+                error instanceof ApiError && error.code === "DEMO_SCOPE_DENIED"
+              ))
+                throw error;
+              sellerError =
+                "원본 답변까지 대조하려면 증권사 앱에서 받은 원본 파일을 선택하세요.";
+              return undefined;
+            }),
           ]);
           setTokenRequired(false);
         } catch {
@@ -374,7 +384,7 @@ function SaleLookup({
                 [
                   "seller",
                   "판매사 제출 자료 불러오기",
-                  "이 판매 건의 증명서와 원본을 판매사 API에서 GET으로 받습니다.",
+                  "이 판매 건의 증빙을 판매사 API에서 가져옵니다.",
                 ],
                 [
                   "file",
@@ -568,7 +578,9 @@ function SaleSummary({
               {!hasEvidence
                 ? "증명서나 원본을 넣으면 원장 기록과 대조합니다."
                 : result.source === "seller"
-                  ? "판매사 API에서 받은 증명서와 원본을 원장 기록과 대조했습니다."
+                  ? result.hasOriginal
+                    ? "판매사 API에서 받은 증명서와 원본을 원장 기록과 대조했습니다."
+                    : "판매사 API에서 받은 증명서를 원장 기록과 대조했습니다."
                   : `선택한 파일을 원장 기록과 대조했습니다. ${fileNames}`}
             </small>
           </div>

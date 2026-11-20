@@ -16,12 +16,16 @@ export const saleRoutes: FastifyPluginAsync<{ service: FundService }> = async (
   app,
   { service },
 ) => {
-  app.get("/sales", async () => service.view(() => service.publicSales()));
+  app.get("/sales", async (req) =>
+    service.view(() => service.publicSales(req.demoCustomerNo)),
+  );
   app.get<{ Params: SaleIdParams }>(
     "/sales/:id",
     { schema: { params: saleIdParamsSchema } },
     async (req) =>
-      service.view(() => service.publicSale(service.find(req.params.id))),
+      service.view(() =>
+        service.publicSale(service.find(req.params.id, req.demoCustomerNo)),
+      ),
   );
   app.post<{ Body: OpenSaleRequest }>(
     "/sales",
@@ -32,7 +36,9 @@ export const saleRoutes: FastifyPluginAsync<{ service: FundService }> = async (
     "/sales/:id/action/subscribe",
     { schema: { params: saleIdParamsSchema, body: subscribeBodySchema } },
     async (req) =>
-      service.exclusive(() => service.subscribe(req.params.id, req.body)),
+      service.exclusive(() =>
+        service.subscribe(req.params.id, req.body, req.demoCustomerNo),
+      ),
   );
   // 동작마다 경로를 따로 둔다. API 문서에서 동작별로 설명과 분류(판매 채널·판매사 콘솔)가 다르다.
   for (const action of SALE_ACTIONS)
@@ -40,6 +46,8 @@ export const saleRoutes: FastifyPluginAsync<{ service: FundService }> = async (
       `/sales/:id/action/${action}`,
       { schema: { params: saleIdParamsSchema } },
       async (req) =>
-        service.exclusive(() => service.action(req.params.id, action)),
+        service.exclusive(() =>
+          service.action(req.params.id, action, req.demoCustomerNo),
+        ),
     );
 };

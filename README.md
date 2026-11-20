@@ -4,6 +4,8 @@
 
 접근 코드나 지갑 연결 없이 가상 상품을 선택하고 투자성향 진단, 가입, ZKP 검증을 체험할 수 있다.
 
+[판매사 콘솔 열기](https://finveric.vercel.app/client/) · [감독기관 화면 열기](https://finveric.vercel.app/auditor/)
+
 ![FINVERIC 핀베릭 — 투자상품 판매 기록 검증 플랫폼](docs/assets/cover.png)
 
 ## 🎬 시연 영상
@@ -86,7 +88,7 @@ https://github.com/user-attachments/assets/77fd7db5-8fb3-4cfe-a8da-0db06e161c40
 
 - 웹(Vite 앱 하나, 페이지 네 개)과 API를 Vercel 프로젝트 하나, 같은 도메인에 둔다. 상시 서버와 별도 DB 서버는 없다. ([ADR 0002](docs/adr/0002-vercel-functions-and-upstash.md), [ADR 0006](docs/adr/0006-seller-console-and-single-web-app.md))
 - API는 등록한 경로로 OpenAPI 3.1 문서를 만든다. ([ADR 0007](docs/adr/0007-openapi-and-channel-sample-app.md))
-- API를 부르는 쪽은 둘이다. 소비자보호 담당은 판매사 콘솔을 쓴다. 증권사 앱 서버는 판매사 콘솔에서 발급한 API 키로 `판매 채널 연동` API만 부른다. 서버는 키의 해시만 보관한다. 접근 코드(`DEMO_TOKEN`)는 선택이다. 정하면 판매사 콘솔과 증권사 앱 예시도 코드를 요구한다. 공개 체험 배포는 정하지 않는다. ([ADR 0008](docs/adr/0008-api-keys.md))
+- API를 부르는 쪽은 둘이다. 소비자보호 담당은 판매사 콘솔을 쓴다. 증권사 앱 서버는 판매사 콘솔에서 발급한 API 키로 `판매 채널 연동` API만 부른다. 서버는 키의 해시만 보관한다. 공개 시연 설정은 [배포 문서](docs/deploy.md#4-환경-변수)에 있다. ([ADR 0008](docs/adr/0008-api-keys.md))
 - 오류 응답은 `{ error, type, code }`다. `type`은 분류 16개이고 HTTP 상태를 정한다. `code`는 상황별 코드 52개(`SALE_ALREADY_SUBSCRIBED` 등)다. 코드 목록은 `@finveric/core/errors` 한곳에만 있고, API 문서의 오류 표도 여기서 만든다. 고객 화면은 API 문장을 그대로 보여 주지 않고 `type`으로 고객용 문장을 고른다.
 - API가 역할 키(판매사, 승인, 고객, 인프라)로 원장 거래를 보낸다. 단계별 송신자는 [PRD의 판매 절차](docs/prd.md#판매-절차와-원장-기록)를 따른다. MVP는 네 키를 API가 함께 보관한다. 실제 서비스는 허가형 블록체인을 가정한다.
 - 원장 v5는 진단 기준과 설명서 원문을 이벤트에 남긴다. ([ADR 0005](docs/adr/0005-ledger-v5-registered-rules.md))

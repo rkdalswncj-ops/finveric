@@ -25,6 +25,7 @@ import {
   type SaleStore,
 } from "./repositories/store.ts";
 import { SaleRepository } from "./repositories/sales.ts";
+import { CodedError } from "./errors.ts";
 import {
   readChainId,
   readCodeHash,
@@ -88,8 +89,14 @@ export class FundService {
   get sales() {
     return this.repository.all();
   }
-  find(id: string) {
-    return this.repository.find(id);
+  find(id: string, customerNo?: string) {
+    const record = this.repository.find(id);
+    if (
+      customerNo &&
+      record.customerRef !== customers.customerRef(this, customerNo)
+    )
+      throw new CodedError("SALE_NOT_FOUND");
+    return record;
   }
   save() {
     this.repository.save();
@@ -142,11 +149,8 @@ export class FundService {
     return transactions.reconcile(this, recoverInterrupted);
   }
   /** 시연 고객 번호와 가명 ID. */
-  demoCustomer() {
-    return {
-      number: DEMO_CUSTOMER_NO,
-      ref: customers.customerRef(this, DEMO_CUSTOMER_NO),
-    };
+  demoCustomer(number = DEMO_CUSTOMER_NO) {
+    return { number, ref: customers.customerRef(this, number) };
   }
   chainSale(id: string) {
     return readSale(this, id);
@@ -184,13 +188,21 @@ export class FundService {
   open(request: OpenSaleRequest) {
     return enrollment.open(this, request);
   }
-  async subscribe(id: string, request: SubscribeRequest): Promise<SaleView> {
-    const record = this.find(id);
+  async subscribe(
+    id: string,
+    request: SubscribeRequest,
+    customerNo?: string,
+  ): Promise<SaleView> {
+    const record = this.find(id, customerNo);
     await enrollment.subscribe(this, record, request);
     return this.publicSale(record);
   }
-  async action(id: string, action: SaleAction): Promise<SaleView> {
-    const record = this.find(id);
+  async action(
+    id: string,
+    action: SaleAction,
+    customerNo?: string,
+  ): Promise<SaleView> {
+    const record = this.find(id, customerNo);
     switch (action) {
       case "approve":
         await review.approve(this, record);
@@ -218,17 +230,21 @@ export class FundService {
   publicSale(record: ReturnType<FundService["find"]>) {
     return records.publicSale(this, record);
   }
-  publicSales() {
-    return Promise.all(this.sales.map((sale) => this.publicSale(sale)));
+  publicSales(customerNo?: string) {
+    const customerRef = customerNo && customers.customerRef(this, customerNo);
+    const sales = customerRef
+      ? this.sales.filter((sale) => sale.customerRef === customerRef)
+      : this.sales;
+    return Promise.all(sales.map((sale) => this.publicSale(sale)));
   }
   publicTraces() {
     return records.publicTraces(this);
   }
-  original(id: string) {
-    return records.original(this, id);
+  original(id: string, customerNo?: string) {
+    return records.original(this, id, customerNo);
   }
-  receipt(id: string) {
-    return records.receipt(this, id);
+  receipt(id: string, customerNo?: string) {
+    return records.receipt(this, id, customerNo);
   }
 
   // API 키(판매사 콘솔에서 발급, 증권사 앱 서버가 사용)

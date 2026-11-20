@@ -25,7 +25,7 @@ import type {
   SubscribeRequest,
 } from "@finveric/core/api";
 import { Button } from "../../shared/button.tsx";
-import { api, type LoadState } from "../../shared/api.ts";
+import type { api, LoadState } from "../../shared/api.ts";
 import {
   Badge,
   ConfirmDialog,
@@ -149,6 +149,7 @@ export function Enrollment({
   deployment,
   busy,
   run,
+  request,
   action,
   abandon,
   refresh,
@@ -164,6 +165,7 @@ export function Enrollment({
   deployment?: Deployment;
   busy: string;
   run: Run;
+  request: typeof api;
   action: (id: string, name: SaleAction, label: string) => unknown;
   abandon: () => unknown;
   refresh: () => unknown;
@@ -313,7 +315,7 @@ export function Enrollment({
   const diagnose = async (answers: (number | null)[]) => {
     if (!customer || answers.some((answer) => answer === null)) return;
     const result = await run("투자성향을 진단하고 기록하고 있어요", () =>
-      api<DiagnosisDto>(
+      request<DiagnosisDto>(
         `/customers/${encodeURIComponent(customer.number)}/diagnose`,
         { answers: answers as number[] } satisfies DiagnoseRequest,
       ),
@@ -337,7 +339,7 @@ export function Enrollment({
     });
   const subscribe = () =>
     run("청약을 기록하고 있어요", () =>
-      api<SaleDto>(`/sales/${sale.id}/action/subscribe`, {
+      request<SaleDto>(`/sales/${sale.id}/action/subscribe`, {
         explanationSeconds,
         higherRiskConfirmed: !suitable && flow.higherRisk,
         recordingConsent: protectedSale && flow.consent,

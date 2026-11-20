@@ -203,6 +203,14 @@ const CODES = {
     common: true,
   },
   // forbidden
+  DEMO_SCOPE_DENIED: {
+    type: "forbidden",
+    message:
+      "시연 세션의 접근 범위를 벗어났습니다. 증권사 앱 예시에서 본인의 가입 기록을 다시 선택하세요.",
+    description:
+      "공개 증권사 앱에서 허용한 기능이나 현재 시연 고객의 범위를 벗어났습니다.",
+    common: true,
+  },
   ORIGIN_NOT_ALLOWED: {
     type: "forbidden",
     message:
