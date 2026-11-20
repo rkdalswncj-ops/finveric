@@ -209,6 +209,8 @@ export function TransactionFacts({
 /**
  * 접근 코드 입력. 비우고 누르면 `emptyMessage`를, 서버가 거절하면 `error`를 입력 칸 아래에 보여 주고
  * 입력 칸으로 초점을 옮긴다. 고객 화면은 해요체 `emptyMessage`를 넘긴다.
+ * 화면은 저장한 코드가 없거나 서버가 코드를 거절했을 때만 이 폼을 보여 주고, 연결하면 숨긴다.
+ * 코드를 넣기 전에는 오류 문장 없이 폼만 보여 준다.
  */
 export function AccessCodeForm({
   connect,

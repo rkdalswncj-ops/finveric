@@ -23,7 +23,7 @@ import type {
   TraceDto,
 } from "@finveric/core/api";
 import { Button } from "../shared/button.tsx";
-import { api, ApiError, type LoadState } from "../shared/api.ts";
+import { api, ApiError, token, type LoadState } from "../shared/api.ts";
 import { AccessCodeForm, Empty } from "../shared/components.tsx";
 import { DEPLOYMENT_ERROR, useDeployment } from "../shared/deployment.ts";
 import { networkName } from "../shared/format.ts";
@@ -132,12 +132,14 @@ export function App() {
   const [notice, setNotice] = useState("");
   /** 서버가 접근 코드를 거절했을 때 입력 칸 아래에 보여 줄 문장. */
   const [accessError, setAccessError] = useState("");
-  const noteAccess = (e: unknown) =>
-    setAccessError(
-      e instanceof ApiError && e.status === 401
-        ? "접근 코드를 다시 확인하세요."
-        : "",
-    );
+  /** 접근 코드 입력 칸을 보여 줄지. 저장한 코드가 없거나 서버가 거절했을 때만 보인다. 연결하면 숨긴다. */
+  const [needsCode, setNeedsCode] = useState(() => !token());
+  const noteAccess = (e: unknown) => {
+    const rejected = e instanceof ApiError && e.status === 401;
+    if (rejected) setNeedsCode(true);
+    // 코드를 넣기 전에는 오류 문장 없이 입력 칸만 보여 준다.
+    setAccessError(rejected && token() ? "접근 코드를 다시 확인하세요." : "");
+  };
 
   const reload = useCallback(async () => {
     const current = configRef.current ?? (await api<ConfigDto>("/config"));
@@ -163,6 +165,7 @@ export function App() {
     setCustomer(newCustomer);
     setApiKeys(newKeys);
     setLoad("ready");
+    setNeedsCode(false);
     // 읽기에 성공하면 앞선 읽기 실패의 오류를 지운다. 처리 실패의 오류는 그대로 둔다.
     setFailure((current) => (current?.load ? undefined : current));
   }, []);
@@ -170,7 +173,9 @@ export function App() {
   const refresh = useCallback(() => reload().catch(() => undefined), [reload]);
   useEffect(() => {
     reload().catch((e: Error) => {
-      setFailure({ message: e.message, load: true });
+      // 접근 코드를 아직 넣지 않았으면 오류가 아니다. 입력 칸만 보여 준다.
+      if (!(e instanceof ApiError && e.status === 401 && !token()))
+        setFailure({ message: e.message, load: true });
       noteAccess(e);
       // 처음 읽기에 실패하면 빈 표가 "불러오고 있습니다"에 머물지 않게 한다.
       setLoad((current) => (current === "loading" ? "failed" : current));
@@ -267,7 +272,7 @@ export function App() {
       notice={notice}
       busy={busy}
     >
-      {config?.requiresToken && (
+      {config?.requiresToken && needsCode && (
         <AccessCodeForm
           connect={() => void run("연결하고 있습니다", reload, "연결했습니다.")}
           busy={!!busy}
