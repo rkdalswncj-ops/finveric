@@ -65,13 +65,10 @@ export async function createApp(service = new FundService()) {
     bodyLimit: 64 * 1024,
     ajv: { customOptions: { removeAdditional: false, coerceTypes: false } },
   });
+  // 접근 코드는 선택이다. 정하지 않으면 모든 경로가 열린다(배포 포함). 정하면 짧은 값은 거절한다.
   const token = process.env.DEMO_TOKEN;
-  if (
-    (service.env.network === "sepolia" ||
-      process.env.NODE_ENV === "production") &&
-    (!token || token.length < 32)
-  )
-    throw new Error("외부 시연에는 32자 이상의 DEMO_TOKEN이 필요합니다.");
+  if (token && token.length < 32)
+    throw new Error("DEMO_TOKEN을 정하면 32자 이상이어야 합니다.");
   const origins = allowedOrigins();
   await app.register(cors, { origin: corsOrigins(), methods: ["GET", "POST"] });
   await app.register(rateLimit, {

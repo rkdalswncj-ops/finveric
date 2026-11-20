@@ -64,15 +64,17 @@ Production과 Preview에 같은 값을 넣는다.
 | --- | --- |
 | `NETWORK` | `sepolia` |
 | `RPC_URL` | Sepolia RPC 주소. 없으면 `https://ethereum-sepolia-rpc.publicnode.com`을 쓴다 |
-| `DEMO_TOKEN` | 32자 이상. `.env.sepolia`의 값 |
+| `DEMO_TOKEN` | 선택. 넣지 않는다(공개 체험). 넣으면 공개 경로 4개 밖의 모든 API가 접근 코드를 요구하고, 판매사 콘솔과 증권사 앱 예시가 입력 칸을 보여 준다. 넣을 때는 32자 이상 |
 | `DEPLOYER_PRIVATE_KEY` 외 역할 키 4개 | `.env.sepolia`의 값. `SELLER`, `APPROVER`, `CUSTOMER`, `INFRASTRUCTURE` |
 | `CUSTOMER_REF_SECRET` | 선택. 고객 가명 ID를 만드는 비밀값(0x로 시작하는 hex). 없으면 판매사 키에서 만든다 |
+
+`DEMO_TOKEN`을 넣지 않으면 누구나 API로 원장 거래를 보낼 수 있다. 거래마다 역할 지갑의 테스트 ETH와 Vercel·Upstash 무료 한도를 쓴다. 잔액이 줄면 다시 채운다.
 
 개인키는 직접 입력한다. 채팅이나 저장소에 올리지 않는다. Vercel CLI를 쓰면 값을 화면에 출력하지 않고 넣을 수 있다.
 
 ```bash
-for role in DEPLOYER SELLER APPROVER CUSTOMER INFRASTRUCTURE DEMO; do
-  key=$([ "$role" = DEMO ] && echo DEMO_TOKEN || echo "${role}_PRIVATE_KEY")
+for role in DEPLOYER SELLER APPROVER CUSTOMER INFRASTRUCTURE; do
+  key="${role}_PRIVATE_KEY"
   for target in production preview; do
     grep "^${key}=" .env.sepolia | cut -d= -f2- | vercel env add "$key" "$target"
   done
@@ -84,7 +86,7 @@ done
 ### 5. 배포 뒤 확인
 
 1. `/api/health`가 200, `ok: true`, 체인 ID 11155111을 돌려준다. `checks`의 `rpc`, `ledger`, `store`가 모두 `ok: true`여야 한다. 하나라도 실패하면 503과 실패 이유를 돌려준다.
-2. 판매사 콘솔(`/client/`)에서 접근 코드를 입력한다. 상품 관리에서 상품과 진단 기준을 등록한다.
+2. 판매사 콘솔(`/client/`)을 연다. 상품 관리에서 상품과 진단 기준을 등록한다.
 3. 증권사 앱 예시(`/channel/`)에서 가입 한 건을 끝까지 진행한다.
 4. 감독기관 화면(`/auditor/`)에서 같은 판매 ID를 두 경로로 검증한다. 증권사 앱 예시의 기록 확인에서도 `일치`를 확인한다.
 5. `/api/docs`가 접근 코드 없이 열리고 API 목록을 보여 준다.

@@ -7,7 +7,6 @@ import {
 } from "node:fs";
 import { generatePrivateKey } from "viem/accounts";
 import { createPublicClient, http, formatEther } from "viem";
-import { randomBytes } from "node:crypto";
 import { environment, roles } from "./environment.ts";
 
 const file = ".env.sepolia";
@@ -21,7 +20,6 @@ if (!existsSync(file)) {
       "NETWORK=sepolia",
       "RPC_URL=https://ethereum-sepolia-rpc.publicnode.com",
       "PUBLIC_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com",
-      `DEMO_TOKEN=${randomBytes(32).toString("hex")}`,
       ...roles.map(keyLine),
       "",
     ].join("\n"),
