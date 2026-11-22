@@ -100,17 +100,24 @@ export class RedisStore implements SaleStore {
       },
       body: JSON.stringify(args.map(String)),
     });
-    const body = (await response.json().catch(() => ({}))) as {
-      result?: unknown;
-      error?: string;
-    };
+    const body: unknown = await response.json().catch(() => undefined);
     // Upstash 오류 본문에는 저장소 주소가 들어갈 수 있다. 우리가 쓴 문장만 내보낸다.
-    if (!response.ok || body.error) throw new CodedError("STORE_UNAVAILABLE");
+    if (
+      !response.ok ||
+      !body ||
+      typeof body !== "object" ||
+      Array.isArray(body) ||
+      ("error" in body && body.error) ||
+      !("result" in body)
+    )
+      throw new CodedError("STORE_UNAVAILABLE");
     return body.result;
   }
   async read() {
     const result = await this.command(["GET", this.dataKey]);
-    return typeof result === "string" ? result : undefined;
+    if (result === null) return undefined;
+    if (typeof result !== "string") throw new CodedError("STORE_UNAVAILABLE");
+    return result;
   }
   async ping() {
     if ((await this.command(["PING"])) !== "PONG")

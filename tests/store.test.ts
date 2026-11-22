@@ -14,6 +14,7 @@ import {
 } from "../apps/api/src/app.ts";
 import { normalizeApiUrl } from "../apps/api/src/vercel.ts";
 import { fakeUpstash } from "./fake-upstash.ts";
+import { SaleRepository } from "../apps/api/src/repositories/sales.ts";
 
 const store = (upstash: ReturnType<typeof fakeUpstash>, lockWaitMs = 5_000) =>
   new RedisStore({
@@ -116,6 +117,81 @@ test("저장소 오류에 연결 주소나 토큰을 노출하지 않는다", as
     assert.equal(coded.code, "STORE_UNAVAILABLE");
     return true;
   });
+});
+
+test("Redis 조회는 잘못된 성공 응답을 기록 없음으로 처리하지 않는다", async (t) => {
+  for (const body of [
+    "not-json",
+    "{}",
+    "null",
+    "[]",
+    '{"result":42}',
+    '{"result":{}}',
+  ]) {
+    await t.test(body, async () => {
+      const invalid = new RedisStore({
+        url: "https://example.upstash.io",
+        token: "test-token",
+        key: "k",
+        fetch: async () => new Response(body),
+      });
+      await assert.rejects(invalid.read(), { code: "STORE_UNAVAILABLE" });
+    });
+  }
+});
+
+test("Redis 조회의 null은 기록 없음이고 문자열은 원문 그대로다", async () => {
+  for (const result of [null, "", '{"sales":[]}']) {
+    const valid = new RedisStore({
+      url: "https://example.upstash.io",
+      token: "test-token",
+      key: "k",
+      fetch: async () => new Response(JSON.stringify({ result })),
+    });
+    assert.equal(await valid.read(), result === null ? undefined : result);
+  }
+});
+
+test("최신 기록 조회가 잘못되면 저장소 변경 작업을 시작하지 않는다", async () => {
+  const upstash = fakeUpstash();
+  const original = JSON.stringify({
+    sales: [],
+    systemTraces: [],
+    rules: [],
+    products: [],
+    diagnoses: [],
+    apiKeys: [
+      {
+        id: "key_000000000001",
+        name: "기존 키",
+        prefix: "fvk_testonly",
+        hash: "0".repeat(64),
+        scope: "channel",
+        createdAt: "2026-11-22T00:00:00.000Z",
+      },
+    ],
+  });
+  const seed = store(upstash);
+  await seed.lock(() => seed.write(original));
+  const broken = store({
+    ...upstash,
+    fetch: async (url, init) => {
+      const [command] = JSON.parse(String(init?.body));
+      return command === "GET" ? new Response("{}") : upstash.fetch(url, init);
+    },
+  });
+  const repository = new SaleRepository(broken);
+  let ran = false;
+  await assert.rejects(
+    repository.transaction(async () => {
+      ran = true;
+      repository.save();
+    }),
+    { code: "STORE_UNAVAILABLE" },
+  );
+  assert.equal(ran, false);
+  assert.equal(await seed.read(), original);
+  assert.equal(await seed.lock(async () => "released"), "released");
 });
 
 test("Vercel에서는 Redis 없이 파일 저장소로 실행하지 않는다", () => {
