@@ -86,8 +86,12 @@ export function validateProduct(doc: ProductDocument): string[] {
     errors.push("상품 코드를 쓰세요.");
   else if (!/^[A-Z0-9][A-Z0-9-]{1,39}$/.test(doc.code))
     errors.push("상품 코드는 영문 대문자·숫자·하이픈 2~40자여야 합니다.");
-  if (!Number.isInteger(doc.version) || doc.version < 1)
-    errors.push("버전은 1 이상의 정수여야 합니다.");
+  if (
+    !Number.isInteger(doc.version) ||
+    doc.version < 1 ||
+    doc.version > 2 ** 32 - 1
+  )
+    errors.push("버전은 1~4294967295 정수여야 합니다.");
   if (!PRODUCT_TYPES.includes(doc.type))
     errors.push("상품 유형은 ELS, 펀드, ELB 중 하나여야 합니다.");
   if (
