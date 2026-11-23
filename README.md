@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/77fd7db5-8fb3-4cfe-a8da-0db06e161c40
 | 개발 | [결정 기록: 배포, 원장, API 계층, 판매사 콘솔, OpenAPI, API 키](docs/adr/) | 개발       |
 | 개발 | [배포: Vercel·Upstash·Sepolia 순서와 환경 변수](docs/deploy.md)            | 개발       |
 | 발표 | [실행과 시연: 발표 순서, 검증 절차, 복구](docs/runbook.md)                 | 개발, 발표 |
-| 발표 | [QA 기록: 체크리스트, 차수별 결과](docs/qa.md)                             | 모두       |
+| 발표 | [QA 체크리스트와 날짜별 기록](docs/qa/README.md)                          | 모두       |
 | 팀   | [팀 운영과 자료 정리: 역할, 자료 위치, 넘겨줄 것](docs/team.md)            | 모두       |
 
 ---
@@ -198,7 +198,7 @@ npm run dev
 
 ### 개발
 
-- 시연 전에는 [QA 체크리스트](docs/qa.md)로 화면을 점검한다. 발견한 문제는 GitHub 이슈(`QA 이슈` 템플릿)로 남기고 차수 기록에 이슈 번호를 적는다.
+- 시연 전에는 [QA 체크리스트](docs/qa/README.md#체크리스트)로 화면을 점검하고 [날짜별 기록](docs/qa/README.md#날짜별-기록)에 결과를 남긴다.
 - `main` 브랜치에 커밋하고 push한다. 검사는 로컬에서 `npm run contracts:test`, `npm test`, `npm run build`로 돌린다. GitHub Actions 검사(증명 키 생성, 원장 검사, 통합 검사, 빌드)는 지금 자동으로 돌리지 않는다. 필요하면 Actions 탭에서 수동으로 실행한다.
 - 되돌리기 어렵고, 맥락 없이는 의아하고, 대안 중에 고른 결정만 [결정 기록(ADR)](docs/adr/)으로 남긴다. 기준은 [docs/AGENTS.md](docs/AGENTS.md#adr)에 있다.
 - 영역별 작업 규칙은 각 폴더의 `AGENTS.md`에 있다.

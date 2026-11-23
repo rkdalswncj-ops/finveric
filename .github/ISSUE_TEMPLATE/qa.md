@@ -1,12 +1,13 @@
 ---
 name: QA 이슈
-about: QA 차수에서 발견한 문제를 남긴다. docs/qa.md의 차수 기록에 이 이슈 번호를 적는다.
+about: QA에서 발견한 문제를 남긴다. 해당 날짜의 QA 기록에 이 이슈를 연결한다.
 title: "[QA] "
 labels: ["qa"]
 ---
 
 ## 차수와 환경
 
+- 날짜: <!-- 예: 2026-11-23. 기록 위치는 docs/qa/YYYY-MM-DD.md -->
 - 차수: <!-- 예: 1차 자체 QA -->
 - 환경: <!-- Docker 로컬(Anvil) 또는 Vercel + Sepolia -->
 - 커밋: <!-- git log -1 --format=%h -->
@@ -14,7 +15,7 @@ labels: ["qa"]
 
 ## 심각도
 
-<!-- 치명 / 주요 / 경미 중 하나. 기준은 docs/qa.md -->
+<!-- 치명 / 주요 / 경미 중 하나. 기준은 docs/qa/README.md -->
 
 ## 재현 순서
 
