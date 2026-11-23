@@ -51,11 +51,14 @@ export function LedgerLine({ ledger }: { ledger: Ledger }) {
       <span role="status" aria-live="polite">
         {ledger.loading
           ? "지정 RPC에서 원장을 읽고 있습니다."
-          : ledger.snapshot
-            ? `블록 ${ledger.snapshot.latestBlock.toString()}까지 읽었습니다 · ${dateTime(ledger.loadedAt)}`
-            : ledger.error
-              ? "원장을 읽지 못했습니다."
+          : ledger.error
+            ? "원장을 읽지 못했습니다."
+            : ledger.snapshot
+              ? `블록 ${ledger.snapshot.latestBlock.toString()}까지 읽었습니다 · ${dateTime(ledger.loadedAt)}`
               : "원장을 아직 읽지 않았습니다."}
+        {ledger.snapshot &&
+          (ledger.loading || ledger.error) &&
+          ` 마지막으로 읽은 기록을 표시합니다 · 블록 ${ledger.snapshot.latestBlock.toString()} · ${dateTime(ledger.loadedAt)}`}
       </span>
       <Button
         variant="outline"
