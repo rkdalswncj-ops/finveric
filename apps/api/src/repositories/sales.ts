@@ -84,6 +84,31 @@ const empty = (): Snapshot => ({
   apiKeys: [],
 });
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseSnapshot(raw: string): Snapshot {
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new CodedError("STORE_UNAVAILABLE");
+  }
+  if (!isRecord(data) || !Array.isArray(data.sales))
+    throw new CodedError("STORE_UNAVAILABLE");
+
+  const defaults = empty();
+  // 이전 버전에서 빠진 목록은 기본값으로 채운다.
+  for (const key of Object.keys(defaults)) {
+    if (!Object.hasOwn(data, key)) continue;
+    const records = data[key];
+    if (!Array.isArray(records) || !records.every(isRecord))
+      throw new CodedError("STORE_UNAVAILABLE");
+  }
+  return { ...defaults, ...data };
+}
+
 export class SaleRepository {
   private data: Snapshot = empty();
   private queue: Promise<unknown> = Promise.resolve();
@@ -197,8 +222,7 @@ export class SaleRepository {
   // ── 저장과 잠금 ─────────────────────────────────────────────
 
   private load(raw: string | undefined) {
-    if (!raw) return;
-    this.data = { ...empty(), ...JSON.parse(raw) };
+    this.data = raw === undefined ? empty() : parseSnapshot(raw);
   }
   /**
    * 현재 상태를 저장한다. 기록의 필드를 바꾼 뒤에도 부른다.
