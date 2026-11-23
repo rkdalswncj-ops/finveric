@@ -63,6 +63,18 @@ export class FileStore implements SaleStore {
 }
 
 type Fetch = typeof fetch;
+type RedisSuccessResponse = { result: unknown };
+
+function isRedisSuccessResponse(body: unknown): body is RedisSuccessResponse {
+  return (
+    body !== null &&
+    typeof body === "object" &&
+    !Array.isArray(body) &&
+    Object.hasOwn(body, "result") &&
+    !Object.hasOwn(body, "error")
+  );
+}
+
 const RELEASE = `if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end`;
 const WRITE_IF_OWNER = `if redis.call("get", KEYS[1]) == ARGV[1] then redis.call("set", KEYS[2], ARGV[2]) return 1 else return 0 end`;
 
@@ -92,25 +104,30 @@ export class RedisStore implements SaleStore {
     return `${this.options.key}:lock`;
   }
   private async command(args: (string | number)[]) {
-    const response = await (this.options.fetch ?? fetch)(this.options.url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.options.token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(args.map(String)),
-    });
-    const body = (await response.json().catch(() => ({}))) as {
-      result?: unknown;
-      error?: string;
-    };
-    // Upstash 오류 본문에는 저장소 주소가 들어갈 수 있다. 우리가 쓴 문장만 내보낸다.
-    if (!response.ok || body.error) throw new CodedError("STORE_UNAVAILABLE");
-    return body.result;
+    try {
+      const response = await (this.options.fetch ?? fetch)(this.options.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.options.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(args.map(String)),
+      });
+      if (response.ok) {
+        const body: unknown = await response.json();
+        if (isRedisSuccessResponse(body)) return body.result;
+      }
+    } catch {
+      // Upstash 오류에는 저장소 주소가 들어갈 수 있다. 공통 오류로 바꾼다.
+    }
+    throw new CodedError("STORE_UNAVAILABLE");
   }
   async read() {
     const result = await this.command(["GET", this.dataKey]);
-    return typeof result === "string" ? result : undefined;
+    if (result === null) return undefined;
+    if (typeof result !== "string" || result.length === 0)
+      throw new CodedError("STORE_UNAVAILABLE");
+    return result;
   }
   async ping() {
     if ((await this.command(["PING"])) !== "PONG")
