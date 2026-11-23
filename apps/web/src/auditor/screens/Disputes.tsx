@@ -220,7 +220,8 @@ function SaleLookup({
     }
     if (!deployment) {
       setError(
-        "검증 설정을 아직 불러오지 못했습니다. 잠시 후 다시 대조하세요.",
+        ledger.error ||
+          "검증 설정을 아직 불러오지 못했습니다. 잠시 후 다시 대조하세요.",
       );
       return;
     }
@@ -228,11 +229,12 @@ function SaleLookup({
     setResult(undefined);
     setError("");
     try {
-      const snapshot = await ledger.reload();
-      if (!snapshot)
-        throw new Error(
-          "원장 기록을 불러오지 못했습니다. 지정 RPC 연결을 확인하세요.",
-        );
+      const read = await ledger.reload();
+      if (!read.ok) {
+        setError(read.message);
+        return;
+      }
+      const { snapshot } = read;
       let evidence = source === "file" ? receipt : undefined;
       let witness = source === "file" ? original : undefined;
       let sellerError: string | undefined;
@@ -334,7 +336,9 @@ function SaleLookup({
             >
               <option value="">
                 {!ledger.snapshot
-                  ? "원장을 읽고 있습니다"
+                  ? ledger.error
+                    ? "원장을 읽지 못했습니다"
+                    : "원장을 읽고 있습니다"
                   : sales.length
                     ? "판매 건을 선택하세요"
                     : "원장에 판매 건이 없습니다"}
@@ -483,7 +487,9 @@ function SaleLookup({
                 : ""}
           </p>
           <div role="alert">
-            {error && <Notice tone="danger">{error}</Notice>}
+            {(error || ledger.error) && (
+              <Notice tone="danger">{error || ledger.error}</Notice>
+            )}
           </div>
           {result ? (
             <SaleSummary result={result} files={files} />
@@ -957,7 +963,9 @@ function CustomerLookup({
             >
               <option value="">
                 {!snapshot
-                  ? "원장을 읽고 있습니다"
+                  ? ledger.error
+                    ? "원장을 읽지 못했습니다"
+                    : "원장을 읽고 있습니다"
                   : known.length
                     ? "고객 가명 ID를 선택하세요"
                     : "원장에 고객 기록이 없습니다"}

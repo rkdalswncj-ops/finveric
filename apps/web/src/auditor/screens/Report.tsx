@@ -77,7 +77,10 @@ export function Report({
       return;
     }
     if (!deployment) {
-      setError("검증 설정을 아직 불러오지 못했습니다. 잠시 후 다시 만드세요.");
+      setError(
+        ledger.error ||
+          "검증 설정을 아직 불러오지 못했습니다. 잠시 후 다시 만드세요.",
+      );
       return;
     }
     setLoading(true);
@@ -85,11 +88,12 @@ export function Report({
     setError("");
     setProgress(undefined);
     try {
-      const snapshot = await ledger.reload();
-      if (!snapshot)
-        throw new Error(
-          "원장 기록을 불러오지 못했습니다. 지정 RPC 연결을 확인하세요.",
-        );
+      const read = await ledger.reload();
+      if (!read.ok) {
+        setError(read.message);
+        return;
+      }
+      const { snapshot } = read;
       const scope: ReportScope =
         kind === "sale" ? { kind, saleId: saleId.trim() } : { kind };
       setReport(
@@ -224,7 +228,7 @@ export function Report({
                 : ""}
           </p>
           <div role="alert">
-            {(error || (!ledger.snapshot && ledger.error)) && (
+            {(error || ledger.error) && (
               <Notice tone="danger">{error || ledger.error}</Notice>
             )}
           </div>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Deployment } from "@finveric/core";
 import {
   ledgerClient,
+  ledgerReadCode,
   readLedger,
   type LedgerSnapshot,
 } from "@finveric/core/ledger";
@@ -10,16 +11,36 @@ import { requireDeployment } from "@finveric/core/verify";
 import { DEPLOYMENT_ERROR } from "../shared/deployment.ts";
 import { koreanError } from "./format.ts";
 
+type LedgerLoadCode =
+  "V00" | "V08" | "V09" | NonNullable<ReturnType<typeof ledgerReadCode>>;
+type LedgerLoadFailure = { ok: false; code: LedgerLoadCode; message: string };
+
+export type LedgerReloadResult =
+  { ok: true; snapshot: LedgerSnapshot } | LedgerLoadFailure;
+
+const ledgerLoadFailure = (
+  code: LedgerLoadCode,
+  error?: unknown,
+): LedgerLoadFailure => {
+  const message =
+    code === "V00"
+      ? DEPLOYMENT_ERROR.institution
+      : code === "V08"
+        ? "지정 RPC의 네트워크와 컨트랙트를 확인하지 못했습니다. 검증 설정을 확인하세요."
+        : "원장 기록을 불러오지 못했습니다. 지정 RPC 연결을 확인하고 다시 시도하세요.";
+  return { ok: false, code, message: koreanError(error, message, code) };
+};
+
 export type Ledger = {
   /** 검증 설정(/deployment.json)을 읽었는지. */
   configured: boolean;
   snapshot?: LedgerSnapshot;
-  /** 마지막으로 읽은 시각. */
+  /** 마지막으로 읽기에 성공한 시각. */
   loadedAt?: Date;
   loading: boolean;
   error: string;
-  /** 원장을 다시 읽는다. 실패하면 undefined를 돌려준다. */
-  reload: () => Promise<LedgerSnapshot | undefined>;
+  /** 이번 읽기의 결과입니다. 실패 시 이전 스냅샷을 돌려주지 않습니다. */
+  reload: () => Promise<LedgerReloadResult>;
 };
 
 /**
@@ -36,29 +57,26 @@ export function useLedger(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const request = useRef(0);
-  const reload = useCallback(async () => {
-    if (!deployment) return undefined;
+  const reload = useCallback(async (): Promise<LedgerReloadResult> => {
+    if (!deployment) return ledgerLoadFailure("V00");
     const current = ++request.current;
     setLoading(true);
     setError("");
+    let fallback: "V08" | "V09" = "V08";
     try {
       const client = ledgerClient(deployment);
       await requireDeployment(client, deployment);
+      fallback = "V09";
       const next = await readLedger(deployment, client);
       if (current === request.current) {
         setSnapshot(next);
         setLoadedAt(new Date());
       }
-      return next;
+      return { ok: true, snapshot: next };
     } catch (e) {
-      if (current === request.current)
-        setError(
-          koreanError(
-            e,
-            "원장 기록을 불러오지 못했습니다. 지정 RPC 연결을 확인하고 원장 다시 읽기를 누르세요.",
-          ),
-        );
-      return undefined;
+      const failure = ledgerLoadFailure(ledgerReadCode(e) ?? fallback, e);
+      if (current === request.current) setError(failure.message);
+      return failure;
     } finally {
       if (current === request.current) setLoading(false);
     }
@@ -71,7 +89,8 @@ export function useLedger(
     snapshot,
     loadedAt,
     loading,
-    error: !deployment && configFailed ? DEPLOYMENT_ERROR.institution : error,
+    error:
+      !deployment && configFailed ? ledgerLoadFailure("V00").message : error,
     reload,
   };
 }

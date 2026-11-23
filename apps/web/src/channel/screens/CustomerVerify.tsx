@@ -134,11 +134,16 @@ export function CustomerVerify({
     setLoading(true);
     setResult(undefined);
     setError(undefined);
+    let readCode:
+      typeof import("@finveric/core/verify").ledgerReadCode | undefined;
     try {
-      const { verifySale } = await import("@finveric/core/verify");
+      const { verifySale, ledgerReadCode } =
+        await import("@finveric/core/verify");
+      readCode = ledgerReadCode;
       setResult(await verifySale(deployment, saleId, receipt, original));
     } catch (e) {
       const message = e instanceof Error ? e.message : "";
+      const code = readCode?.(e);
       fail(
         message.includes("판매 ID 형식")
           ? {
@@ -150,7 +155,7 @@ export function CustomerVerify({
               message:
                 message.includes("네트워크") || message.includes("컨트랙트")
                   ? "확인 화면의 기록 위치 설정이 달라요. 잠시 후 다시 시도해 주세요."
-                  : "기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+                  : `기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.${code ? ` (확인 코드: ${code})` : ""}`,
             },
       );
     } finally {
