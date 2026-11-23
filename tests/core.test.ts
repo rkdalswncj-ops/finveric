@@ -173,6 +173,21 @@ test("시연 상품과 녹취·숙려 대상 계산", () => {
   assert.equal(isProtectedSale(dls, { elderly: false }, false), true);
 });
 
+test("상품 버전은 API와 원장의 uint32 범위 안이어야 한다", () => {
+  const document = DEMO_PRODUCTS[0].document;
+  for (const version of [1, 2 ** 32 - 1]) {
+    assert.deepEqual(validateProduct({ ...document, version }), []);
+  }
+  for (const version of [0, -1, 1.5, 2 ** 32, Number.MAX_SAFE_INTEGER]) {
+    assert.ok(
+      validateProduct({ ...document, version }).some((error) =>
+        error.startsWith("버전은"),
+      ),
+      `상품 버전 ${version}을 거절해야 한다`,
+    );
+  }
+});
+
 test("고객 가명 ID는 비밀값과 고객 번호로 정해지고 필드 범위 안이다", () => {
   const ref = customerRefFor("0x1234", "C-0001");
   assert.equal(ref, customerRefFor("0x1234", "C-0001"));
