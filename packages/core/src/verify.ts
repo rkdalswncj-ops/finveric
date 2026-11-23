@@ -28,12 +28,15 @@ import {
 import { answersFit, evaluateRule } from "./rules.ts";
 import {
   ledgerClient,
+  ledgerRpcRead,
   readLedger,
   type LedgerDiagnosis,
   type LedgerProduct,
   type LedgerSale,
   type LedgerSnapshot,
 } from "./ledger.ts";
+
+export { ledgerReadCode } from "./ledger.ts";
 
 export type VerifyOutcome = "match" | "mismatch" | "missing";
 /** 검증 결과 화면 문구. */
@@ -102,9 +105,11 @@ export async function requireDeployment(
   dep: Deployment,
 ) {
   const [chainId, ledgerCode, verifierCode] = await Promise.all([
-    client.getChainId(),
-    client.getCode({ address: dep.ledger }),
-    client.getCode({ address: dep.verifier }),
+    ledgerRpcRead("eth_chainId", () => client.getChainId()),
+    ledgerRpcRead("eth_getCode", () => client.getCode({ address: dep.ledger })),
+    ledgerRpcRead("eth_getCode", () =>
+      client.getCode({ address: dep.verifier }),
+    ),
   ]);
   if (chainId !== dep.chainId)
     throw new Error(
@@ -157,12 +162,16 @@ export async function verifySale(
     options.snapshot ?? (await readLedger(dep, client as PublicClient));
   const contract = { address: dep.ledger, abi: ledgerAbi } as const;
   const [state, coolingPeriod] = await Promise.all([
-    client.readContract({
-      ...contract,
-      functionName: "getSale",
-      args: [BigInt(saleId)],
-    }),
-    client.readContract({ ...contract, functionName: "coolingPeriod" }),
+    ledgerRpcRead("eth_call", () =>
+      client.readContract({
+        ...contract,
+        functionName: "getSale",
+        args: [BigInt(saleId)],
+      }),
+    ),
+    ledgerRpcRead("eth_call", () =>
+      client.readContract({ ...contract, functionName: "coolingPeriod" }),
+    ),
   ]);
   const checks: Check[] = [];
   const check = (name: string, ok: boolean, detail: string) =>

@@ -22,6 +22,8 @@ import type { Deployment } from "./index.ts";
 
 /** 이벤트를 나눠 읽는 블록 수. 공개 RPC의 조회 범위 제한에 맞춘다. */
 export const LOG_WINDOW = 2000n;
+/** 제공자가 범위를 제한하더라도 한 번의 읽기가 지나치게 늘어나지 않게 한다. */
+const EXTRA_LOG_REQUESTS = 64;
 /** 한 번에 훑는 최대 블록 수. Sepolia 약 70일이다. */
 export const MAX_SCAN_BLOCKS = 500_000n;
 
@@ -95,6 +97,68 @@ export function ledgerClient(dep: Pick<Deployment, "chainId" | "rpcUrl">) {
   }) as PublicClient;
 }
 
+const READ_CODES = {
+  eth_chainId: "V01",
+  eth_getCode: "V02",
+  eth_blockNumber: "V03",
+  eth_getLogs: "V04",
+  eth_getBlockByNumber: "V05",
+  eth_call: "V06",
+  logRequestBudget: "V07",
+} as const;
+
+export class LedgerReadError extends Error {
+  readonly code: (typeof READ_CODES)[keyof typeof READ_CODES];
+
+  constructor(readonly operation: keyof typeof READ_CODES) {
+    super("Ledger read failed");
+    this.name = "LedgerReadError";
+    this.code = READ_CODES[operation];
+  }
+}
+
+/** 화면에 쓸 진단 코드만 돌려준다. 외부 RPC 문구나 URL은 보여 주지 않는다. */
+export const ledgerReadCode = (error: unknown) =>
+  error instanceof LedgerReadError ? error.code : undefined;
+
+export async function ledgerRpcRead<T>(
+  method: Exclude<keyof typeof READ_CODES, "logRequestBudget">,
+  read: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await read();
+  } catch {
+    throw new LedgerReadError(method);
+  }
+}
+
+/** 요청량 제한이나 연결 실패는 범위를 줄여도 해결되지 않는다. */
+function isLogRangeLimit(error: unknown): boolean {
+  for (
+    let depth = 0;
+    depth < 6 && error && typeof error === "object";
+    depth++
+  ) {
+    const { message, details, shortMessage, cause } = error as {
+      message?: unknown;
+      details?: unknown;
+      shortMessage?: unknown;
+      cause?: unknown;
+    };
+    for (const value of [details, shortMessage, message]) {
+      if (typeof value !== "string") continue;
+      if (
+        /(?:block range (?:is )?too (?:large|wide)|(?:maximum|max|limit(?:ed)?) block range|block range (?:limit|exceed)|limited to (?:a )?[\d,]+ blocks?|query returned more than [\d,]+ results?|too many (?:log(?: entries|s)?|results?)|(?:log )?response size (?:limit|exceed))/i.test(
+          value,
+        )
+      )
+        return true;
+    }
+    error = cause;
+  }
+  return false;
+}
+
 export type LedgerReader = Pick<
   PublicClient,
   "getBlockNumber" | "getLogs" | "getBlock"
@@ -102,26 +166,43 @@ export type LedgerReader = Pick<
 
 /** 원장 주소의 v5 이벤트를 배포 블록부터 모두 읽는다. */
 export async function readLedgerLogs(dep: Deployment, client: LedgerReader) {
-  const latest = await client.getBlockNumber({ cacheTime: 0 });
+  const latest = await ledgerRpcRead("eth_blockNumber", () =>
+    client.getBlockNumber({ cacheTime: 0 }),
+  );
   const start = BigInt(dep.blockNumber);
+  if (latest < start)
+    throw new Error(
+      "지정 RPC의 최신 블록이 원장 배포 블록보다 이전입니다. 잠시 후 다시 시도하세요.",
+    );
   if (latest - start > MAX_SCAN_BLOCKS)
     throw new Error(
       "조회 범위를 초과했습니다. 배포 설정의 시작 블록을 확인하세요.",
     );
   const events = ledgerAbi.filter((item) => item.type === "event");
   const logs = [];
-  for (let from = start; from <= latest; from += LOG_WINDOW) {
-    const to =
-      from + LOG_WINDOW - 1n < latest ? from + LOG_WINDOW - 1n : latest;
-    logs.push(
-      ...(await client.getLogs({
-        address: dep.ledger,
-        events,
-        fromBlock: from,
-        toBlock: to,
-        strict: true,
-      })),
-    );
+  let window = LOG_WINDOW;
+  let remaining =
+    Number((latest - start) / LOG_WINDOW + 1n) + EXTRA_LOG_REQUESTS;
+  for (let from = start; from <= latest;) {
+    const to = from + window - 1n < latest ? from + window - 1n : latest;
+    if (remaining-- === 0) throw new LedgerReadError("logRequestBudget");
+    try {
+      logs.push(
+        ...(await client.getLogs({
+          address: dep.ledger,
+          events,
+          fromBlock: from,
+          toBlock: to,
+          strict: true,
+        })),
+      );
+    } catch (error) {
+      if (from === to || !isLogRangeLimit(error))
+        throw new LedgerReadError("eth_getLogs");
+      window = (to - from + 1n) / 2n;
+      continue;
+    }
+    from = to + 1n;
   }
   logs.sort((a, b) =>
     a.blockNumber === b.blockNumber
@@ -139,7 +220,9 @@ async function blockTimes(client: LedgerReader, blocks: bigint[]) {
   for (let i = 0; i < unique.length; i += 8)
     await Promise.all(
       unique.slice(i, i + 8).map(async (blockNumber) => {
-        const block = await client.getBlock({ blockNumber });
+        const block = await ledgerRpcRead("eth_getBlockByNumber", () =>
+          client.getBlock({ blockNumber }),
+        );
         times.set(blockNumber, Number(block.timestamp));
       }),
     );
