@@ -46,6 +46,7 @@ import { dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
 import { LedgerGate } from "../components.tsx";
+import { RecordSelect } from "../RecordSelect.tsx";
 import {
   customerPath,
   gradeLabel,
@@ -318,40 +319,40 @@ function SaleLookup({
           }}
         >
           <h2>조회할 판매 건</h2>
-          <label className={s.field}>
-            원장의 판매 건에서 선택
-            <select
-              value={sales.some((sale) => sale.saleId === saleId) ? saleId : ""}
-              disabled={loading || sales.length === 0}
-              onChange={(e) => {
-                setId(e.target.value);
-                setIdError("");
-                setResult(undefined);
-                setError("");
-                setRetry(false);
-              }}
-            >
-              <option value="">
-                {!ledger.snapshot
-                  ? ledger.error
-                    ? "원장을 읽지 못했습니다"
-                    : "원장을 읽고 있습니다"
-                  : sales.length
-                    ? "판매 건을 선택하세요"
-                    : "원장에 판매 건이 없습니다"}
-              </option>
-              {sales.map((sale) => (
-                <option key={sale.saleId} value={sale.saleId}>
-                  {productName(
-                    ledger.snapshot,
-                    sale.productId,
-                    sale.productVersion,
-                  )}{" "}
-                  · {short(sale.saleId)} · {STATUS_LABELS[sale.status]}
-                </option>
-              ))}
-            </select>
-          </label>
+          <RecordSelect
+            label="원장의 판매 건에서 선택"
+            placeholder={
+              !ledger.snapshot
+                ? ledger.error
+                  ? "원장을 읽지 못했습니다"
+                  : "원장을 읽고 있습니다"
+                : sales.length
+                  ? "판매 건을 선택하세요"
+                  : "원장에 판매 건이 없습니다"
+            }
+            value={saleId}
+            disabled={loading}
+            options={sales.map((sale) => ({
+              value: sale.saleId,
+              label: productName(
+                ledger.snapshot,
+                sale.productId,
+                sale.productVersion,
+              ),
+              reference: short(sale.saleId),
+              status: {
+                label: STATUS_LABELS[sale.status],
+                tone: STATUS_TONES[sale.status],
+              },
+            }))}
+            onChange={(value) => {
+              setId(value);
+              setIdError("");
+              setResult(undefined);
+              setError("");
+              setRetry(false);
+            }}
+          />
           <label className={s.field}>
             판매 ID
             <input
@@ -958,32 +959,27 @@ function CustomerLookup({
           }}
         >
           <h2>조회할 고객</h2>
-          <label className={s.field}>
-            원장의 고객 가명 ID에서 선택
-            <select
-              value={known.find((ref) => ref === value.toLowerCase()) ?? ""}
-              disabled={known.length === 0}
-              onChange={(e) => {
-                setValue(e.target.value);
-                if (e.target.value) submit(e.target.value);
-              }}
-            >
-              <option value="">
-                {!snapshot
-                  ? ledger.error
-                    ? "원장을 읽지 못했습니다"
-                    : "원장을 읽고 있습니다"
-                  : known.length
-                    ? "고객 가명 ID를 선택하세요"
-                    : "원장에 고객 기록이 없습니다"}
-              </option>
-              {known.map((ref) => (
-                <option key={ref} value={ref}>
-                  {short(ref, 10, 8)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <RecordSelect
+            label="원장의 고객 가명 ID에서 선택"
+            placeholder={
+              !snapshot
+                ? ledger.error
+                  ? "원장을 읽지 못했습니다"
+                  : "원장을 읽고 있습니다"
+                : known.length
+                  ? "고객 가명 ID를 선택하세요"
+                  : "원장에 고객 기록이 없습니다"
+            }
+            value={value.toLowerCase()}
+            options={known.map((ref) => ({
+              value: ref,
+              label: short(ref, 10, 8),
+            }))}
+            onChange={(ref) => {
+              setValue(ref);
+              if (ref) submit(ref);
+            }}
+          />
           <label className={s.field}>
             고객 가명 ID
             <input

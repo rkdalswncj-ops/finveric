@@ -79,33 +79,31 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
     setParams(value ? { kind: value } : {}, { replace: true });
   return (
     <>
-      <div
-        className={`${s.chips} ${s.section}`}
-        role="group"
-        aria-label="신호 종류"
-      >
-        <FilterChip
-          label="전체"
-          count={signals.length}
-          pressed={!kind}
-          onClick={() => filter()}
-        />
-        {SIGNAL_KINDS.map((value) => (
+      <div className={s.signalFilters}>
+        <div className={s.chips} role="group" aria-label="신호 종류">
           <FilterChip
-            key={value}
-            label={SIGNAL_LABELS[value]}
-            count={count(value)}
-            pressed={kind === value}
-            onClick={() => filter(value)}
+            label="전체"
+            count={signals.length}
+            pressed={!kind}
+            onClick={() => filter()}
           />
-        ))}
-      </div>
-      <section className={`${s.panel} ${s.section}`}>
-        <p className={s.panelNote}>
+          {SIGNAL_KINDS.map((value) => (
+            <FilterChip
+              key={value}
+              label={SIGNAL_LABELS[value]}
+              count={count(value)}
+              pressed={kind === value}
+              onClick={() => filter(value)}
+            />
+          ))}
+        </div>
+        <p className={s.filterNote}>
           {kind
             ? `${SIGNAL_LABELS[kind]}: ${CONDITIONS[kind]}`
-            : "신호 5종 전체. 판매 ID나 고객 가명 ID를 열면 분쟁 조회로 이동합니다."}
+            : "행을 선택하면 분쟁 조회에서 관련 기록을 볼 수 있습니다."}
         </p>
+      </div>
+      <section className={`${s.panel} ${s.section}`}>
         <TableScroll label="위험 신호 목록">
           <table>
             <caption className={s.srOnly}>위험 신호 목록</caption>
