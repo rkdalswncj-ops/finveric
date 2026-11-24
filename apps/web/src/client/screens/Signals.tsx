@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import {
   SIGNAL_KINDS,
   SIGNAL_LABELS,
@@ -19,6 +20,7 @@ import ui from "../../shared/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
 import { productName, saleProduct, type Sale } from "../../shared/sales.ts";
+import { saleReviewPath } from "../paths.ts";
 import { saleSignals } from "../signals.ts";
 
 const s = { ...ui, ...client, ...local };
@@ -29,13 +31,11 @@ export function Signals({
   sales,
   products,
   customer,
-  open,
 }: {
   load: LoadState;
   sales: Sale[];
   products: ProductEntryDto[];
   customer?: CustomerDto;
-  open: (id: string) => void;
 }) {
   const [kind, setKind] = useState<SignalKind | "">("");
   const signals = saleSignals(customer, sales);
@@ -118,14 +118,12 @@ export function Signals({
                     <td>{signal.detail}</td>
                     <td>
                       {sale ? (
-                        <button
-                          type="button"
-                          className={s.linkButton}
-                          onClick={() => open(sale.id)}
+                        <Link
+                          to={saleReviewPath(sale.id)}
                           aria-label={`판매·검토 · ${SIGNAL_LABELS[signal.kind]} 판매 건`}
                         >
                           판매·검토
-                        </button>
+                        </Link>
                       ) : (
                         "—"
                       )}

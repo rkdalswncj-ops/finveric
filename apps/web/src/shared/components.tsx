@@ -56,7 +56,7 @@ export function Heading({
   children,
 }: {
   title: string;
-  description: string;
+  description?: string;
   children?: ReactNode;
 }) {
   return (
@@ -64,7 +64,7 @@ export function Heading({
       <div>
         {/* 경로가 바뀌거나 누른 요소가 사라지면 초점을 받는다(focus.ts). */}
         <h1 tabIndex={-1}>{title}</h1>
-        <p>{description}</p>
+        {description && <p>{description}</p>}
       </div>
       {children}
     </div>

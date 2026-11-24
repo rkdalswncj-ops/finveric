@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, Route, Routes, useLocation, useNavigate } from "react-router";
+import { Link, matchPath, Route, Routes, useLocation } from "react-router";
 import {
   Activity,
   BookOpen,
@@ -30,12 +30,14 @@ import { networkName } from "../shared/format.ts";
 import { API_DOCS_HREF, CHANNEL_APP_HREF } from "../shared/links.ts";
 import type { Sale } from "../shared/sales.ts";
 import { Shell, type ExternalItem, type NavGroup } from "../shared/Shell.tsx";
+import { SALE_DETAIL_ROUTE } from "./paths.ts";
 import { ApiKeys } from "./screens/ApiKeys.tsx";
 import { Chain } from "./screens/Chain.tsx";
 import { Dashboard } from "./screens/Dashboard.tsx";
 import { Products } from "./screens/Products.tsx";
 import { Review } from "./screens/Review.tsx";
 import { Rules } from "./screens/Rules.tsx";
+import { SaleDetail } from "./screens/SaleDetail.tsx";
 import { Signals } from "./screens/Signals.tsx";
 
 const OPERATIONS = "판매사 업무";
@@ -50,7 +52,7 @@ const groups: NavGroup[] = [
       { path: "/", label: "대시보드", icon: LayoutDashboard },
       { path: "/rules", label: "진단 기준", icon: ListChecks },
       { path: "/products", label: "상품 관리", icon: Landmark },
-      { path: "/review", label: "판매·검토", icon: Layers },
+      { path: "/review", label: "판매·검토", icon: Layers, end: false },
       { path: "/signals", label: "위험 신호", icon: Siren },
       { path: "/chain", label: "온체인 처리", icon: Activity },
       { path: "/keys", label: "API 키", icon: KeyRound },
@@ -63,6 +65,7 @@ const links: ExternalItem[] = [
   { href: API_DOCS_HREF, label: "API 문서", icon: BookOpen },
 ];
 function pageTitle(pathname: string) {
+  if (matchPath(SALE_DETAIL_ROUTE, pathname)) return "판매 건 상세";
   for (const group of groups)
     for (const item of group.items)
       if (item.path === pathname) return item.label;
@@ -109,7 +112,6 @@ type Failure = { message: string; load?: boolean };
 
 export function App() {
   const location = useLocation();
-  const navigate = useNavigate();
   const [failure, setFailure] = useState<Failure>();
   const showError = useCallback(
     (message: string) => setFailure({ message }),
@@ -125,9 +127,6 @@ export function App() {
   const [customer, setCustomer] = useState<CustomerDto>();
   const [apiKeys, setApiKeys] = useState<ApiKeyDto[]>([]);
   const [load, setLoad] = useState<LoadState>("loading");
-  const [selected, setSelected] = useState(
-    sessionStorage.getItem("finveric-sale") ?? "",
-  );
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   /** 서버가 접근 코드를 거절했을 때 입력 칸 아래에 보여 줄 문장. */
@@ -237,15 +236,6 @@ export function App() {
       setBusy("");
     }
   };
-  const select = (id: string) => {
-    setSelected(id);
-    sessionStorage.setItem("finveric-sale", id);
-  };
-  /** 대시보드·위험 신호에서 고른 판매 건을 판매·검토 화면에서 연다. */
-  const open = (id: string) => {
-    select(id);
-    navigate("/review");
-  };
   const register = () =>
     run(
       "기본 진단 기준과 예시 상품을 원장에 등록하고 있습니다",
@@ -291,7 +281,6 @@ export function App() {
               customer={customer}
               busy={!!busy}
               register={register}
-              open={open}
             />
           }
         />
@@ -323,14 +312,16 @@ export function App() {
         />
         <Route
           path="/review"
+          element={<Review load={load} sales={sales} products={products} />}
+        />
+        <Route
+          path={SALE_DETAIL_ROUTE}
           element={
-            <Review
+            <SaleDetail
               load={load}
               sales={sales}
               products={products}
               customer={customer}
-              selected={selected}
-              select={select}
               busy={!!busy}
               action={action}
             />
@@ -344,7 +335,6 @@ export function App() {
               sales={sales}
               products={products}
               customer={customer}
-              open={open}
             />
           }
         />

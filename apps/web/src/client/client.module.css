@@ -13,6 +13,29 @@ td.wrapCell {
   white-space: normal;
   min-width: 200px;
 }
+.saleRow {
+  cursor: pointer;
+}
+.saleRow > td:first-child {
+  padding-block: 0;
+}
+.saleRow > td:first-child a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  text-decoration: underline;
+}
+.saleRow > td:first-child code {
+  font-size: inherit;
+}
+.saleRow:focus-within {
+  background: var(--primary-surface);
+}
+@media (hover: hover) {
+  .saleRow:hover {
+    background: var(--primary-surface);
+  }
+}
 /* 요약 수치 카드는 ui의 .stats와 Stat을 쓴다. 여기서는 열 수만 정한다. */
 .dashboardStats {
   --stat-columns: 4;

@@ -13,12 +13,12 @@ import {
   Stat,
   TableScroll,
 } from "../../shared/components.tsx";
-import { dateTime, short } from "../../shared/format.ts";
+import { dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
 import { StatusBadge } from "../../shared/sale-components.tsx";
-import { RegisterNotice } from "../components.tsx";
+import { RegisterNotice, SaleRow } from "../components.tsx";
 import {
   activeRule,
   awaitingApproval,
@@ -41,7 +41,6 @@ export function Dashboard({
   customer,
   busy,
   register,
-  open,
 }: {
   load: LoadState;
   rules: RuleEntryDto[];
@@ -50,7 +49,6 @@ export function Dashboard({
   customer?: CustomerDto;
   busy: boolean;
   register: () => unknown;
-  open: (id: string) => void;
 }) {
   const now = nowSeconds();
   const rule = activeRule(rules);
@@ -123,7 +121,6 @@ export function Dashboard({
                 <th scope="col">회차</th>
                 <th scope="col">적합성</th>
                 <th scope="col">신청 시각</th>
-                <th scope="col">보기</th>
               </tr>
             </thead>
             <tbody>
@@ -131,10 +128,7 @@ export function Dashboard({
                 const product = saleProduct(products, sale);
                 const attempt = sale.chain?.attempt ?? sale.latestAttempt;
                 return (
-                  <tr key={sale.id}>
-                    <td>
-                      <code title={sale.id}>{short(sale.id)}</code>
-                    </td>
+                  <SaleRow key={sale.id} saleId={sale.id}>
                     <td className={s.wrapCell}>
                       {productName(product?.document)} v{sale.productVersion}
                     </td>
@@ -157,17 +151,7 @@ export function Dashboard({
                           : "부적합"}
                     </td>
                     <td>{dateTime(sale.createdAt)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className={s.linkButton}
-                        onClick={() => open(sale.id)}
-                        aria-label={`보기 · ${short(sale.id)} 판매 건`}
-                      >
-                        보기
-                      </button>
-                    </td>
-                  </tr>
+                  </SaleRow>
                 );
               })}
             </tbody>

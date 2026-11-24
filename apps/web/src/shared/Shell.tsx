@@ -15,7 +15,12 @@ const brand = (
 );
 
 /** 앱 안의 메뉴 항목. */
-export type NavItem = { label: string; icon: LucideIcon; path: string };
+export type NavItem = {
+  label: string;
+  icon: LucideIcon;
+  path: string;
+  end?: boolean;
+};
 export type NavGroup = { label: string; caption?: string; items: NavItem[] };
 /** 다른 페이지로 가는 링크. 사이드바 아래쪽에 두고 새 탭으로 연다. */
 export type ExternalItem = { label: string; icon: LucideIcon; href: string };
@@ -123,7 +128,7 @@ export function Shell({
               {group.items.map((item) => (
                 <NavLink
                   key={item.path}
-                  end
+                  end={item.end ?? true}
                   to={item.path}
                   className={({ isActive }) =>
                     `${s.navItem} ${isActive ? s.active : ""}`

@@ -1,4 +1,6 @@
 // client 페이지의 여러 화면이 함께 쓰는 표시 요소.
+import type { ReactNode } from "react";
+import { Link, useLinkClickHandler } from "react-router";
 import {
   isSuitable,
   PROFILE_NAMES,
@@ -8,7 +10,7 @@ import {
 import type { DiagnosisDto } from "@finveric/core/api";
 import { Button } from "../shared/button.tsx";
 import { Facts, Notice, TableScroll } from "../shared/components.tsx";
-import { dateTime } from "../shared/format.ts";
+import { dateTime, short } from "../shared/format.ts";
 import {
   gradeName,
   issuerLabel,
@@ -19,9 +21,44 @@ import {
 } from "../shared/sales.ts";
 import ui from "../shared/ui.module.css";
 import local from "./client.module.css";
+import { saleReviewPath } from "./paths.ts";
 
 const s = { ...ui, ...local };
 const PROFILES = Object.keys(PROFILE_NAMES).map(Number);
+
+/** 행을 누르거나 판매 ID 링크에 초점을 맞춰 판매 건 상세를 연다. */
+export function SaleRow({
+  saleId,
+  search,
+  children,
+}: {
+  saleId: string;
+  search?: string;
+  children: ReactNode;
+}) {
+  const to = { pathname: saleReviewPath(saleId), search };
+  const open = useLinkClickHandler<HTMLTableRowElement>(to);
+  return (
+    <tr
+      className={s.saleRow}
+      onClick={(event) => {
+        if (
+          !event.defaultPrevented &&
+          window.getSelection()?.isCollapsed !== false
+        )
+          open(event);
+      }}
+    >
+      <td>
+        <Link to={to}>
+          <code title={saleId}>{short(saleId)}</code>
+          <span className={s.srOnly}> 판매 건 상세</span>
+        </Link>
+      </td>
+      {children}
+    </tr>
+  );
+}
 
 /** 아무 기준·상품도 등록하지 않았을 때 보여 주는 기본 등록 안내. */
 export function RegisterNotice({

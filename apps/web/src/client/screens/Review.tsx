@@ -1,36 +1,26 @@
-import { useState } from "react";
-import { Link } from "react-router";
+import { useLocation, useSearchParams } from "react-router";
 import { ExternalLink } from "lucide-react";
-import type {
-  CustomerDto,
-  ProductEntryDto,
-  SaleAction,
-} from "@finveric/core/api";
+import type { ProductEntryDto } from "@finveric/core/api";
 import type { LoadState } from "../../shared/api.ts";
 import { Button } from "../../shared/button.tsx";
 import {
   Badge,
   Empty,
-  Facts,
   FilterChip,
   Heading,
-  Notice,
   TableScroll,
-  type Tone,
 } from "../../shared/components.tsx";
-import { focusElement } from "../../shared/focus.ts";
-import { dateTime, short, won } from "../../shared/format.ts";
+import { dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
 import { CHANNEL_APP_HREF } from "../../shared/links.ts";
 import { StatusBadge } from "../../shared/sale-components.tsx";
-import { DiagnosisTable } from "../components.tsx";
+import { SaleRow } from "../components.tsx";
 import {
   awaitingApproval,
   nowSeconds,
   productName,
-  profileName,
   saleProduct,
   STATUS_KEYS,
   STATUS_LABELS,
@@ -39,52 +29,29 @@ import {
   type Sale,
   type StatusKey,
 } from "../../shared/sales.ts";
-import { traceLabel, traceStatus } from "../traces.ts";
 
 const s = { ...ui, ...client, ...local };
 
 const yesNo = (value?: boolean, yes = "예", no = "아니요") =>
   value === undefined ? "—" : value ? yes : no;
 
-function approvalText(sale: Sale) {
-  if (sale.status === "abandoned") return "—";
-  const attempt = sale.chain?.attempt ?? sale.latestAttempt;
-  if (!sale.approvalRequired) return `대상 아님 · ${attempt || 0}회차`;
-  if (sale.chain) return sale.chain.approved ? `승인 · ${attempt}회차` : "없음";
-  return sale.approvedAttempt === sale.latestAttempt
-    ? `승인 · ${attempt}회차`
-    : sale.approvedAttempt
-      ? `다시 필요 · ${sale.approvedAttempt}회차 승인 뒤 ${attempt}회차 진단`
-      : `필요 · ${attempt}회차`;
-}
-
-/** 판매 건 목록, 선택한 건의 회차 이력·필수 확인·타임라인, 관리자 승인. */
+/** 판매 건 목록과 상태별 필터. */
 export function Review({
   load,
   sales,
   products,
-  customer,
-  selected,
-  select,
-  busy,
-  action,
 }: {
   load: LoadState;
   sales: Sale[];
   products: ProductEntryDto[];
-  customer?: CustomerDto;
-  selected: string;
-  select: (id: string) => void;
-  busy: boolean;
-  action: (
-    id: string,
-    name: SaleAction,
-    label: string,
-    done?: string,
-  ) => Promise<unknown>;
 }) {
   const now = nowSeconds();
-  const [filter, setFilter] = useState<StatusKey | "">("");
+  const { search } = useLocation();
+  const [params, setParams] = useSearchParams();
+  const status = params.get("status");
+  const filter = STATUS_KEYS.find((key) => key === status) ?? "";
+  const setFilter = (key: StatusKey | "") =>
+    setParams(key ? { status: key } : {}, { replace: true });
   const ordered = [...sales].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),
   );
@@ -93,40 +60,11 @@ export function Review({
   const shown = ordered.filter(
     (sale) => !filter || statusKey(sale, now) === filter,
   );
-  const sale = sales.find((entry) => entry.id === selected) ?? shown[0];
-  const product = saleProduct(products, sale);
-  const knownCustomer =
-    !!sale &&
-    !!customer &&
-    customer.ref.toLowerCase() === sale.customerRef.toLowerCase();
-  const diagnoses = knownCustomer ? customer.diagnoses : [];
-  const usedAttempt = sale?.chain?.attempt;
-  const usedDiagnosis = diagnoses.find(
-    (diagnosis) => diagnosis.attempt === (usedAttempt ?? sale?.latestAttempt),
-  );
-  const timeline = sale
-    ? [
-        ...diagnoses.map((diagnosis) => ({
-          key: `d${diagnosis.attempt}`,
-          at: diagnosis.at * 1000,
-          label: `진단 ${diagnosis.attempt}회차 기록 · ${profileName(diagnosis.profile)}`,
-          status: ["완료", "success"] as [string, Tone],
-        })),
-        ...sale.traces
-          .filter((trace) => trace.action !== "recordDiagnosis")
-          .map((trace) => ({
-            key: trace.id,
-            at: Date.parse(trace.at),
-            label: traceLabel(trace),
-            status: traceStatus(trace),
-          })),
-      ].sort((a, b) => a.at - b.at)
-    : [];
   return (
     <>
       <Heading
-        title="판매 건과 진단 회차를 검토하세요"
-        description="고객 가명 ID별 진단 회차와 판매 건의 필수 확인을 봅니다. 3회차 이상 진단한 고객의 청약은 회차 이력을 보고 관리자가 승인합니다."
+        title="판매 건을 검토하세요"
+        description="판매 건을 선택하면 상세 화면에서 진단 회차와 처리 근거를 확인할 수 있습니다."
       />
       <div className={s.chips} role="group" aria-label="판매 건 상태 필터">
         {(["", ...STATUS_KEYS] as const).map((key) => (
@@ -141,9 +79,6 @@ export function Review({
         ))}
       </div>
       <div className={`${s.panel} ${s.salesTable}`}>
-        <p className={s.tableNote}>
-          판매 건 목록 · 행을 골라 회차 이력과 처리 근거를 봅니다.
-        </p>
         <TableScroll label="판매 건 목록">
           <table>
             <caption className={s.srOnly}>판매 건 목록</caption>
@@ -157,7 +92,6 @@ export function Review({
                 <th scope="col">녹취·숙려</th>
                 <th scope="col">관리자 승인</th>
                 <th scope="col">신청 시각</th>
-                <th scope="col">선택</th>
               </tr>
             </thead>
             <tbody>
@@ -165,13 +99,7 @@ export function Review({
                 const attempt = record.chain?.attempt ?? record.latestAttempt;
                 const abandoned = record.status === "abandoned";
                 return (
-                  <tr
-                    key={record.id}
-                    className={record.id === sale?.id ? s.selectedRow : ""}
-                  >
-                    <td>
-                      <code title={record.id}>{short(record.id)}</code>
-                    </td>
+                  <SaleRow key={record.id} saleId={record.id} search={search}>
                     <td className={s.wrapCell}>
                       {productName(saleProduct(products, record)?.document)} v
                       {record.productVersion}
@@ -208,20 +136,7 @@ export function Review({
                       )}
                     </td>
                     <td>{dateTime(record.createdAt)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className={s.linkButton}
-                        onClick={() => select(record.id)}
-                        aria-label={`보기 · ${short(record.id)} 판매 건`}
-                        aria-current={
-                          record.id === sale?.id ? "true" : undefined
-                        }
-                      >
-                        보기
-                      </button>
-                    </td>
-                  </tr>
+                  </SaleRow>
                 );
               })}
             </tbody>
@@ -235,164 +150,27 @@ export function Review({
                 전체 보기
               </Button>
             </div>
+          ) : load === "ready" ? (
+            <Empty
+              title="아직 판매 건이 없습니다"
+              text="고객이 증권사 앱에서 상품을 고르고 가입을 시작하면 판매 건이 생깁니다."
+            >
+              <Button variant="outline" asChild>
+                <a href={CHANNEL_APP_HREF} target="_blank" rel="noreferrer">
+                  증권사 앱 예시 열기
+                  <span className={s.srOnly}> (새 탭에서 열기)</span>
+                  <ExternalLink size={14} aria-hidden="true" data-icon="end" />
+                </a>
+              </Button>
+            </Empty>
           ) : (
             <p className={s.empty}>
-              {load === "ready"
-                ? "아직 판매 건이 없습니다."
-                : load === "failed"
-                  ? "판매 건을 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
-                  : "판매 건을 불러오고 있습니다."}
+              {load === "failed"
+                ? "판매 건을 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
+                : "판매 건을 불러오고 있습니다."}
             </p>
           ))}
       </div>
-      {sale ? (
-        <>
-          {/* 판매 건 기록(왼쪽)과 승인·타임라인(오른쪽)을 비슷한 높이로 나란히 둔다. 진단 회차 표는 아래 화면 너비의 줄에 둔다. */}
-          <div className={s.reviewGrid}>
-            <section className={`${s.panel} ${s.pad}`}>
-              <div className={s.row}>
-                <h2>
-                  {productName(product?.document)} v{sale.productVersion}
-                </h2>
-                <StatusBadge sale={sale} now={now} />
-              </div>
-              <Facts
-                rows={[
-                  ["판매 ID", <code>{sale.id}</code>],
-                  ["고객 가명 ID", <code>{sale.customerRef}</code>],
-                  ["청약 금액", won(sale.amount)],
-                  [
-                    sale.chain ? "청약 회차" : "최신 회차",
-                    `${usedAttempt ?? sale.latestAttempt}회차 · ${profileName(usedDiagnosis?.profile)}`,
-                  ],
-                  [
-                    "적합성",
-                    sale.suitable === undefined
-                      ? "진단 전"
-                      : sale.suitable
-                        ? "적합"
-                        : sale.chain
-                          ? `부적합 · 추가 위험 확인 ${sale.chain.higherRiskConfirmed ? "기록" : "없음"}`
-                          : "부적합 · 추가 위험 확인 필요",
-                  ],
-                  [
-                    "녹취·숙려 대상",
-                    sale.protectedSale === undefined
-                      ? "—"
-                      : sale.protectedSale
-                        ? sale.chain
-                          ? `대상 · 녹취 지문 ${/^0x0+$/.test(sale.chain.recordingHash) ? "없음" : "기록"}`
-                          : "대상"
-                        : "대상 아님",
-                  ],
-                  [
-                    "숙려 종료",
-                    sale.coolingEndsAt ? dateTime(sale.coolingEndsAt) : "—",
-                  ],
-                  [
-                    "설명 확인 시간",
-                    sale.chain
-                      ? `${sale.chain.explanationSeconds}초`
-                      : "청약 전",
-                  ],
-                  ["관리자 승인", approvalText(sale)],
-                  [
-                    "결제 기록",
-                    sale.settled
-                      ? "기록"
-                      : sale.status === "confirmed"
-                        ? "대기"
-                        : "—",
-                  ],
-                ]}
-              />
-              {awaitingApproval(sale) && (
-                <Notice tone="warning">
-                  {sale.latestAttempt}회차 진단한 고객입니다. 회차 이력과 위험
-                  신호를 확인한 뒤 승인하세요. 승인은 이 판매 ID와 최신 회차에
-                  묶입니다.
-                </Notice>
-              )}
-            </section>
-            <div className={s.stack}>
-              <section className={`${s.panel} ${s.pad}`}>
-                {/* 승인하면 버튼이 사라진다. 초점은 이 제목으로 옮긴다. */}
-                <h2 id="approval-title" tabIndex={-1}>
-                  관리자 승인
-                </h2>
-                <p>
-                  3회차 이상 진단한 고객의 청약은 소비자보호 담당이 승인 키로
-                  서명해야 원장이 받습니다.
-                </p>
-                <Facts rows={[["승인 상태", approvalText(sale)]]} />
-                {awaitingApproval(sale) && (
-                  <Button
-                    busy={busy}
-                    onClick={async () => {
-                      const approved = await action(
-                        sale.id,
-                        "approve",
-                        "관리자 승인 서명을 만들고 있습니다",
-                        "관리자 승인을 기록했습니다.",
-                      );
-                      if (approved) focusElement("approval-title");
-                    }}
-                  >
-                    회차 이력을 확인하고 승인
-                  </Button>
-                )}
-                <Button variant="outline" asChild>
-                  <Link to="/chain">처리 근거 보기</Link>
-                </Button>
-              </section>
-              <section className={`${s.panel} ${s.pad}`}>
-                <h2>타임라인</h2>
-                <ol className={s.timeline}>
-                  {timeline.map((item) => (
-                    <li key={item.key}>
-                      <time>{dateTime(new Date(item.at).toISOString())}</time>
-                      <span className={s.timelineLabel}>{item.label}</span>
-                      <Badge tone={item.status[1]}>{item.status[0]}</Badge>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            </div>
-          </div>
-          {knownCustomer ? (
-            <section className={`${s.panel} ${s.spaced}`}>
-              <DiagnosisTable
-                diagnoses={diagnoses}
-                used={usedAttempt}
-                caption="진단 회차"
-              />
-            </section>
-          ) : (
-            <section className={`${s.panel} ${s.pad} ${s.spaced}`}>
-              <h2>진단 회차</h2>
-              <p>
-                이 판매 건의 고객 번호를 연결하지 않아 진단 회차를 표시하지
-                않습니다.
-              </p>
-            </section>
-          )}
-        </>
-      ) : (
-        load === "ready" && (
-          <Empty
-            title="아직 판매 건이 없습니다"
-            text="고객이 증권사 앱에서 상품을 고르고 가입을 시작하면 판매 건이 생깁니다."
-          >
-            <Button variant="outline" asChild>
-              <a href={CHANNEL_APP_HREF} target="_blank" rel="noreferrer">
-                증권사 앱 예시 열기
-                <span className={s.srOnly}> (새 탭에서 열기)</span>
-                <ExternalLink size={14} aria-hidden="true" data-icon="end" />
-              </a>
-            </Button>
-          </Empty>
-        )
-      )}
     </>
   );
 }
