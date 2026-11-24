@@ -8,7 +8,6 @@ import {
   DetailColumn,
   DetailRow,
   Facts,
-  Heading,
   Notice,
   TableScroll,
 } from "../../shared/components.tsx";
@@ -16,7 +15,7 @@ import { choiceNote, dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
 import { ChangeList } from "../ChangeList.tsx";
-import { LedgerGate, LedgerLine } from "../components.tsx";
+import { LedgerGate } from "../components.tsx";
 import { diffRules } from "../diff.ts";
 import { gradeLabel, profileLabel, short } from "../format.ts";
 import type { Ledger } from "../useLedger.ts";
@@ -27,11 +26,6 @@ const s = { ...ui, ...local };
 export function Rules({ ledger }: { ledger: Ledger }) {
   return (
     <div className={s.page}>
-      <Heading
-        title="진단 기준 버전을 대조하세요"
-        description="원장에 등록한 원문으로 기준 해시를 다시 계산해 원장 값과 대조합니다. 버전 사이에 바뀐 문항, 점수, 추출 조건, 등급 구간을 보여 줍니다."
-      />
-      <LedgerLine ledger={ledger} />
       <LedgerGate ledger={ledger}>
         {(snapshot) => <RuleAudit snapshot={snapshot} />}
       </LedgerGate>

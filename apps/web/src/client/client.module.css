@@ -16,28 +16,12 @@ td.wrapCell {
 .detailBack {
   margin-block-end: 14px;
 }
-.skeleton {
-  display: block;
-  max-inline-size: 100%;
-  border-radius: var(--rounded-control);
-  background: var(--border);
-}
 .skeletonRow {
   height: 49px;
 }
 .skeletonFact {
   align-items: center;
   min-block-size: 40px;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .skeleton {
-    animation: skeletonFade 1.6s ease-in-out 3;
-  }
-  @keyframes skeletonFade {
-    50% {
-      opacity: 0.56;
-    }
-  }
 }
 /* 요약 수치 카드는 ui의 .stats와 Stat을 쓴다. 여기서는 열 수만 정한다. */
 .dashboardStats {

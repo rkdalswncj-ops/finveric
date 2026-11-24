@@ -2,7 +2,7 @@
 .page {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 56px 24px 64px;
+  padding: 40px 24px 64px;
 }
 .brand {
   display: flex;
@@ -21,27 +21,27 @@
   background: var(--primary);
   color: var(--primary-foreground);
 }
-.title {
-  margin: 40px 0 8px;
-  font-size: var(--type-display);
+.intro {
+  margin-top: 24px;
+  padding: 40px;
+  border-radius: var(--rounded-surface);
+  background: var(--primary-surface);
 }
-.lead {
-  max-width: 640px;
-  margin: 0;
-  color: var(--muted-foreground);
-  font-size: var(--type-heading);
+.title {
+  font-size: var(--type-display);
 }
 .roles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
-  margin: 40px 0;
+  margin-top: 32px;
 }
 .role {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 24px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+  padding: 20px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--rounded-surface);
@@ -53,51 +53,40 @@
     border-color: var(--primary);
   }
 }
-.role:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 3px;
-}
-.role small {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.roleIcon {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border-radius: var(--rounded-control);
+  background: var(--primary-surface);
   color: var(--primary);
-  font-weight: 700;
 }
-.role strong {
+.roleBody {
+  display: grid;
+  gap: 6px;
+}
+.roleBody strong {
   font-size: var(--type-title);
+  line-height: var(--type-line-heading);
 }
-.role p {
-  margin: 0;
-  color: var(--muted-foreground);
-}
-.go {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: auto;
-  padding-top: 12px;
-  color: var(--primary);
-  font-weight: 700;
-}
-/* 역할 카드 아래의 보조 링크(API 문서, 증권사 앱 예시) */
-.extras {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 24px;
-  margin: -16px 0 40px;
+.roleBody > span {
   color: var(--muted-foreground);
   font-size: var(--type-detail);
 }
-.extras ul {
+.go {
+  align-self: center;
+  color: var(--primary);
+}
+/* 역할 카드 아래의 증권사 앱과 API 문서 링크 */
+.extras {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 20px;
-  margin: 0;
+  margin: 16px 0 24px;
   padding: 0;
   list-style: none;
+  font-size: var(--type-detail);
 }
 .extras a {
   display: inline-flex;
@@ -118,7 +107,7 @@
 }
 .ledger dl {
   display: grid;
-  grid-template-columns: repeat(3, auto) minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: 16px 40px;
   margin: 0;
 }
@@ -135,6 +124,15 @@
   font-size: var(--type-detail);
   overflow-wrap: anywhere;
 }
+.connection {
+  margin: 16px 0 0;
+  border-block-start: 1px solid var(--border);
+}
+.connection summary {
+  min-block-size: 44px;
+  padding-block: 12px;
+  font-weight: 600;
+}
 .foot {
   margin-top: 32px;
   color: var(--muted-foreground);
@@ -150,15 +148,17 @@
   .roles {
     grid-template-columns: minmax(0, 1fr);
   }
-  .ledger dl {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .ledger .contract {
-    grid-column: 1 / -1;
-  }
 }
 @media (max-width: 480px) {
-  .ledger dl {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .page {
+    padding-inline: 16px;
+  }
+  .intro,
+  .ledger {
+    padding: 20px;
+  }
+  .role {
+    padding: 14px;
+    gap: 10px;
   }
 }

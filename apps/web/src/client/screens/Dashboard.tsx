@@ -13,6 +13,7 @@ import {
   Heading,
   Stat,
   TableScroll,
+  Skeleton,
 } from "../../shared/components.tsx";
 import { dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
@@ -26,7 +27,6 @@ import {
   SaleIdText,
   SaleRow,
   DetailTableSkeletonRows,
-  Skeleton,
 } from "../components.tsx";
 import {
   activeRule,
@@ -107,10 +107,7 @@ export function Dashboard({
   ];
   return (
     <>
-      <Heading
-        title="판매 현황을 확인하세요"
-        description="진행 중인 판매 건, 관리자 승인 대기, 위험 신호를 확인하세요. 모든 판정은 원장에 등록한 기준으로 기록합니다."
-      />
+      <Heading title="대시보드" />
       <LoadingStatus loading={loading}>
         판매 현황을 불러오고 있습니다.
       </LoadingStatus>

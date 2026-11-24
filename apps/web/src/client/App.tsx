@@ -24,10 +24,14 @@ import type {
 } from "@finveric/core/api";
 import { Button } from "../shared/button.tsx";
 import { api, ApiError, token, type LoadState } from "../shared/api.ts";
-import { AccessCodeForm, Empty } from "../shared/components.tsx";
+import { AccessCodeForm, Badge, Heading } from "../shared/components.tsx";
 import { DEPLOYMENT_ERROR, useDeployment } from "../shared/deployment.ts";
 import { networkName } from "../shared/format.ts";
-import { API_DOCS_HREF, CHANNEL_APP_HREF } from "../shared/links.ts";
+import {
+  API_DOCS_HREF,
+  CHANNEL_APP_HREF,
+  CHANNEL_APP_LABEL,
+} from "../shared/links.ts";
 import type { Sale } from "../shared/sales.ts";
 import { Shell, type ExternalItem, type NavGroup } from "../shared/Shell.tsx";
 import {
@@ -47,7 +51,7 @@ import { Signals } from "./screens/Signals.tsx";
 const OPERATIONS = "판매사 업무";
 /**
  * 판매사 소비자보호 담당이 쓰는 B2B 화면.
- * 고객 화면은 증권사 앱 예시(/channel/)에 있다. 새 탭으로 연다.
+ * 고객 화면은 증권사 앱(/channel/)에 있다. 새 탭으로 연다.
  */
 const groups: NavGroup[] = [
   {
@@ -63,14 +67,14 @@ const groups: NavGroup[] = [
       },
       { path: "/review", label: "판매·검토", icon: Layers, end: false },
       { path: "/signals", label: "위험 신호", icon: Siren },
-      { path: "/chain", label: "온체인 처리", icon: Activity },
+      { path: "/chain", label: "처리 기록", icon: Activity },
       { path: "/keys", label: "API 키", icon: KeyRound },
     ],
   },
 ];
 /** 사이드바 아래쪽의 새 탭 링크. */
 const links: ExternalItem[] = [
-  { href: CHANNEL_APP_HREF, label: "증권사 앱 예시", icon: Smartphone },
+  { href: CHANNEL_APP_HREF, label: CHANNEL_APP_LABEL, icon: Smartphone },
   { href: API_DOCS_HREF, label: "API 문서", icon: BookOpen },
 ];
 function pageTitle(pathname: string) {
@@ -78,12 +82,14 @@ function pageTitle(pathname: string) {
   if (matchPath(PRODUCT_DETAIL_ROUTE, pathname)) return "판매 상품 상세";
   for (const group of groups)
     for (const item of group.items)
-      if (item.path === pathname) return item.label;
-  return "대시보드";
+      if (matchPath(item.path, pathname)) return item.label;
+  return matchPath("/channel/*", pathname)
+    ? CHANNEL_APP_LABEL
+    : "화면을 찾을 수 없습니다";
 }
 
 /**
- * 이전 주소(/client/channel/*)를 증권사 앱 예시(/channel/*)로 보낸다. 쿼리를 그대로 넘긴다.
+ * 이전 주소(/client/channel/*)를 증권사 앱(/channel/*)으로 보낸다. 쿼리를 그대로 넘긴다.
  * 공유한 링크와 이전 화면 캡처의 주소가 쓴다.
  */
 function ChannelRedirect() {
@@ -93,14 +99,14 @@ function ChannelRedirect() {
     window.location.replace(target);
   }, [target]);
   return (
-    <Empty
-      title="증권사 앱 예시로 이동합니다"
-      text="고객 화면은 증권사 앱 예시로 옮겼습니다."
+    <Heading
+      title="증권사 앱으로 이동합니다"
+      description="화면이 열리지 않으면 증권사 앱 열기를 선택하세요."
     >
       <Button asChild>
-        <a href={target}>증권사 앱 예시 열기</a>
+        <a href={target}>{CHANNEL_APP_LABEL} 열기</a>
       </Button>
-    </Empty>
+    </Heading>
   );
 }
 
@@ -190,7 +196,7 @@ export function App() {
       setLoad((current) => (current === "loading" ? "failed" : current));
     });
   }, [reload]);
-  // 고객은 다른 탭(증권사 앱 예시)에서 가입한다. 이 탭으로 돌아오면 판매 건을 다시 읽는다.
+  // 고객은 다른 탭(증권사 앱)에서 가입한다. 이 탭으로 돌아오면 판매 건을 다시 읽는다.
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === "visible") void refresh();
@@ -248,9 +254,9 @@ export function App() {
   };
   const register = () =>
     run(
-      "기본 진단 기준과 예시 상품을 원장에 등록하고 있습니다",
+      "기본 진단 기준과 상품을 원장에 등록하고 있습니다",
       () => api<RegisterDto>("/register", {}),
-      "기본 진단 기준과 예시 상품을 원장에 등록했습니다.",
+      "기본 진단 기준과 상품을 원장에 등록했습니다.",
     );
   const action = (id: string, name: SaleAction, label: string, done?: string) =>
     run(label, () => api<SaleDto>(`/sales/${id}/action/${name}`, {}), done);
@@ -261,13 +267,13 @@ export function App() {
       entryHref="/"
       groups={groups}
       links={links}
-      area={OPERATIONS}
       app="판매사 콘솔"
       title={pageTitle(location.pathname)}
-      badge={{
-        tone: deployment ? "success" : "warning",
-        text: networkName(deployment),
-      }}
+      headingTools={
+        <Badge tone={deployment ? "success" : "warning"}>
+          {networkName(deployment)}
+        </Badge>
+      }
       error={failure?.message}
       notice={notice}
       busy={busy}
@@ -373,14 +379,14 @@ export function App() {
         <Route
           path="*"
           element={
-            <Empty
+            <Heading
               title="화면을 찾을 수 없습니다"
-              text="메뉴에서 화면을 다시 골라 주세요."
+              description="메뉴에서 화면을 다시 골라 주세요."
             >
               <Button asChild>
                 <Link to="/">대시보드로 가기</Link>
               </Button>
-            </Empty>
+            </Heading>
           }
         />
       </Routes>

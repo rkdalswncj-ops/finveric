@@ -1,9 +1,7 @@
-import { Link } from "react-router";
 import { AlertTriangle } from "lucide-react";
 import { DEMO_AMOUNT, type Product } from "@finveric/core";
 import type { ProductEntryDto } from "@finveric/core/api";
 import type { LoadState } from "../../shared/api.ts";
-import { Button } from "../../shared/button.tsx";
 import { Facts, Heading, Notice } from "../../shared/components.tsx";
 import { won } from "../../shared/format.ts";
 import { ExplanationCards } from "../../shared/sale-components.tsx";
@@ -16,7 +14,6 @@ import {
 import ui from "../../shared/ui.module.css";
 import local from "./channel.module.css";
 import { ActionBar, PrimaryAction, useStartEnrollment } from "../flow.tsx";
-import { channel } from "../links.ts";
 
 const s = { ...ui, ...local };
 
@@ -42,23 +39,18 @@ export function ProductDetail({
   const enroll = useStartEnrollment(products, activeDraft, start);
   if (!product)
     return (
-      <div className={s.empty}>
-        <h1 tabIndex={-1}>
-          {load === "ready"
-            ? "상품을 찾을 수 없어요"
-            : load === "failed"
-              ? "상품을 불러오지 못했어요"
-              : "상품을 불러오고 있어요"}
-        </h1>
-        <p>
-          {load === "failed"
-            ? "화면을 새로 고쳐 주세요."
-            : "상품 목록에서 다시 골라 주세요."}
-        </p>
-        <Button asChild>
-          <Link to={channel.catalog}>상품 목록 보기</Link>
-        </Button>
-      </div>
+      <>
+        <Heading title="상품 상세" />
+        <div className={s.empty}>
+          <p role="status">
+            {load === "ready"
+              ? "상품을 찾을 수 없어요. 상품 목록에서 다시 골라 주세요."
+              : load === "failed"
+                ? "상품을 불러오지 못했어요. 화면을 새로 고쳐 주세요."
+                : "상품을 불러오고 있어요."}
+          </p>
+        </div>
+      </>
     );
   const { document } = product;
   const sameDraft = enroll.same(product.id);

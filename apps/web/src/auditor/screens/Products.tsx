@@ -13,7 +13,6 @@ import {
   DetailColumn,
   DetailRow,
   Facts,
-  Heading,
   Notice,
   TableScroll,
 } from "../../shared/components.tsx";
@@ -21,7 +20,7 @@ import { dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
 import { ChangeList } from "../ChangeList.tsx";
-import { LedgerGate, LedgerLine } from "../components.tsx";
+import { LedgerGate } from "../components.tsx";
 import { diffProducts } from "../diff.ts";
 import { gradeLabel, productDocument, productName, short } from "../format.ts";
 import type { Ledger } from "../useLedger.ts";
@@ -47,11 +46,6 @@ const comparable = (entry: LedgerProduct) => {
 export function Products({ ledger }: { ledger: Ledger }) {
   return (
     <div className={s.page}>
-      <Heading
-        title="상품 설명서 버전을 대조하세요"
-        description="원장에 등록한 설명서 원문의 지문과 위험등급·고난도·파생결합증권 표시를 원장 값과 대조합니다. 버전 사이의 차이도 보여 줍니다."
-      />
-      <LedgerLine ledger={ledger} />
       <LedgerGate ledger={ledger}>
         {(snapshot) => <ProductAudit snapshot={snapshot} />}
       </LedgerGate>

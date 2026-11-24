@@ -15,8 +15,10 @@ import {
   FileText,
   LayoutGrid,
 } from "lucide-react";
+import { Button } from "../shared/button.tsx";
 import { Badge, Notice, type Tone } from "../shared/components.tsx";
 import { focusPageTitle, useFocusRescue } from "../shared/focus.ts";
+import { HeadingTools } from "../shared/heading-tools.ts";
 import ui from "../shared/ui.module.css";
 import f from "./frame.module.css";
 import { channel } from "./links.ts";
@@ -41,10 +43,10 @@ const tabOf = (pathname: string) =>
   pathname === channel.fund ? channel.catalog : pathname;
 
 /**
- * 증권사 앱의 틀. 맨 위 줄은 이 화면이 FINVERIC API 연동 예시라는 표시와 연결한 원장이다.
- * 앱 머리글(증권사 이름 또는 뒤로 가기), 최대 480px 한 열의 본문, 아래 탭 막대로 이뤄진다.
+ * 증권사 앱의 틀. 최대 480px 한 열의 본문과 아래 탭 막대로 이뤄진다.
+ * 화면 제목 옆에 증권사 이름과 네트워크를 표시한다. 상세 화면의 뒤로 가기는 제목 위에 둔다.
  * 탭을 옮겨도 진행 중인 가입은 그대로다(App의 신청 번호와 가입 화면의 세션 보관).
- * 화면이 바뀌면 맨 위로 가고 화면 제목에 초점을 옮긴다. 문서 제목은 "화면 · 증권사 이름 · 증권사 앱 예시"다.
+ * 화면이 바뀌면 맨 위로 가고 화면 제목에 초점을 옮긴다. 문서 제목은 "화면 · 증권사 이름"이다.
  * 오류는 떠 있지 않고 화면 흐름 안에 둔다(`ErrorSlot`). 닫기 버튼은 없다. App이 다음 처리, 경로 이동, 다시 읽기 성공 때 지운다.
  */
 export function Frame({
@@ -76,9 +78,9 @@ export function Frame({
   const slot = useMemo(() => ({ error, attach }), [error, attach]);
   useFocusRescue(main);
   useEffect(() => {
-    document.title = [page, firm, "증권사 앱 예시"].filter(Boolean).join(" · ");
+    document.title = [page, firm].filter(Boolean).join(" · ");
   }, [page, firm]);
-  // 앱처럼 화면이 바뀌면 맨 위에서 시작하고 새 화면 제목(가입은 단계 제목)에 초점을 옮긴다.
+  // 탭이 바뀌면 맨 위에서 시작하고 화면 제목에 초점을 옮긴다.
   useEffect(() => {
     window.scrollTo(0, 0);
     if (firstRoute.current) {
@@ -92,30 +94,31 @@ export function Frame({
       <a className={ui.skip} href="#content">
         본문으로 이동
       </a>
-      <div className={f.example}>
-        <span>FINVERIC API 연동 예시</span>
-        <Badge tone={network.tone}>{network.text}</Badge>
-      </div>
       <div className={f.app}>
-        <header className={f.header}>
-          {back ? (
-            <Link className={f.back} to={back.to} aria-label={back.label}>
-              <ChevronLeft size={24} />
-            </Link>
-          ) : (
-            <span className={f.logo} aria-hidden="true">
-              {firm.slice(0, 1)}
-            </span>
-          )}
-          <strong>{title ?? firm}</strong>
-        </header>
         <main id="content" ref={main} className={f.main}>
           {/* 동작 막대가 없는 화면(첫 읽기 실패 등)의 오류. 떠 있지 않아 아무것도 가리지 않는다.
               알림 자리는 늘 그려 둔다. 화면 낭독기가 새로 들어온 문장을 읽는다. */}
           <div role="alert" className={f.alert}>
             {error && !bars && <Notice tone="danger">{error}</Notice>}
           </div>
-          <ErrorSlot.Provider value={slot}>{children}</ErrorSlot.Provider>
+          {back && (
+            <Button variant="ghost" className={f.back} asChild>
+              <Link to={back.to}>
+                <ChevronLeft size={18} aria-hidden="true" />
+                {back.label}
+              </Link>
+            </Button>
+          )}
+          <HeadingTools.Provider
+            value={
+              <div className={f.identity}>
+                <span>{firm}</span>
+                <Badge tone={network.tone}>{network.text}</Badge>
+              </div>
+            }
+          >
+            <ErrorSlot.Provider value={slot}>{children}</ErrorSlot.Provider>
+          </HeadingTools.Provider>
         </main>
         <nav className={f.tabs} aria-label="앱 메뉴">
           {TABS.map((tab) => {

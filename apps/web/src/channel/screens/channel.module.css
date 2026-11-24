@@ -7,7 +7,10 @@
 .tools {
   display: grid;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--muted);
+  border-radius: var(--rounded-surface);
 }
 .tools button {
   min-height: 44px;
@@ -25,9 +28,20 @@
   padding-inline-start: 40px !important;
   width: 100%;
 }
+.search svg {
+  pointer-events: none;
+}
+.catalogCount {
+  margin-bottom: 8px;
+  color: var(--muted-foreground);
+  font-size: var(--type-ui);
+}
+.catalogCount:empty {
+  display: none;
+}
 .catalog {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 .fundCard {
   position: relative;
@@ -37,6 +51,9 @@
   border: 1px solid var(--border);
   border-radius: var(--rounded-surface);
   padding: 20px;
+}
+.catalogSkeleton {
+  gap: 16px;
 }
 .fundCardLink {
   position: absolute;
@@ -115,29 +132,41 @@
   font-weight: 500;
   min-width: 0;
 }
+.productCosts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 12px;
+  margin: 0 0 16px;
+  background: var(--muted);
+  border-radius: var(--rounded-control);
+  font-size: var(--type-ui);
+}
+.productCosts dt {
+  margin-bottom: 4px;
+  color: var(--muted-foreground);
+}
+.productCosts dd {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
 .cardActions {
   position: relative;
   z-index: 2;
   display: grid;
   margin-top: auto;
 }
-.catalogNote {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 16px;
-  color: var(--muted-foreground);
-  font-size: var(--type-caption);
-}
 .help {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
   background: var(--muted);
   border-radius: var(--rounded-surface);
-  padding: 20px;
+  border: 1px solid transparent;
+  padding: 16px;
   margin-top: 24px;
+  color: var(--foreground);
+  text-decoration: none;
 }
 .help > svg {
   color: var(--primary);
@@ -146,16 +175,15 @@
   flex: 1;
   min-width: 0;
 }
-.help h3 {
-  font-size: var(--type-body);
-  margin-bottom: 4px;
-}
 .help p {
+  margin-top: 4px;
   font-size: var(--type-ui);
   color: var(--muted-foreground);
 }
-.help > a {
-  width: 100%;
+@media (hover: hover) {
+  .help:hover {
+    border-color: var(--input);
+  }
 }
 /* 상품 설명 최상단: 부적합 고객 유형과 손실 사례 */
 .firstCard,
@@ -367,7 +395,4 @@
 .recordMeta small {
   color: var(--muted-foreground);
   font-size: var(--type-caption);
-}
-.recordTitle {
-  margin: 10px 0 8px;
 }

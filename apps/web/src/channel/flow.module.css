@@ -18,11 +18,11 @@
 }
 /* 단계 머리글이 있으면 위에 붙은 요소가 그만큼 높다(frame.module.css의 scroll-padding). */
 :global(html):has(.stepHeader) {
-  --chrome-top: calc(var(--header-height) + var(--step-header-height));
+  --chrome-top: var(--step-header-height);
 }
 .stepHeader {
   position: sticky;
-  top: var(--header-height);
+  top: 0;
   z-index: 5;
   margin: 0 -24px;
   padding: 4px 24px 0;

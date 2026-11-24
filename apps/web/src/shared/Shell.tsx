@@ -1,8 +1,9 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router";
 import { ExternalLink, House, Layers, type LucideIcon } from "lucide-react";
-import { Badge, Notice, type Tone } from "./components.tsx";
+import { Notice } from "./components.tsx";
 import { focusPageTitle, useFocusRescue } from "./focus.ts";
+import { HeadingTools } from "./heading-tools.ts";
 import s from "./ui.module.css";
 
 const brand = (
@@ -26,7 +27,7 @@ export type NavGroup = { label: string; caption?: string; items: NavItem[] };
 export type ExternalItem = { label: string; icon: LucideIcon; href: string };
 
 /**
- * client·auditor 앱이 함께 쓰는 사이드 메뉴, 상단 막대, 상태 표시.
+ * client·auditor 앱이 함께 쓰는 사이드 메뉴와 상태 표시.
  * entryHref를 주면 브랜드와 "처음 화면" 항목이 라우터 밖의 진입 화면으로 간다(같은 탭).
  * links는 "처음 화면" 아래에 작은 링크로 둔다. 새 탭으로 연다.
  * 문서 제목은 "화면 · app · FINVERIC"이다. 경로가 바뀌면 맨 위로 가고 화면 제목(h1)에 초점을 옮긴다.
@@ -38,10 +39,9 @@ export function Shell({
   entryHref,
   groups,
   links,
-  area,
-  app = area,
+  app,
   title,
-  badge,
+  headingTools,
   foot,
   error,
   notice,
@@ -52,10 +52,9 @@ export function Shell({
   entryHref?: string;
   groups: NavGroup[];
   links?: ExternalItem[];
-  area: string;
-  app?: string;
+  app: string;
   title: string;
-  badge: { tone: Tone; text: string };
+  headingTools?: ReactNode;
   foot?: { title: string; text: string };
   error?: string;
   notice?: string;
@@ -173,12 +172,6 @@ export function Shell({
         </div>
       </aside>
       <div className={s.workspace}>
-        <header className={s.topbar}>
-          <div>
-            {area} <span>/</span> <strong>{title}</strong>
-          </div>
-          <Badge tone={badge.tone}>{badge.text}</Badge>
-        </header>
         <main id="content" ref={main} className={s.main}>
           {error && (
             <div role="alert" className={s.alert}>
@@ -189,7 +182,9 @@ export function Shell({
           <p role="status" className={busy ? s.busy : s.srOnly}>
             {busy || notice}
           </p>
-          {children}
+          <HeadingTools.Provider value={headingTools}>
+            {children}
+          </HeadingTools.Provider>
         </main>
       </div>
     </div>

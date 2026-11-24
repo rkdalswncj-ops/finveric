@@ -10,19 +10,19 @@
 }
 :root {
   color-scheme: light;
-  --background: #fafafa;
+  --background: #f6f8fb;
   --card: #ffffff;
-  --foreground: #191f28;
-  --muted-foreground: #4e5968;
-  --muted: #f2f4f6;
-  --border: #e5e8eb;
+  --foreground: #182230;
+  --muted-foreground: #455468;
+  --muted: #eef2f7;
+  --border: #e0e6ef;
   --input: #6b7684;
-  --primary: #2563eb;
+  --primary: #1f5bd7;
   --primary-foreground: #ffffff;
-  --primary-hover: #1d4ed8;
+  --primary-hover: #1747b2;
   /* 옅은 파랑 바탕: 선택한 행, 현재 메뉴, 파란 배지, 처리 중·대기 상자 */
-  --primary-surface: #edf3ff;
-  --ring: #1d4ed8;
+  --primary-surface: #edf4ff;
+  --ring: #1c52bc;
   --success: #116149;
   --success-surface: #eaf6ef;
   --warning: #7a4900;
@@ -42,17 +42,17 @@
   /* 끌어서 고른 글자와 스크롤 막대. 스크롤 막대는 muted 바탕에서 3:1 이상이다. */
   --selection: #dce8ff;
   --selection-foreground: #173e91;
-  --scrollbar: #848e9a;
+  --scrollbar: #818b99;
   /* 떠 있는 요소의 그림자와 확인 창 뒤의 덮개. foreground에 투명도를 준 값이다. */
-  --shadow: #191f282e;
-  --overlay: #191f2873;
+  --shadow: #1822302e;
+  --overlay: #18223073;
   /*
    * 모서리 반경. control은 버튼·입력·칩과 패널 안의 작은 상자, surface는 패널·카드,
    * action은 고객 화면의 주요 버튼과 확인 창이다. 배지는 5px 하나를 쓴다.
    */
-  --rounded-control: 8px;
-  --rounded-surface: 12px;
-  --rounded-action: 16px;
+  --rounded-control: 10px;
+  --rounded-surface: 16px;
+  --rounded-action: 18px;
 
   /*
    * 글자 크기. rem이라 브라우저 글자 크기 설정을 따른다(16px = 1rem).
@@ -60,15 +60,15 @@
    * --tracking-*)을 피해 --type-*를 쓴다. 새 크기를 만들지 말고 아래 단계에서 고른다.
    */
   --type-caption: 0.75rem; /* 12px. 최소 크기. 배지, 보조 설명, 표 메모, 코드·해시, 탭 이름 */
-  --type-ui: 0.8125rem; /* 13px. 콘솔의 표, 버튼, 메뉴, 패널 설명 */
-  --type-detail: 0.875rem; /* 14px. 제목 아래 설명, 알림, 고객 화면의 보조 문단 */
-  --type-body: 0.9375rem; /* 15px. 본문 기본값 */
-  --type-body-lg: 1rem; /* 16px. h3, 고객 설명 카드 본문, 640px 이하의 입력 */
+  --type-ui: 0.875rem; /* 14px. 콘솔의 표, 버튼, 메뉴, 패널 설명 */
+  --type-detail: 0.9375rem; /* 15px. 제목 아래 설명, 알림, 고객 화면의 보조 문단 */
+  --type-body: 1rem; /* 16px. 본문 기본값과 640px 이하의 입력 */
+  --type-body-lg: 1.0625rem; /* 17px. h3, 고객 설명 카드 본문 */
   --type-heading: 1.125rem; /* 18px. 상품 카드 제목, 브랜드 */
   --type-title: 1.25rem; /* 20px. h2, 패널·섹션·표 제목, 결과 제목, 역할 카드 제목 */
   --type-title-lg: 1.5rem; /* 24px. 고객 화면 h1, 단계 제목, 비율 수치 */
-  --type-page: 1.75rem; /* 28px. 콘솔 h1, 요약 수치 */
-  --type-display: 2rem; /* 32px. 진입 화면 제목, 숙려 남은 시간 */
+  --type-page: 1.875rem; /* 30px. 콘솔 h1, 요약 수치 */
+  --type-display: 2.25rem; /* 36px. 진입 화면 제목, 숙려 남은 시간 */
   /* 줄 높이. 단위 없이 써서 글자 크기를 따라가게 한다. */
   --type-line-display: 1.2; /* 24px 이상의 큰 수치 */
   --type-line-heading: 1.3; /* 제목 */
@@ -185,7 +185,7 @@ textarea {
   input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
   select,
   textarea {
-    font-size: var(--type-body-lg);
+    font-size: var(--type-body);
   }
 }
 input::placeholder,
@@ -257,7 +257,7 @@ caption {
 }
 th,
 td {
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
   font-size: var(--type-ui);

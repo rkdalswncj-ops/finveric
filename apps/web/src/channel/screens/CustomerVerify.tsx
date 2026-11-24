@@ -10,7 +10,13 @@ import type {
   SaleVerification,
 } from "@finveric/core/verify";
 import { Button } from "../../shared/button.tsx";
-import { Badge, Facts, FieldError, Notice } from "../../shared/components.tsx";
+import {
+  Badge,
+  Facts,
+  FieldError,
+  Heading,
+  Notice,
+} from "../../shared/components.tsx";
 import type { useDeploymentConfig } from "../../shared/deployment.ts";
 import { dateTime, networkName } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
@@ -201,11 +207,10 @@ export function CustomerVerify({
       : undefined;
   return (
     <div className={s.main}>
-      <h1 tabIndex={-1}>가입 기록이 그대로인지 확인해요</h1>
-      <p className={s.lead}>
-        가입할 때 받은 증명서 번호를 넣거나 증명서 파일을 고르세요. 판매사
-        서버를 거치지 않고, 여러 기관이 함께 보관하는 기록과 바로 대조해요.
-      </p>
+      <Heading
+        title="기록 확인"
+        description="가입할 때 받은 증명서 번호를 입력하거나 증명서 파일을 선택해 주세요."
+      />
       {/* 확인 중과 결과를 화면 낭독기에 알린다. 결과 카드는 폼 아래에 그린다. */}
       <p role="status" className={ui.srOnly}>
         {loading ? "기록을 확인하고 있어요" : (outcome?.title ?? "")}

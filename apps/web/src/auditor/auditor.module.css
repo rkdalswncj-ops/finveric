@@ -1,16 +1,62 @@
 /* 감독기관 화면: 대시보드, 분쟁 조회, 기준·상품 감사, 위험 신호, 보고서. 패널 제목(h2)과 표 제목(ui의 tableCaption)은 같은 크기다. */
-.ledgerLine {
+.ledgerTools {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 16px;
-  margin: -12px 0 24px;
-  color: var(--muted-foreground);
-  font-size: var(--type-caption);
+  gap: 2px;
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid var(--border);
+}
+.ledgerIcon {
+  inline-size: 44px;
+  padding-inline: 0;
+}
+.ledgerInfo {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-end: 0;
+  z-index: 6;
+  inline-size: max-content;
+  max-inline-size: calc(100vw - 48px);
+  padding-block-start: 6px;
+}
+.ledgerInfoCard {
+  padding: 12px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-control);
+  box-shadow: 0 8px 24px var(--shadow);
+  color: var(--foreground);
+  font-size: var(--type-ui);
   font-variant-numeric: tabular-nums;
 }
-.ledgerLine code {
-  font-size: var(--type-caption);
+.ledgerInfoCard dl {
+  display: grid;
+  gap: 4px;
+}
+.ledgerInfoCard dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.ledgerInfoCard dt {
+  color: var(--muted-foreground);
+}
+.ledgerInfoCard dd {
+  text-align: end;
+}
+.ledgerSkeleton {
+  display: grid;
+  gap: 16px;
+}
+.technicalDetails {
+  margin: 4px 0 0;
+  border-block-start: 1px solid var(--border);
+}
+.technicalDetails > summary {
+  min-block-size: 44px;
+  padding-block: 12px;
+  font-weight: 600;
 }
 /* 요약 수치 카드는 ui의 .stats와 Stat을 쓴다. 여기서는 열 수만 정한다. */
 .ledgerStats {
@@ -43,6 +89,9 @@
   color: var(--muted-foreground);
   font-size: var(--type-caption);
   padding: 6px 20px 14px;
+}
+.panelTitle + .ratio {
+  margin-block-start: 16px;
 }
 .ratio {
   display: grid;
@@ -135,10 +184,11 @@
   padding: 0;
   margin: 20px 0 8px;
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 .sources legend {
   font-size: var(--type-ui);
+  font-weight: 600;
   margin-bottom: 8px;
 }
 .sources label {
@@ -146,8 +196,14 @@
   align-items: flex-start;
   gap: 10px;
   min-height: 44px;
-  padding: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-control);
   font-size: var(--type-ui);
+}
+.sources label:has(:checked) {
+  background: var(--primary-surface);
+  border-color: var(--primary);
 }
 .sources label small {
   display: block;

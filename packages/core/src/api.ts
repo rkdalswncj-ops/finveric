@@ -590,8 +590,7 @@ export const configResponseSchema = responseSchema<ConfigDto>(
     },
     publicChannel: {
       type: "boolean",
-      description:
-        "true면 증권사 앱 예시가 탭별 시연 세션으로 가입할 수 있습니다.",
+      description: "true면 증권사 앱에서 탭별 가입 세션을 사용할 수 있습니다.",
     },
     demoCustomer: responseSchema<ConfigDto["demoCustomer"]>(
       "DemoCustomer",

@@ -16,6 +16,7 @@ import {
   Heading,
   Notice,
   TableScroll,
+  Skeleton,
 } from "../shared/components.tsx";
 import { dateTime, short } from "../shared/format.ts";
 import {
@@ -88,22 +89,6 @@ export function SaleRow({
   );
 }
 
-export function Skeleton({
-  width = "100%",
-  height = "0.75rem",
-}: {
-  width?: string;
-  height?: string;
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      className={s.skeleton}
-      style={{ inlineSize: width, blockSize: height }}
-    />
-  );
-}
-
 export function LoadingStatus({
   loading,
   children,
@@ -161,8 +146,8 @@ export function RegisterNotice({
   return (
     <div className={s.registerNotice}>
       <Notice tone="warning">
-        아직 원장에 등록한 진단 기준과 상품이 없습니다. 기본 진단 기준과 예시
-        상품 3종을 한 번에 등록할 수 있습니다.
+        아직 원장에 등록한 진단 기준과 상품이 없습니다. 기본 진단 기준과 상품
+        3종을 한 번에 등록할 수 있습니다.
       </Notice>
       <Button busy={busy} onClick={register}>
         상품·진단 기준 등록

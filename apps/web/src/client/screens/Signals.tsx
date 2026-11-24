@@ -10,10 +10,12 @@ import type { LoadState } from "../../shared/api.ts";
 import { Button } from "../../shared/button.tsx";
 import {
   Badge,
+  Facts,
   FilterChip,
   DetailColumn,
   Heading,
   TableScroll,
+  Skeleton,
 } from "../../shared/components.tsx";
 import { short } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
@@ -25,7 +27,6 @@ import {
   SaleIdText,
   SaleRow,
   DetailTableSkeletonRows,
-  Skeleton,
 } from "../components.tsx";
 import { saleSignals } from "../signals.ts";
 
@@ -57,10 +58,7 @@ export function Signals({
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
   return (
     <>
-      <Heading
-        title="위험 신호를 확인하세요"
-        description={`진단 ${SIGNAL_THRESHOLDS.repeatAttempts}회 이상, 투자성향이 오른 회차로 청약, 부적합 가입 확정, 설명 확인 ${SIGNAL_THRESHOLDS.shortExplanationSeconds}초 미만, ${SIGNAL_THRESHOLDS.shortIntervalSeconds / 60}분 안의 재진단을 신호로 표시합니다. 근거는 원장 기록입니다.`}
-      />
+      <Heading title="위험 신호" />
       <LoadingStatus loading={loading}>
         위험 신호를 불러오고 있습니다.
       </LoadingStatus>
@@ -168,6 +166,30 @@ export function Signals({
             </p>
           ))}
       </div>
+      <details>
+        <summary>위험 신호 표시 기준</summary>
+        <Facts
+          rows={[
+            [
+              SIGNAL_LABELS.repeat,
+              `같은 고객이 ${SIGNAL_THRESHOLDS.repeatAttempts}회 이상 진단했습니다.`,
+            ],
+            [
+              SIGNAL_LABELS.rise,
+              "직전 진단보다 투자성향이 오른 회차에 청약했습니다.",
+            ],
+            [SIGNAL_LABELS.unsuitable, "부적합 상태에서 가입을 확정했습니다."],
+            [
+              SIGNAL_LABELS.shortExplanation,
+              `설명을 확인한 시간이 ${SIGNAL_THRESHOLDS.shortExplanationSeconds}초보다 짧습니다.`,
+            ],
+            [
+              SIGNAL_LABELS.shortInterval,
+              `이전 진단 후 ${SIGNAL_THRESHOLDS.shortIntervalSeconds / 60}분 안에 다시 진단했습니다.`,
+            ],
+          ]}
+        />
+      </details>
     </>
   );
 }

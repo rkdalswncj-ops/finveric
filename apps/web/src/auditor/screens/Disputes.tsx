@@ -37,7 +37,6 @@ import {
   DetailRow,
   Facts,
   FieldError,
-  Heading,
   Notice,
   Stat,
   TableScroll,
@@ -46,7 +45,7 @@ import {
 import { dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
-import { LedgerGate, LedgerLine } from "../components.tsx";
+import { LedgerGate } from "../components.tsx";
 import {
   customerPath,
   gradeLabel,
@@ -94,11 +93,6 @@ export function Disputes({
   const byCustomer = customer !== null;
   return (
     <div className={s.page}>
-      <Heading
-        title="판매 기록을 원장과 대조하세요"
-        description="판매 ID로 단계별 원장 기록과 제출 자료를 대조하거나, 고객 가명 ID로 모든 진단 회차와 판매 건을 확인합니다."
-      />
-      <LedgerLine ledger={ledger} />
       {/* 조회 방법 전환. 주요 버튼이 아니라 칩 링크로 둔다. */}
       <nav aria-label="조회 방법" className={`${s.chips} ${s.modes}`}>
         <Link
@@ -201,8 +195,8 @@ function SaleLookup({
     )
       return setError(
         kind === "receipt"
-          ? "원장 v5의 가입 증명서 파일(finveric-receipt-v5)을 선택하세요."
-          : "원장 v5의 원본 묶음 파일(finveric-original-v5)을 선택하세요.",
+          ? "가입 증명서 파일(finveric-receipt-v5)을 선택하세요."
+          : "원본 묶음 파일(finveric-original-v5)을 선택하세요.",
       );
     const other = kind === "receipt" ? original : receipt;
     if (other && other.saleId !== parsed.saleId)
@@ -393,12 +387,12 @@ function SaleLookup({
                 [
                   "seller",
                   "판매사 제출 자료 불러오기",
-                  "이 판매 건의 증빙을 판매사 API에서 가져옵니다.",
+                  "판매사가 보관한 증명서와 원본을 가져옵니다.",
                 ],
                 [
                   "file",
                   "파일 선택",
-                  "증명서나 원본 파일을 이 브라우저에서 읽습니다.",
+                  "보관 중인 증명서나 원본 파일을 선택합니다.",
                 ],
               ] as const
             ).map(([value, label, hint]) => (
@@ -510,8 +504,8 @@ function SaleLookup({
                 <h2>대조 결과</h2>
                 <p className={s.intro}>
                   {loading
-                    ? "지정 RPC에서 원장을 읽고 판매 건을 대조하고 있습니다."
-                    : "판매 건을 고르거나 판매 ID를 입력하고 원장과 대조하기를 누르세요. 원본 묶음이 있으면 모든 회차의 답변으로 판정을 다시 계산합니다."}
+                    ? "판매 기록을 원장과 대조하고 있습니다."
+                    : "판매 건을 고르거나 판매 ID를 입력한 뒤 원장과 대조하기를 누르세요."}
                 </p>
               </>
             )
@@ -598,8 +592,8 @@ function SaleSummary({
                 ? "증명서나 원본을 넣으면 원장 기록과 대조합니다."
                 : result.source === "seller"
                   ? result.hasOriginal
-                    ? "판매사 API에서 받은 증명서와 원본을 원장 기록과 대조했습니다."
-                    : "판매사 API에서 받은 증명서를 원장 기록과 대조했습니다."
+                    ? "판매사에서 받은 증명서와 원본을 원장 기록과 대조했습니다."
+                    : "판매사에서 받은 증명서를 원장 기록과 대조했습니다."
                   : `선택한 파일을 원장 기록과 대조했습니다. ${fileNames}`}
             </small>
           </div>
@@ -612,7 +606,7 @@ function SaleSummary({
           if (outcome === "missing") return null;
           const needs =
             name === CHECK_NAMES.original
-              ? "원본 묶음을 넣으면 모든 회차의 답변·임의값으로 커밋먼트와 판정을 다시 계산합니다."
+              ? "원본 묶음을 넣으면 모든 회차의 답변을 원장 기록과 대조하고 판정을 다시 계산합니다."
               : name === CHECK_NAMES.receipt
                 ? "증명서를 넣으면 증명서의 판매 ID, 상품 버전, 회차, 금액, 거래를 원장과 대조합니다."
                 : "이 항목은 확인하지 않았습니다.";

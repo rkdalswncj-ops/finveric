@@ -15,7 +15,6 @@ import {
   DetailColumn,
   DetailRow,
   Facts,
-  Heading,
   Notice,
   FieldError,
   Stat,
@@ -25,7 +24,7 @@ import {
 import { dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
-import { LedgerLine, Ratio } from "../components.tsx";
+import { Ratio } from "../components.tsx";
 import {
   ledgerNotice,
   productName,
@@ -131,11 +130,6 @@ export function Report({
 
   return (
     <div className={s.page}>
-      <Heading
-        title="대조 결과를 보고서로 내려받으세요"
-        description="이 브라우저가 지정 RPC에서 원장을 읽고 판매 건마다 독립 검증을 실행합니다. 판매사 API를 쓰지 않습니다."
-      />
-      <LedgerLine ledger={ledger} />
       <div className={s.verifyGrid}>
         <form
           className={`${s.panel} ${s.pad}`}
@@ -276,7 +270,7 @@ export function Report({
                 <p className={s.intro}>
                   {busy
                     ? "판매 건마다 원장 기록을 대조하고 있습니다."
-                    : "범위를 고르고 보고서 만들기를 누르세요. 만든 보고서는 JSON과 CSV로 내려받을 수 있습니다."}
+                    : "범위를 고르고 보고서 만들기를 누르세요."}
                 </p>
               </>
             )
@@ -316,12 +310,6 @@ function ReportSummary({
           </Button>
         </div>
       </div>
-      <Notice>
-        이 보고서는 이 브라우저가 만들었습니다. 지정 RPC({source.rpcUrl})에서
-        원장 {short(source.ledger, 10, 8)}의 이벤트를 블록 {source.latestBlock}
-        까지 읽고 판매 건마다 verifySale을 실행했습니다. 판매사 API는 쓰지
-        않았습니다.
-      </Notice>
       <div className={`${s.stats} ${s.reportStats}`}>
         <Stat label="대조한 판매 건" value={total} unit="건" />
         {(["match", "mismatch", "missing"] as const).map((outcome) => (
@@ -366,6 +354,16 @@ function ReportSummary({
           ["만든 시각", dateTime(report.generatedAt)],
         ]}
       />
+      <details className={s.technicalDetails}>
+        <summary>대조에 사용한 원장 정보</summary>
+        <Facts
+          rows={[
+            ["원장 주소", <code>{source.ledger}</code>],
+            ["마지막 조회 블록", source.latestBlock],
+            ["연결 주소(RPC)", <code>{source.rpcUrl}</code>],
+          ]}
+        />
+      </details>
     </>
   );
 }

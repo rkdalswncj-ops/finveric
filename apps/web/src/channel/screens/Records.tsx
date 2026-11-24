@@ -56,42 +56,44 @@ export function Records({
   if (selected) {
     const sale = records.find((entry) => entry.id === selected);
     return sale ? (
-      <RecordDetail
-        sale={sale}
-        products={products}
-        customer={customer}
-        now={now}
-        busy={busy}
-        download={download}
-        resume={resume}
-      />
+      <>
+        <Heading title={productName(saleProduct(products, sale)?.document)} />
+        <RecordDetail
+          sale={sale}
+          customer={customer}
+          now={now}
+          busy={busy}
+          download={download}
+          resume={resume}
+        />
+      </>
     ) : (
-      <Empty
-        title={
-          load === "ready"
-            ? "가입 기록을 찾지 못했어요"
-            : load === "failed"
-              ? "가입 기록을 불러오지 못했어요"
-              : "가입 기록을 불러오고 있어요"
-        }
-        text={
-          load === "failed"
-            ? "화면을 새로 고쳐 주세요."
-            : "목록에서 가입 기록을 다시 골라 주세요."
-        }
-      >
-        <Button asChild>
-          <Link to={channel.records}>가입 기록 목록 보기</Link>
-        </Button>
-      </Empty>
+      <>
+        <Heading title="가입 기록" />
+        <Empty
+          title={
+            load === "ready"
+              ? "가입 기록을 찾지 못했어요"
+              : load === "failed"
+                ? "가입 기록을 불러오지 못했어요"
+                : "가입 기록을 불러오고 있어요"
+          }
+          text={
+            load === "failed"
+              ? "화면을 새로 고쳐 주세요."
+              : "목록에서 가입 기록을 다시 골라 주세요."
+          }
+        >
+          <Button asChild>
+            <Link to={channel.records}>가입 기록 목록 보기</Link>
+          </Button>
+        </Empty>
+      </>
     );
   }
   return (
     <>
-      <Heading
-        title="내 가입 기록"
-        description="청약하고 확정한 가입을 확인하고, 증명서와 원본을 보관할 수 있어요."
-      />
+      <Heading title="내 가입" />
       {records.length ? (
         <ul className={s.recordList} aria-label="가입 기록 목록">
           {records.map((record) => (
@@ -139,7 +141,6 @@ export function Records({
 
 function RecordDetail({
   sale,
-  products,
   customer,
   now,
   busy,
@@ -147,14 +148,12 @@ function RecordDetail({
   resume,
 }: {
   sale: Sale;
-  products: ProductEntryDto[];
   customer?: CustomerDto;
   now: number;
   busy: string;
   download: (id: string, kind: ExportKind) => unknown;
   resume: (id: string) => void;
 }) {
-  const product = saleProduct(products, sale);
   const diagnosis = customer?.diagnoses.find(
     (entry) => entry.attempt === sale.chain?.attempt,
   );
@@ -164,9 +163,6 @@ function RecordDetail({
     <div className={s.stack}>
       <section className={`${s.panel} ${s.pad}`}>
         <StatusBadge sale={sale} now={now} />
-        <h1 tabIndex={-1} className={s.recordTitle}>
-          {productName(product?.document)}
-        </h1>
         <Facts
           rows={[
             ["증명서 번호", <code>{sale.id}</code>],
@@ -229,10 +225,7 @@ function RecordDetail({
       </section>
       <section className={`${s.panel} ${s.pad}`}>
         <h2>가입 서류</h2>
-        <p>
-          판매사를 거치지 않는 확인 화면에서 이 기록을 확인하거나, 서류를
-          내려받아 보관할 수 있어요.
-        </p>
+        <p>가입 기록을 확인하거나 서류를 내려받을 수 있어요.</p>
         {sale.status === "subscribed" && (
           <Button variant="outline" asChild>
             <Link to={verifyPath(sale.id)}>가입 기록 확인하기</Link>

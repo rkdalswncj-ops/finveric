@@ -2,7 +2,7 @@ import type { ProductEntryDto } from "@finveric/core/api";
 import type { ProductDocument } from "@finveric/core";
 import type { LoadState } from "../../shared/api.ts";
 import { Button } from "../../shared/button.tsx";
-import { Badge, Empty } from "../../shared/components.tsx";
+import { Badge, Empty, Skeleton } from "../../shared/components.tsx";
 import { ExplanationCards } from "../../shared/sale-components.tsx";
 import { gradeName, productName } from "../../shared/sales.ts";
 import ui from "../../shared/ui.module.css";
@@ -11,7 +11,6 @@ import {
   FactsSkeleton,
   LoadingStatus,
   ProductFacts,
-  Skeleton,
 } from "../components.tsx";
 import { PRODUCT_LIST_PATH } from "../paths.ts";
 import local from "./operations.module.css";

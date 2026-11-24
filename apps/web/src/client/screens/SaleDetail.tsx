@@ -12,6 +12,7 @@ import {
   Facts,
   Notice,
   type Tone,
+  Skeleton,
 } from "../../shared/components.tsx";
 import { focusElement } from "../../shared/focus.ts";
 import { dateTime, won } from "../../shared/format.ts";
@@ -30,7 +31,6 @@ import {
   DiagnosisTable,
   FactsSkeleton,
   LoadingStatus,
-  Skeleton,
 } from "../components.tsx";
 import { traceLabel, traceStatus } from "../traces.ts";
 import local from "./operations.module.css";

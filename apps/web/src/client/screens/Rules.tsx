@@ -624,8 +624,8 @@ export function Rules({
   return (
     <>
       <Heading
-        title="진단 기준을 관리하세요"
-        description="문항, 선택지 점수, 추출 조건, 등급 구간, 적합성 기준을 버전으로 등록합니다. 등록한 버전은 고칠 수 없고, 바꾸려면 새 버전을 등록합니다."
+        title="진단 기준"
+        description="등록한 기준을 바꾸려면 새 버전을 등록하세요."
       >
         {!editing && base && (
           <Button blocked={busy} onClick={() => setEditing(true)}>

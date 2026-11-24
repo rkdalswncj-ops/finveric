@@ -1,7 +1,15 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Link, type To } from "react-router";
 import { AlertTriangle, ChevronRight, FileText } from "lucide-react";
 import { Button } from "./button.tsx";
+import { HeadingTools } from "./heading-tools.ts";
 import s from "./ui.module.css";
 
 /**
@@ -59,17 +67,40 @@ export function Heading({
   description?: string;
   children?: ReactNode;
 }) {
+  const tools = useContext(HeadingTools);
   return (
-    <div className={s.heading}>
-      <div>
+    <header className={s.heading}>
+      <div className={s.headingText}>
         {/* 경로가 바뀌거나 누른 요소가 사라지면 초점을 받는다(focus.ts). */}
         <h1 tabIndex={-1}>{title}</h1>
         {description && <p>{description}</p>}
       </div>
-      {children}
-    </div>
+      {(tools || children) && (
+        <div className={s.headingActions}>
+          {tools}
+          {children}
+        </div>
+      )}
+    </header>
   );
 }
+
+export function Skeleton({
+  width = "100%",
+  height = "0.75rem",
+}: {
+  width?: string;
+  height?: string;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={s.skeleton}
+      style={{ inlineSize: width, blockSize: height }}
+    />
+  );
+}
+
 /** 빈 목록·없는 화면 안내. */
 export function Empty({
   title,

@@ -29,7 +29,7 @@ import {
   token,
   type LoadState,
 } from "../shared/api.ts";
-import { AccessCodeForm, Empty } from "../shared/components.tsx";
+import { AccessCodeForm, Heading } from "../shared/components.tsx";
 import { DEPLOYMENT_ERROR, useDeploymentConfig } from "../shared/deployment.ts";
 import { networkName } from "../shared/format.ts";
 import { findProduct, latestProducts, type Sale } from "../shared/sales.ts";
@@ -341,7 +341,7 @@ export function App() {
       saveFile(value, `finveric-${kind}-${id.slice(0, 10)}.json`);
     });
 
-  // 머리글의 증권사 이름은 판매 중인 상품의 판매사다.
+  // 화면에 표시하는 증권사 이름은 판매 중인 상품의 판매사다.
   const firm =
     latestProducts(products)[0]?.product.document.seller ??
     products[0]?.product.document.seller ??
@@ -460,14 +460,14 @@ export function App() {
         <Route
           path="*"
           element={
-            <Empty
+            <Heading
               title="화면을 찾을 수 없어요"
-              text="아래 메뉴에서 화면을 다시 골라 주세요."
+              description="아래 메뉴에서 화면을 다시 골라 주세요."
             >
               <Button asChild>
                 <Link to={channel.catalog}>상품 보러 가기</Link>
               </Button>
-            </Empty>
+            </Heading>
           }
         />
       </Routes>

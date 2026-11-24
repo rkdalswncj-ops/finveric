@@ -2,14 +2,6 @@
 .main form {
   margin-top: 16px;
 }
-.main h1 {
-  margin: 0 0 8px;
-  font-size: var(--type-title-lg);
-}
-.lead {
-  margin: 0 0 24px;
-  color: var(--muted-foreground);
-}
 .card {
   display: flex;
   flex-direction: column;

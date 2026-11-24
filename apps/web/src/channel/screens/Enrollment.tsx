@@ -30,6 +30,7 @@ import {
   Badge,
   ConfirmDialog,
   Empty,
+  Heading,
   Facts,
   FieldError,
   Notice,
@@ -275,26 +276,29 @@ export function Enrollment({
 
   if (!sale || !product)
     return (
-      <Empty
-        title={
-          load === "loading"
-            ? "가입 정보를 불러오고 있어요"
-            : load === "failed" && !sale
-              ? "가입 정보를 불러오지 못했어요"
-              : sale
-                ? "가입 상품을 확인하지 못했어요"
-                : "진행 중인 가입이 없어요"
-        }
-        text={
-          load === "failed" && !sale
-            ? "화면을 새로 고쳐 주세요."
-            : "상품을 고르면 투자성향 진단부터 시작해요."
-        }
-      >
-        <Button asChild>
-          <Link to={channel.catalog}>상품 보러 가기</Link>
-        </Button>
-      </Empty>
+      <>
+        <Heading title="가입" />
+        <Empty
+          title={
+            load === "loading"
+              ? "가입 정보를 불러오고 있어요"
+              : load === "failed" && !sale
+                ? "가입 정보를 불러오지 못했어요"
+                : sale
+                  ? "가입 상품을 확인하지 못했어요"
+                  : "진행 중인 가입이 없어요"
+          }
+          text={
+            load === "failed" && !sale
+              ? "화면을 새로 고쳐 주세요."
+              : "상품을 고르면 투자성향 진단부터 시작해요."
+          }
+        >
+          <Button asChild>
+            <Link to={channel.catalog}>상품 보러 가기</Link>
+          </Button>
+        </Empty>
+      </>
     );
 
   const { document } = product;
@@ -969,6 +973,7 @@ export function Enrollment({
 
   return (
     <div>
+      <Heading title="가입" />
       <StepHeader
         label={step.label}
         progress={progressOf(step.stage, step.part)}

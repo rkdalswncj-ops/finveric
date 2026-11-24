@@ -175,7 +175,7 @@ function ProductForm({
             <input
               value={doc.code}
               readOnly={newVersion}
-              placeholder="예: ELS-DEMO-004"
+              placeholder="예: ELS-2026-004"
               onChange={(e) =>
                 edit((draft) => {
                   draft.code = e.target.value.toUpperCase();
@@ -450,8 +450,8 @@ export function Products({
   return (
     <>
       <Heading
-        title="판매 상품을 관리하세요"
-        description="상품 유형, 위험등급, 고난도·파생결합증권 여부, 판매대상 고객군, 설명서를 버전으로 등록합니다. 등록한 버전은 고칠 수 없습니다."
+        title="상품 관리"
+        description="등록한 설명서를 바꾸려면 새 버전을 등록하세요."
       >
         <Button blocked={busy} onClick={() => setForm(blankProduct(seller))}>
           <Plus size={16} />새 상품 만들기

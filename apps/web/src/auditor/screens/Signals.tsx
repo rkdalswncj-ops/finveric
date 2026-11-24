@@ -15,13 +15,12 @@ import {
   DetailColumn,
   DetailRow,
   FilterChip,
-  Heading,
   TableScroll,
 } from "../../shared/components.tsx";
 import { dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
-import { LedgerGate, LedgerLine } from "../components.tsx";
+import { LedgerGate } from "../components.tsx";
 import { customerPath, productName, salePath, short } from "../format.ts";
 import type { Ledger } from "../useLedger.ts";
 
@@ -48,11 +47,6 @@ const EVIDENCE: Record<SignalKind, string> = {
 export function Signals({ ledger }: { ledger: Ledger }) {
   return (
     <div className={s.page}>
-      <Heading
-        title="위험 신호를 원장 이벤트로 확인하세요"
-        description="판매사 콘솔과 같은 기준으로 원장의 진단·청약·확정 이벤트만 써서 계산합니다."
-      />
-      <LedgerLine ledger={ledger} />
       <LedgerGate ledger={ledger}>
         {(snapshot) => <SignalList snapshot={snapshot} />}
       </LedgerGate>

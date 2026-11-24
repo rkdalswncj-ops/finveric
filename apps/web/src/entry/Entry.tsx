@@ -11,7 +11,11 @@ import { api, ApiError } from "../shared/api.ts";
 import { Badge } from "../shared/components.tsx";
 import { useDeployment } from "../shared/deployment.ts";
 import { networkName } from "../shared/format.ts";
-import { API_DOCS_HREF, CHANNEL_APP_HREF } from "../shared/links.ts";
+import {
+  API_DOCS_HREF,
+  CHANNEL_APP_HREF,
+  CHANNEL_APP_LABEL,
+} from "../shared/links.ts";
 import ui from "../shared/ui.module.css";
 import s from "./entry.module.css";
 
@@ -19,24 +23,20 @@ const roles = [
   {
     href: "/client/",
     icon: Store,
-    who: "판매사",
     title: "판매사 콘솔",
-    text: "진단 기준과 판매 상품을 관리합니다. 판매 건, 관리자 승인, 위험 신호를 봅니다.",
-    go: "콘솔 열기",
+    text: "진단 기준과 상품을 관리하고 판매 건, 승인 요청, 위험 신호를 검토합니다.",
   },
   {
     href: "/auditor/",
     icon: Landmark,
-    who: "감독기관",
     title: "감독기관 화면",
-    text: "판매 건을 원장과 대조합니다. 판매사가 낸 원본이 기록과 같은지 확인합니다.",
-    go: "감독기관 화면 열기",
+    text: "판매 과정과 판매사가 제출한 자료를 원장 기록과 대조합니다.",
   },
 ];
 /** 역할 카드 아래의 보조 링크. 새 탭으로 연다. */
 const extras = [
   { href: API_DOCS_HREF, label: "API 문서" },
-  { href: CHANNEL_APP_HREF, label: "증권사 앱 예시" },
+  { href: CHANNEL_APP_HREF, label: CHANNEL_APP_LABEL },
 ];
 
 /** 사이트 루트(/)의 진입 화면. 역할을 고르고 연결된 원장 상태를 본다. 기관이 읽으므로 합니다체로 쓴다. */
@@ -66,45 +66,36 @@ export function Entry() {
         </span>
         FINVERIC
       </div>
-      <h1 className={s.title}>
-        판매 과정을 단계마다 기록하고, 판매사 밖에서 검증합니다
-      </h1>
-      <p className={s.lead}>
-        투자성향 진단, 적합성 판정, 설명 확인을 공동 원장에 남깁니다. 판매사도
-        기록을 바꿀 수 없습니다. 감독기관은 판매사를 거치지 않고 확인합니다.
-      </p>
-      <nav className={s.roles} aria-label="역할 선택">
-        {roles.map((role) => (
-          <a key={role.title} className={s.role} href={role.href}>
-            <small>
-              <role.icon size={16} />
-              {role.who}
-            </small>
-            <strong>{role.title}</strong>
-            <p>{role.text}</p>
-            <span className={s.go}>
-              {role.go}
-              <ArrowRight size={16} />
-            </span>
-          </a>
-        ))}
-      </nav>
-      <div className={s.extras}>
-        <p>
-          고객은 증권사 앱에서 가입합니다. 증권사 앱은 FINVERIC API를 씁니다.
-        </p>
-        <ul aria-label="API 연동">
-          {extras.map((extra) => (
-            <li key={extra.href}>
-              <a href={extra.href} target="_blank" rel="noreferrer">
-                {extra.label}
-                <span className={ui.srOnly}> (새 탭에서 열기)</span>
-                <ExternalLink size={14} aria-hidden="true" />
-              </a>
-            </li>
+      <section className={s.intro} aria-labelledby="entry-title">
+        <h1 id="entry-title" className={s.title} tabIndex={-1}>
+          금융상품 판매 기록 검증
+        </h1>
+        <nav className={s.roles} aria-label="역할 선택">
+          {roles.map((role) => (
+            <a key={role.href} className={s.role} href={role.href}>
+              <span className={s.roleIcon}>
+                <role.icon size={22} aria-hidden="true" />
+              </span>
+              <span className={s.roleBody}>
+                <strong>{role.title}</strong>
+                <span>{role.text}</span>
+              </span>
+              <ArrowRight className={s.go} size={20} aria-hidden="true" />
+            </a>
           ))}
-        </ul>
-      </div>
+        </nav>
+      </section>
+      <ul className={s.extras} aria-label="증권사 앱과 API 문서">
+        {extras.map((extra) => (
+          <li key={extra.href}>
+            <a href={extra.href} target="_blank" rel="noreferrer">
+              {extra.label}
+              <span className={ui.srOnly}> (새 탭에서 열기)</span>
+              <ExternalLink size={14} aria-hidden="true" />
+            </a>
+          </li>
+        ))}
+      </ul>
       <section className={s.ledger} aria-labelledby="ledger-title">
         <h2 id="ledger-title">연결된 원장</h2>
         <dl>
@@ -140,21 +131,27 @@ export function Entry() {
                   : "설정 대기"}
             </dd>
           </div>
-          <div>
-            <dt>원장 버전</dt>
-            <dd>{deployment ? `v${deployment.ledgerVersion}` : "—"}</dd>
-          </div>
-          <div className={s.contract}>
-            <dt>컨트랙트</dt>
-            <dd>
-              <code>{deployment?.ledger ?? "—"}</code>
-            </dd>
-          </div>
         </dl>
+        {deployment && (
+          <details className={s.connection}>
+            <summary>원장 연결 정보</summary>
+            <dl>
+              <div>
+                <dt>원장 버전</dt>
+                <dd>{`v${deployment.ledgerVersion}`}</dd>
+              </div>
+              <div>
+                <dt>원장 주소</dt>
+                <dd>
+                  <code>{deployment.ledger}</code>
+                </dd>
+              </div>
+            </dl>
+          </details>
+        )}
       </section>
       <p className={s.foot}>
-        고객 번호와 개인정보는 원장에 남기지 않습니다. 원장은 고객을 가명 ID로만
-        구분합니다.
+        원장에는 고객 번호나 개인정보를 기록하지 않습니다.
       </p>
     </main>
   );

@@ -73,19 +73,12 @@ export function Chain({
   const proof = log && proofDetail(log);
   return (
     <>
-      <Heading
-        title="온체인 처리 기록"
-        description="증명 생성, 관리자 승인 서명, 거래 제출, 영수증, 원장 거절을 시간순으로 봅니다. 기록을 골라 처리 근거를 확인하세요."
-      >
+      <Heading title="처리 기록">
         <Button variant="outline" busy={busy} onClick={refresh}>
           {!busy && <RefreshCw size={16} />}
           새로 고침
         </Button>
       </Heading>
-      <Notice>
-        API가 Groth16 증명을 만들고 역할 키로 거래를 보냅니다. 거래마다 먼저
-        시뮬레이션해서, 원장이 거절하면 거래를 보내지 않고 오류 이름을 남깁니다.
-      </Notice>
       <div className={s.chips} role="group" aria-label="처리 기록 종류 필터">
         {(["", ...GROUPS] as const).map((value) => (
           <FilterChip

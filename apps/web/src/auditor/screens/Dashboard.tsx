@@ -7,7 +7,6 @@ import {
   DetailColumn,
   DetailRow,
   Facts,
-  Heading,
   Stat,
   TableScroll,
   type Tone,
@@ -15,7 +14,7 @@ import {
 import { dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
-import { LedgerGate, LedgerLine, Ratio } from "../components.tsx";
+import { LedgerGate, Ratio } from "../components.tsx";
 import {
   customerPath,
   customerRefs,
@@ -121,11 +120,6 @@ export function Dashboard({
 }) {
   return (
     <div className={s.page}>
-      <Heading
-        title="원장 기록을 한눈에 확인하세요"
-        description="지정 RPC에서 읽은 원장 v5 이벤트로 집계합니다. 판매사 API를 쓰지 않습니다."
-      />
-      <LedgerLine ledger={ledger} />
       <LedgerGate ledger={ledger}>
         {(snapshot) => <Summary snapshot={snapshot} deployment={deployment} />}
       </LedgerGate>
@@ -221,9 +215,6 @@ function Summary({
             <div className={s.panelTitle}>
               <h2 id="ratios">판매 절차 지표</h2>
             </div>
-            <p className={s.panelNote}>
-              원장의 진단·청약·확정 이벤트로 계산합니다.
-            </p>
             {ratios.map((ratio) => (
               <Ratio key={ratio.label} {...ratio} />
             ))}
@@ -263,17 +254,9 @@ function Summary({
           </TableScroll>
         </div>
         <section className={`${s.panel} ${s.pad}`} aria-labelledby="source">
-          <h2 id="source">읽은 원장</h2>
+          <h2 id="source">등록 현황</h2>
           <Facts
             rows={[
-              [
-                "네트워크",
-                deployment?.chainId === 11155111
-                  ? "Sepolia (11155111)"
-                  : "Anvil (31337)",
-              ],
-              ["원장", <code>{deployment?.ledger}</code>],
-              ["RPC", <code>{deployment?.rpcUrl}</code>],
               [
                 "진단 기준",
                 snapshot.rules.length
@@ -285,11 +268,23 @@ function Summary({
                 `${productIds.length}종 · 설명서 ${snapshot.products.length}개 버전`,
               ],
               [
-                "숙려 최소 경과 시간",
+                "최소 숙려 시간",
                 deployment ? `${deployment.coolingPeriod}초` : "—",
               ],
             ]}
           />
+          {deployment && (
+            <details className={s.technicalDetails}>
+              <summary>원장 연결 정보</summary>
+              <Facts
+                rows={[
+                  ["네트워크 ID", deployment.chainId],
+                  ["원장 주소", <code>{deployment.ledger}</code>],
+                  ["연결 주소(RPC)", <code>{deployment.rpcUrl}</code>],
+                ]}
+              />
+            </details>
+          )}
         </section>
       </div>
       <TableScroll

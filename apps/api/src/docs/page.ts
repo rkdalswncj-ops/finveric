@@ -6,22 +6,22 @@
 const STYLE = `
 :root {
   color-scheme: light;
-  --background: #fafafa;
+  --background: #f6f8fb;
   --card: #ffffff;
-  --foreground: #191f28;
-  --muted-foreground: #4e5968;
-  --muted: #f2f4f6;
-  --border: #e5e8eb;
+  --foreground: #182230;
+  --muted-foreground: #455468;
+  --muted: #eef2f7;
+  --border: #e0e6ef;
   --input: #6b7684;
-  --primary: #2563eb;
+  --primary: #1f5bd7;
   --primary-foreground: #ffffff;
-  --primary-hover: #1d4ed8;
-  --primary-surface: #edf3ff;
+  --primary-hover: #1747b2;
+  --primary-surface: #edf4ff;
   /* 메서드 색. GET 파랑(primary), POST 초록(Stripe·Scalar 관례).
      POST 초록은 성공 색(#116149, 색상 162°)과 다른 연두 계열(104°)이라 상태 배지와 구분된다. */
   --method-post: #217005;
   --method-post-surface: #eef7e9;
-  --ring: #1d4ed8;
+  --ring: #1c52bc;
   --success: #116149;
   --success-surface: #eaf6ef;
   --warning: #7a4900;
@@ -30,19 +30,19 @@ const STYLE = `
   --destructive-surface: #fff1f1;
   --selection: #dce8ff;
   --selection-foreground: #173e91;
-  --scrollbar: #848e9a;
-  --rounded-control: 8px;
-  --rounded-surface: 12px;
+  --scrollbar: #818b99;
+  --rounded-control: 10px;
+  --rounded-surface: 16px;
   /* 글자 크기와 줄 높이. apps/web/src/shared/theme.css의 --type-* 값과 같다. 이 화면은 그 파일을 가져올 수 없어 값을 옮겨 둔다. */
   --type-caption: 0.75rem;
-  --type-ui: 0.8125rem;
-  --type-detail: 0.875rem;
-  --type-body: 0.9375rem;
-  --type-body-lg: 1rem;
+  --type-ui: 0.875rem;
+  --type-detail: 0.9375rem;
+  --type-body: 1rem;
+  --type-body-lg: 1.0625rem;
   --type-heading: 1.125rem;
   --type-title: 1.25rem;
   --type-title-lg: 1.5rem;
-  --type-page: 1.75rem;
+  --type-page: 1.875rem;
   --type-line-heading: 1.3;
   --type-line-body: 1.6;
   --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -218,8 +218,7 @@ p code, li code, dd code, td code, th code {
 .toc-group .method { min-width: 44px; text-align: center; }
 
 main { width: 100%; max-width: 960px; padding: 32px 16px 80px; min-width: 0; }
-.eyebrow { color: var(--muted-foreground); font-size: var(--type-detail); font-weight: 600; }
-h1 { font-size: var(--type-page); letter-spacing: -0.02em; margin-top: 4px; }
+h1 { font-size: var(--type-page); letter-spacing: -0.02em; }
 .lead { margin-top: 12px; color: var(--muted-foreground); max-width: 72ch; }
 .facts {
   margin-top: 24px;
@@ -505,7 +504,7 @@ pre.code {
 
 @media (max-width: 640px) {
   /* iOS Safari가 입력할 때 화면을 확대하지 않게 한다. 누르는 요소는 44px 이상이다. */
-  .search input { font-size: var(--type-body-lg); min-height: 44px; }
+  .search input { font-size: var(--type-body); min-height: 44px; }
   .tab, .copy { min-height: 44px; }
 }
 @media (max-width: 767px) {
@@ -1615,8 +1614,7 @@ ${SPRITE}
   </aside>
   <main id="main" tabindex="-1">
     <header id="overview" data-spy>
-      <p class="eyebrow">판매 기록 검증</p>
-      <h1>FINVERIC API</h1>
+      <h1>FINVERIC API 문서</h1>
       <p class="lead" id="lead">증권사 앱과 판매사 콘솔이 쓰는 API입니다.</p>
       <dl class="facts">
         <div><dt>기본 주소</dt><dd id="base">—</dd></div>

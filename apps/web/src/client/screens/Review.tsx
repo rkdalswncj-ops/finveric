@@ -10,19 +10,19 @@ import {
   DetailColumn,
   Heading,
   TableScroll,
+  Skeleton,
 } from "../../shared/components.tsx";
 import { dateTime } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
-import { CHANNEL_APP_HREF } from "../../shared/links.ts";
+import { CHANNEL_APP_HREF, CHANNEL_APP_LABEL } from "../../shared/links.ts";
 import { StatusBadge } from "../../shared/sale-components.tsx";
 import {
   LoadingStatus,
   SaleIdText,
   SaleRow,
   DetailTableSkeletonRows,
-  Skeleton,
 } from "../components.tsx";
 import {
   awaitingApproval,
@@ -70,10 +70,7 @@ export function Review({
   const loading = load === "loading";
   return (
     <>
-      <Heading
-        title="판매 건을 검토하세요"
-        description="판매 건을 선택하면 상세 화면에서 진단 회차와 처리 근거를 확인할 수 있습니다."
-      />
+      <Heading title="판매·검토" />
       <LoadingStatus loading={loading}>
         판매 건을 불러오고 있습니다.
       </LoadingStatus>
@@ -196,7 +193,7 @@ export function Review({
             >
               <Button variant="outline" asChild>
                 <a href={CHANNEL_APP_HREF} target="_blank" rel="noreferrer">
-                  증권사 앱 예시 열기
+                  {CHANNEL_APP_LABEL} 열기
                   <span className={s.srOnly}> (새 탭에서 열기)</span>
                   <ExternalLink size={14} aria-hidden="true" data-icon="end" />
                 </a>

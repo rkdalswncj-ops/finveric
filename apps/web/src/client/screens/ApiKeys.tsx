@@ -101,7 +101,7 @@ export function ApiKeys({
     <>
       <Heading
         title="API 키"
-        description="증권사 앱 서버가 판매 채널 연동 API를 부를 때 쓰는 키입니다. 키는 서버에만 두고 고객 앱이나 브라우저에 넣지 마세요."
+        description="발급한 키는 증권사 앱 서버에만 보관하세요."
       >
         <Button variant="outline" asChild>
           <a href={API_DOCS_HREF} target="_blank" rel="noreferrer">
