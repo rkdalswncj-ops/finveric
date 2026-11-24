@@ -5,9 +5,13 @@ import type {
   EvidenceReceipt,
   OriginalBundle,
 } from "@finveric/core";
-import type { SaleVerification } from "@finveric/core/verify";
+import type {
+  createLedgerVerificationReader,
+  SaleVerification,
+} from "@finveric/core/verify";
 import { Button } from "../../shared/button.tsx";
 import { Badge, Facts, FieldError, Notice } from "../../shared/components.tsx";
+import type { useDeploymentConfig } from "../../shared/deployment.ts";
 import { dateTime, networkName } from "../../shared/format.ts";
 import ui from "../../shared/ui.module.css";
 import s from "./customer.module.css";
@@ -32,7 +36,7 @@ const OUTCOMES = {
 } as const;
 /** 오류가 난 입력 칸. 없으면 화면 전체의 오류다. */
 type Field = "id" | "receipt" | "original";
-type Failure = { field?: Field; message: string };
+type Failure = { field?: Field; message: string; action?: "retry" | "contact" };
 
 const REFERENCE_NAMES: Record<string, string> = {
   rule: "진단 기준 등록",
@@ -49,18 +53,23 @@ const REFERENCE_NAMES: Record<string, string> = {
  * 판매사 API를 부르지 않고 브라우저가 지정 RPC로 원장과 대조한다(verifySale). 결과는 일치, 불일치, 기록 없음이다.
  */
 export function CustomerVerify({
-  deployment,
+  config,
   initialId,
 }: {
-  deployment?: Deployment;
+  config: ReturnType<typeof useDeploymentConfig>;
   initialId: string;
 }) {
+  const { deployment, failed: configFailed, retry: retryConfig } = config;
   const [id, setId] = useState(initialId);
   const [receipt, setReceipt] = useState<EvidenceReceipt>();
   const [original, setOriginal] = useState<OriginalBundle>();
   const [result, setResult] = useState<SaleVerification>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Failure>();
+  const source = useRef<{
+    deployment: Deployment;
+    read: ReturnType<typeof createLedgerVerificationReader>;
+  }>(undefined);
   const errorIds: Record<Field, string> = {
     id: useId(),
     receipt: useId(),
@@ -123,39 +132,49 @@ export function CustomerVerify({
 
   const verify = async () => {
     const saleId = id.trim();
-    if (loading) return;
+    if (loading || error?.action === "contact") return;
+    if (!deployment) {
+      if (configFailed) retryConfig();
+      return;
+    }
     // 누를 수 없게 막지 않고, 누르면 빠진 것을 알려 준다.
     if (!saleId)
       return fail({ field: "id", message: "증명서 번호를 넣어 주세요." });
-    if (!deployment)
-      return fail({
-        message: "확인 화면 설정을 불러오고 있어요. 잠시 후 다시 눌러 주세요.",
-      });
     setLoading(true);
     setResult(undefined);
     setError(undefined);
-    let readCode:
-      typeof import("@finveric/core/verify").ledgerReadCode | undefined;
+    let needsConfiguration: ((error: unknown) => boolean) | undefined;
     try {
-      const { verifySale, ledgerReadCode } =
-        await import("@finveric/core/verify");
-      readCode = ledgerReadCode;
-      setResult(await verifySale(deployment, saleId, receipt, original));
+      const {
+        createLedgerVerificationReader,
+        isValidSaleId,
+        needsLedgerConfiguration,
+      } = await import("@finveric/core/verify");
+      needsConfiguration = needsLedgerConfiguration;
+      if (!isValidSaleId(saleId))
+        return fail({
+          field: "id",
+          message: "증명서에 적힌 번호를 숫자로 입력해 주세요.",
+        });
+      if (source.current?.deployment !== deployment)
+        source.current = {
+          deployment,
+          read: createLedgerVerificationReader(deployment),
+        };
+      const { verifySale } = await source.current.read();
+      setResult(await verifySale(saleId, receipt, original));
     } catch (e) {
-      const message = e instanceof Error ? e.message : "";
-      const code = readCode?.(e);
       fail(
-        message.includes("판매 ID 형식")
+        needsConfiguration?.(e)
           ? {
-              field: "id",
+              action: "contact",
               message:
-                "증명서 번호를 다시 확인해 주세요. 숫자로만 되어 있어요.",
+                "지금은 가입 기록을 확인할 수 없어요. 판매사에 문의해 주세요.",
             }
           : {
+              action: "retry",
               message:
-                message.includes("네트워크") || message.includes("컨트랙트")
-                  ? "확인 화면의 기록 위치 설정이 달라요. 잠시 후 다시 시도해 주세요."
-                  : `기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.${code ? ` (확인 코드: ${code})` : ""}`,
+                "가입 기록을 불러오지 못했어요. 다시 확인해도 같은 메시지가 나오면 판매사에 문의해 주세요.",
             },
       );
     } finally {
@@ -174,6 +193,12 @@ export function CustomerVerify({
 
   const outcome = result && OUTCOMES[result.outcome];
   const failed = result?.checks.filter((check) => !check.ok) ?? [];
+  const loadingConfig = !deployment && !configFailed;
+  const notice = configFailed
+    ? "가입 기록 확인 화면을 준비하지 못했어요. 다시 불러와 주세요."
+    : error && !error.field
+      ? error.message
+      : undefined;
   return (
     <div className={s.main}>
       <h1 tabIndex={-1}>가입 기록이 그대로인지 확인해요</h1>
@@ -205,7 +230,8 @@ export function CustomerVerify({
             onChange={(e) => {
               setId(e.target.value);
               setResult(undefined);
-              if (error?.field === "id") setError(undefined);
+              if (error?.field === "id" || error?.action === "retry")
+                setError(undefined);
             }}
           />
         </label>
@@ -243,12 +269,23 @@ export function CustomerVerify({
           {error?.field === "original" && error.message}
         </FieldError>
         <div role="alert" className={s.alertSlot}>
-          {error && !error.field && (
-            <Notice tone="danger">{error.message}</Notice>
-          )}
+          {notice && <Notice tone="danger">{notice}</Notice>}
         </div>
-        <Button size="large" type="submit" busy={loading}>
-          {loading ? "기록을 확인하고 있어요" : "확인하기"}
+        <Button
+          size="large"
+          type="submit"
+          busy={loading || loadingConfig}
+          blocked={error?.action === "contact"}
+        >
+          {loading
+            ? "기록을 확인하고 있어요"
+            : loadingConfig
+              ? "확인 화면을 준비하고 있어요"
+              : configFailed
+                ? "다시 불러오기"
+                : error?.action === "retry"
+                  ? "다시 확인하기"
+                  : "확인하기"}
         </Button>
       </form>
       {result && outcome && (

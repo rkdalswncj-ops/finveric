@@ -6,7 +6,6 @@ import {
   type ProductDocument,
   type Signal,
 } from "@finveric/core";
-import { ledgerReadCode } from "@finveric/core/ledger";
 import type {
   LedgerProduct,
   LedgerSale,
@@ -118,19 +117,9 @@ export const saleSignals = (
       : signal.customerRef.toLowerCase() === sale.customerRef.toLowerCase(),
   );
 
-/** 우리가 쓴 한국어 오류 문장만 그대로 보여 준다. 나머지는 기본 문장으로 바꾼다. */
-export const koreanError = (
-  error: unknown,
-  fallback: string,
-  fallbackCode?: string,
-) => {
-  const code = ledgerReadCode(error) ?? fallbackCode;
-  const message =
-    error instanceof Error && /^[가-힣]/.test(error.message)
-      ? error.message
-      : fallback;
-  return code ? `${message} (확인 코드: ${code})` : message;
-};
+/** 감독기관 안내에 문의용 확인 코드를 덧붙인다. */
+export const ledgerNotice = (message: string, code?: string) =>
+  code ? `${message} (확인 코드 ${code})` : message;
 
 /** 화면 경로. 분쟁 조회는 판매 ID나 고객 가명 ID를 쿼리로 받는다. */
 export const salePath = (saleId: string) =>

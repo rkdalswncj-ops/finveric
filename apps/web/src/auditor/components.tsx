@@ -46,13 +46,18 @@ export function Ratio({
 
 /** 원장을 언제, 어느 블록까지 읽었는지 보여 주고 다시 읽게 한다. */
 export function LedgerLine({ ledger }: { ledger: Ledger }) {
+  const readConfig = !ledger.configured || ledger.needsConfiguration;
   return (
     <div className={s.ledgerLine}>
       <span role="status" aria-live="polite">
         {ledger.loading
-          ? "지정 RPC에서 원장을 읽고 있습니다."
+          ? ledger.configured
+            ? "지정 RPC에서 원장을 읽고 있습니다."
+            : "검증 설정을 불러오고 있습니다."
           : ledger.error
-            ? "원장을 읽지 못했습니다."
+            ? readConfig
+              ? "검증 설정을 확인하세요."
+              : "원장을 읽지 못했습니다."
             : ledger.snapshot
               ? `블록 ${ledger.snapshot.latestBlock.toString()}까지 읽었습니다 · ${dateTime(ledger.loadedAt)}`
               : "원장을 아직 읽지 않았습니다."}
@@ -64,10 +69,12 @@ export function LedgerLine({ ledger }: { ledger: Ledger }) {
         variant="outline"
         type="button"
         busy={ledger.loading}
-        onClick={() => void ledger.reload()}
+        onClick={() =>
+          readConfig ? ledger.reloadConfiguration() : void ledger.reload()
+        }
       >
         {!ledger.loading && <RefreshCw size={16} />}
-        원장 다시 읽기
+        {readConfig ? "설정 다시 불러오기" : "원장 다시 읽기"}
       </Button>
     </div>
   );

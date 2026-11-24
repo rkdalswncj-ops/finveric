@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Deployment } from "@finveric/core";
 
 /** 검증 설정을 읽지 못했을 때의 문장. 고객 화면(해요체)과 기관 화면(합니다체)이 다르다. */
@@ -11,21 +11,41 @@ export const DEPLOYMENT_ERROR = {
 /**
  * 공개 검증 설정. 배포에서는 사이트 루트의 /deployment.json 하나를 모든 페이지가 함께 읽는다.
  * 페이지는 /client/, /auditor/, /channel/ 아래에서 실행되므로 상대 경로가 아닌 루트 경로를 쓴다.
- * `onError`는 바뀌지 않는 함수여야 한다(useCallback 또는 setState). 바뀌면 다시 읽는다.
  */
-export function useDeployment(
-  onError: (message: string) => void,
-  message: string = DEPLOYMENT_ERROR.customer,
-) {
+export function useDeploymentConfig() {
   const [deployment, setDeployment] = useState<Deployment>();
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => {
+    setDeployment(undefined);
+    setFailed(false);
+    setAttempt((current) => current + 1);
+  }, []);
   useEffect(() => {
-    fetch("/deployment.json")
+    const controller = new AbortController();
+    fetch("/deployment.json", { signal: controller.signal })
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
       })
-      .then(setDeployment)
-      .catch(() => onError(message));
-  }, [onError, message]);
+      .then((value: Deployment) => {
+        if (!controller.signal.aborted) setDeployment(value);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setFailed(true);
+      });
+    return () => controller.abort();
+  }, [attempt]);
+  return { deployment, failed, retry };
+}
+
+export function useDeployment(
+  onError: (message: string) => void,
+  message: string = DEPLOYMENT_ERROR.customer,
+) {
+  const { deployment, failed } = useDeploymentConfig();
+  useEffect(() => {
+    if (failed) onError(message);
+  }, [failed, onError, message]);
   return deployment;
 }

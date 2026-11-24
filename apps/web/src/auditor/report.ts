@@ -6,10 +6,9 @@ import {
   type Deployment,
   type Signal,
 } from "@finveric/core";
-import type { LedgerSnapshot } from "@finveric/core/ledger";
 import {
   OUTCOME_LABELS,
-  verifySale,
+  type LedgerVerification,
   type SaleVerification,
   type VerifyOutcome,
 } from "@finveric/core/verify";
@@ -105,7 +104,7 @@ const iso = (seconds?: number) =>
 /** 범위 안의 판매 건마다 verifySale을 실행해 보고서를 만든다. 원본 파일은 쓰지 않는다. */
 export async function buildReport(
   deployment: Deployment,
-  snapshot: LedgerSnapshot,
+  { snapshot, verifySale }: LedgerVerification,
   scope: ReportScope,
   progress: (done: number, total: number) => void,
 ): Promise<AuditReport> {
@@ -134,10 +133,7 @@ export async function buildReport(
   const sales: ReportSale[] = [];
   progress(0, targets.length);
   for (const [index, saleId] of targets.entries()) {
-    const result = await verifySale(deployment, saleId, undefined, undefined, {
-      snapshot,
-      voice: "hapnida",
-    });
+    const result = await verifySale(saleId, undefined, undefined, "hapnida");
     verified[result.outcome]++;
     const sale = result.sale;
     const product = sale && saleProduct(snapshot, sale);

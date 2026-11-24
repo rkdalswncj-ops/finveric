@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, Route, Routes, useLocation, useNavigate } from "react-router";
+import {
+  Link,
+  matchPath,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router";
 import { CUSTOMER_LEDGER_ERRORS } from "@finveric/core";
 import { DEMO_SESSION_PREFIX } from "@finveric/core/api";
 import type {
@@ -23,7 +30,7 @@ import {
   type LoadState,
 } from "../shared/api.ts";
 import { AccessCodeForm, Empty } from "../shared/components.tsx";
-import { useDeployment } from "../shared/deployment.ts";
+import { DEPLOYMENT_ERROR, useDeploymentConfig } from "../shared/deployment.ts";
 import { networkName } from "../shared/format.ts";
 import { findProduct, latestProducts, type Sale } from "../shared/sales.ts";
 import { Frame } from "./Frame.tsx";
@@ -136,12 +143,10 @@ export type Run = <T>(
 export function App() {
   const location = useLocation();
   const navigate = useNavigate();
+  const verifying = !!matchPath(channel.verify, location.pathname);
   const [failure, setFailure] = useState<Failure>();
-  const showError = useCallback(
-    (message: string) => setFailure({ message }),
-    [],
-  );
-  const deployment = useDeployment(showError);
+  const deploymentConfig = useDeploymentConfig();
+  const { deployment, failed: deploymentFailed } = deploymentConfig;
   const [config, setConfig] = useState<ConfigDto>();
   const configRef = useRef<ConfigDto>(undefined);
   const [rules, setRules] = useState<RuleEntryDto[]>([]);
@@ -219,6 +224,7 @@ export function App() {
     [request],
   );
   useEffect(() => {
+    if (verifying) return;
     reload().catch((e: unknown) => {
       // 접근 코드를 아직 넣지 않았으면 오류가 아니다. 입력 칸만 보여 준다.
       if (!(e instanceof ApiError && e.status === 401 && !token()))
@@ -227,9 +233,10 @@ export function App() {
       // 처음 읽기에 실패하면 빈 화면이 "불러오고 있어요"에 머물지 않게 한다.
       setLoad((current) => (current === "loading" ? "failed" : current));
     });
-  }, [reload]);
+  }, [reload, verifying]);
   // 관리자 승인은 판매사 콘솔(다른 탭)에서 한다. 이 탭으로 돌아오면 다시 읽는다.
   useEffect(() => {
+    if (verifying) return;
     const onVisible = () => {
       if (document.visibilityState === "visible") void refresh();
     };
@@ -239,12 +246,16 @@ export function App() {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
     };
-  }, [refresh]);
+  }, [refresh, verifying]);
   // 화면을 옮기면 앞 화면의 오류를 지운다.
   const route = location.pathname + location.search;
   useEffect(() => {
     setFailure(undefined);
   }, [route]);
+  useEffect(() => {
+    if (!verifying && deploymentFailed)
+      setFailure({ message: DEPLOYMENT_ERROR.customer });
+  }, [deploymentFailed, verifying]);
 
   const run: Run = async (name, operation) => {
     if (busy) return undefined;
@@ -354,18 +365,24 @@ export function App() {
       {...header}
       network={{
         tone: deployment ? "success" : "warning",
-        text: networkName(deployment),
+        text:
+          verifying && deploymentFailed
+            ? "연결 확인 필요"
+            : networkName(deployment),
       }}
-      error={failure?.message}
+      error={verifying ? undefined : failure?.message}
     >
-      {config?.requiresToken && !config.publicChannel && needsCode && (
-        <AccessCodeForm
-          connect={() => void run("연결하고 있어요", reload)}
-          busy={!!busy}
-          error={accessError}
-          emptyMessage="접근 코드를 입력해 주세요."
-        />
-      )}
+      {!verifying &&
+        config?.requiresToken &&
+        !config.publicChannel &&
+        needsCode && (
+          <AccessCodeForm
+            connect={() => void run("연결하고 있어요", reload)}
+            busy={!!busy}
+            error={accessError}
+            emptyMessage="접근 코드를 입력해 주세요."
+          />
+        )}
       <Routes>
         <Route
           path={channel.catalog}
@@ -435,7 +452,7 @@ export function App() {
           element={
             <CustomerVerify
               key={params.get("sale") ?? ""}
-              deployment={deployment}
+              config={deploymentConfig}
               initialId={params.get("sale") ?? ""}
             />
           }

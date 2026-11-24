@@ -15,12 +15,16 @@ import {
   type EvidenceReceipt,
   type OriginalBundle,
 } from "@finveric/core";
-import type { ConfigDto, ExportResponse } from "@finveric/core/api";
-import type { LedgerDiagnosis, LedgerSnapshot } from "@finveric/core/ledger";
+import type { ExportResponse } from "@finveric/core/api";
+import {
+  ledgerReadCode,
+  type LedgerDiagnosis,
+  type LedgerSnapshot,
+} from "@finveric/core/ledger";
 import {
   CHECK_NAMES,
+  isValidSaleId,
   OUTCOME_LABELS,
-  verifySale,
   type SaleVerification,
   type VerifyOutcome,
 } from "@finveric/core/verify";
@@ -44,7 +48,7 @@ import { LedgerGate, LedgerLine } from "../components.tsx";
 import {
   customerPath,
   gradeLabel,
-  koreanError,
+  ledgerNotice,
   productName,
   profileLabel,
   REFERENCE_LABELS,
@@ -127,6 +131,7 @@ export function Disputes({
 
 type Source = "ledger" | "seller" | "file";
 type Result = {
+  deployment: Deployment;
   primary: SaleVerification;
   ledgerOnly: SaleVerification;
   snapshot: LedgerSnapshot;
@@ -154,9 +159,10 @@ function SaleLookup({
   const [files, setFiles] = useState<
     Partial<Record<"receipt" | "original", string>>
   >({});
-  const [result, setResult] = useState<Result>();
+  const [checked, setResult] = useState<Result>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [retry, setRetry] = useState(false);
   /** 판매 ID 입력 칸의 오류. 비었거나 형식이 다르면 누를 때 알려 준다. */
   const [idError, setIdError] = useState("");
   const idInput = useRef<HTMLInputElement>(null);
@@ -164,12 +170,14 @@ function SaleLookup({
   const [tokenRequired, setTokenRequired] = useState(false);
   const autoRun = useRef(false);
   const saleId = id.trim();
+  const result = checked?.deployment === deployment ? checked : undefined;
   const sales = [...(ledger.snapshot?.sales ?? [])].reverse();
 
   const load = async (file: File | undefined, kind: "receipt" | "original") => {
     if (!file) return;
     setResult(undefined);
     setError("");
+    setRetry(false);
     if (kind === "receipt") setReceipt(undefined);
     else setOriginal(undefined);
     setFiles((current) => ({ ...current, [kind]: undefined }));
@@ -177,40 +185,38 @@ function SaleLookup({
       setError("2MB 이하 JSON 파일을 선택하세요.");
       return;
     }
+    let parsed;
     try {
-      const parsed = JSON.parse(await file.text());
-      if (
-        parsed?.format !== `finveric-${kind}-v5` ||
-        typeof parsed.saleId !== "string"
-      )
-        throw new Error(
-          kind === "receipt"
-            ? "원장 v5의 가입 증명서 파일(finveric-receipt-v5)을 선택하세요."
-            : "원장 v5의 원본 묶음 파일(finveric-original-v5)을 선택하세요.",
-        );
-      const other = kind === "receipt" ? original : receipt;
-      if (other && other.saleId !== parsed.saleId)
-        throw new Error("같은 판매 건의 증명서와 원본을 선택하세요.");
-      if (kind === "receipt") setReceipt(parsed);
-      else setOriginal(parsed);
-      setId((current) => current.trim() || parsed.saleId);
-      setFiles((current) => ({ ...current, [kind]: file.name }));
-    } catch (e) {
-      setError(
-        koreanError(
-          e,
-          "파일을 읽을 수 없습니다. 내려받은 JSON 파일을 선택하세요.",
-        ),
+      parsed = JSON.parse(await file.text());
+    } catch {
+      return setError(
+        "파일을 읽을 수 없습니다. 내려받은 JSON 파일을 선택하세요.",
       );
     }
+    if (
+      parsed?.format !== `finveric-${kind}-v5` ||
+      typeof parsed.saleId !== "string"
+    )
+      return setError(
+        kind === "receipt"
+          ? "원장 v5의 가입 증명서 파일(finveric-receipt-v5)을 선택하세요."
+          : "원장 v5의 원본 묶음 파일(finveric-original-v5)을 선택하세요.",
+      );
+    const other = kind === "receipt" ? original : receipt;
+    if (other && other.saleId !== parsed.saleId)
+      return setError("같은 판매 건의 증명서와 원본을 선택하세요.");
+    if (kind === "receipt") setReceipt(parsed);
+    else setOriginal(parsed);
+    setId((current) => current.trim() || parsed.saleId);
+    setFiles((current) => ({ ...current, [kind]: file.name }));
   };
 
   const verify = async () => {
-    if (loading) return;
+    if (loading || !deployment || ledger.needsConfiguration) return;
     // 누를 수 없게 막지 않고, 누르면 빠진 것을 입력 칸 아래에 알려 준다.
     const invalid = !saleId
       ? "판매 ID를 입력하세요."
-      : !/^[1-9][0-9]*$/.test(saleId)
+      : !isValidSaleId(saleId)
         ? "판매 ID는 10진수 숫자입니다. 원장의 판매 건에서 선택할 수도 있습니다."
         : "";
     setIdError(invalid);
@@ -218,20 +224,14 @@ function SaleLookup({
       idInput.current?.focus();
       return;
     }
-    if (!deployment) {
-      setError(
-        ledger.error ||
-          "검증 설정을 아직 불러오지 못했습니다. 잠시 후 다시 대조하세요.",
-      );
-      return;
-    }
     setLoading(true);
     setResult(undefined);
     setError("");
+    setRetry(false);
     try {
       const read = await ledger.reload();
       if (!read.ok) {
-        setError(read.message);
+        setRetry(!read.needsConfiguration);
         return;
       }
       const { snapshot } = read;
@@ -255,29 +255,27 @@ function SaleLookup({
             }),
           ]);
           setTokenRequired(false);
-        } catch {
-          const config = await api<ConfigDto>("/config").catch(() => undefined);
-          setTokenRequired(!!config?.requiresToken);
-          sellerError = config?.requiresToken
+        } catch (error) {
+          const needsCode =
+            error instanceof ApiError && error.code === "ACCESS_CODE_INVALID";
+          setTokenRequired(needsCode);
+          sellerError = needsCode
             ? "판매사 제출 자료를 받으려면 접근 코드를 입력하세요. 원장 기록만 대조했습니다."
-            : "판매사 제출 자료를 불러오지 못했습니다. 원장 기록만 대조했습니다.";
+            : "판매사 제출 자료를 불러오지 못해 원장 기록만 대조했습니다. 파일이 있으면 직접 선택해 대조할 수 있습니다.";
         }
       }
-      const ledgerOnly = await verifySale(
-        deployment,
+      const ledgerOnly = await read.verifySale(
         saleId,
         undefined,
         undefined,
-        { snapshot, voice: "hapnida" },
+        "hapnida",
       );
       const primary =
         evidence || witness
-          ? await verifySale(deployment, saleId, evidence, witness, {
-              snapshot,
-              voice: "hapnida",
-            })
+          ? await read.verifySale(saleId, evidence, witness, "hapnida")
           : ledgerOnly;
       setResult({
+        deployment,
         primary,
         ledgerOnly,
         snapshot,
@@ -287,10 +285,11 @@ function SaleLookup({
         sellerError,
       });
     } catch (e) {
+      setRetry(true);
       setError(
-        koreanError(
-          e,
-          "원장 기록을 대조하지 못했습니다. 잠시 후 다시 시도하세요.",
+        ledgerNotice(
+          "원장 기록을 대조하지 못했습니다. 다시 대조하세요.",
+          ledgerReadCode(e),
         ),
       );
     } finally {
@@ -332,6 +331,8 @@ function SaleLookup({
                 setId(e.target.value);
                 setIdError("");
                 setResult(undefined);
+                setError("");
+                setRetry(false);
               }}
             >
               <option value="">
@@ -371,6 +372,8 @@ function SaleLookup({
                 setId(e.target.value);
                 setIdError("");
                 setResult(undefined);
+                setError("");
+                setRetry(false);
               }}
               placeholder="판매 ID(10진수)를 입력하세요"
             />
@@ -407,6 +410,8 @@ function SaleLookup({
                   onChange={() => {
                     setSource(value);
                     setResult(undefined);
+                    setError("");
+                    setRetry(false);
                   }}
                 />
                 <span>
@@ -451,12 +456,16 @@ function SaleLookup({
           {source === "seller" && tokenRequired && (
             <AccessCodeForm connect={() => void verify()} busy={loading} />
           )}
-          <Button type="submit" busy={loading}>
+          <Button
+            type="submit"
+            busy={loading}
+            blocked={!deployment || ledger.needsConfiguration}
+          >
             {loading ? (
               "원장과 대조하는 중"
             ) : (
               <>
-                원장과 대조하기
+                {retry ? "다시 대조하기" : "원장과 대조하기"}
                 <ShieldCheck size={16} data-icon="end" />
               </>
             )}
@@ -494,14 +503,16 @@ function SaleLookup({
           {result ? (
             <SaleSummary result={result} files={files} />
           ) : (
-            <>
-              <h2>대조 결과</h2>
-              <p className={s.intro}>
-                {loading
-                  ? "지정 RPC에서 원장을 읽고 판매 건을 대조하고 있습니다."
-                  : "판매 건을 고르거나 판매 ID를 입력하고 원장과 대조하기를 누르세요. 원본 묶음이 있으면 모든 회차의 답변으로 판정을 다시 계산합니다."}
-              </p>
-            </>
+            !(error || ledger.error) && (
+              <>
+                <h2>대조 결과</h2>
+                <p className={s.intro}>
+                  {loading
+                    ? "지정 RPC에서 원장을 읽고 판매 건을 대조하고 있습니다."
+                    : "판매 건을 고르거나 판매 ID를 입력하고 원장과 대조하기를 누르세요. 원본 묶음이 있으면 모든 회차의 답변으로 판정을 다시 계산합니다."}
+                </p>
+              </>
+            )
           )}
         </section>
       </div>

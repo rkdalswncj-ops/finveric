@@ -2,7 +2,12 @@ import { useId, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Download, FileText } from "lucide-react";
 import { SIGNAL_KINDS, SIGNAL_LABELS, type Deployment } from "@finveric/core";
-import { OUTCOME_LABELS, type VerifyOutcome } from "@finveric/core/verify";
+import { ledgerReadCode } from "@finveric/core/ledger";
+import {
+  isValidSaleId,
+  OUTCOME_LABELS,
+  type VerifyOutcome,
+} from "@finveric/core/verify";
 import { saveFile } from "../../shared/api.ts";
 import { Button } from "../../shared/button.tsx";
 import {
@@ -20,7 +25,7 @@ import ui from "../../shared/ui.module.css";
 import local from "../auditor.module.css";
 import { LedgerLine, Ratio } from "../components.tsx";
 import {
-  koreanError,
+  ledgerNotice,
   productName,
   salePath,
   short,
@@ -56,54 +61,64 @@ export function Report({
     initialSale ? "sale" : "confirmed",
   );
   const [saleId, setSaleId] = useState(initialSale);
-  const [report, setReport] = useState<AuditReport>();
+  const [generated, setReport] = useState<{
+    deployment: Deployment;
+    report: AuditReport;
+  }>();
   const [progress, setProgress] = useState<[number, number]>();
   const [error, setError] = useState("");
-  const busy = !!progress && progress[0] < progress[1];
+  const [retry, setRetry] = useState(false);
   const [loading, setLoading] = useState(false);
-  /** 판매 건을 고르지 않고 눌렀다. 선택 칸 아래에 이유를 보여 준다. */
-  const [saleMissing, setSaleMissing] = useState(false);
+  const busy = loading && !!progress && progress[0] < progress[1];
+  const [saleError, setSaleError] = useState("");
   const saleSelect = useRef<HTMLSelectElement>(null);
   const saleErrorId = useId();
   const sales = [...(ledger.snapshot?.sales ?? [])].reverse();
   const confirmed = sales.filter((sale) => sale.status === "confirmed").length;
+  const report =
+    generated?.deployment === deployment ? generated?.report : undefined;
+  const resetError = () => {
+    setError("");
+    setSaleError("");
+    setRetry(false);
+  };
 
   const build = async () => {
-    if (loading) return;
-    // 누를 수 없게 막지 않고, 누르면 빠진 것을 알려 준다.
-    if (kind === "sale" && !saleId.trim()) {
-      setSaleMissing(true);
-      saleSelect.current?.focus();
-      return;
-    }
-    if (!deployment) {
-      setError(
-        ledger.error ||
-          "검증 설정을 아직 불러오지 못했습니다. 잠시 후 다시 만드세요.",
+    if (loading || !deployment || ledger.needsConfiguration) return;
+    const selectedSale = saleId.trim();
+    if (kind === "sale" && !isValidSaleId(selectedSale)) {
+      setSaleError(
+        selectedSale
+          ? "이 판매 ID를 확인할 수 없습니다. 원장의 판매 건을 선택하세요."
+          : "판매 건을 선택하세요.",
       );
+      saleSelect.current?.focus();
       return;
     }
     setLoading(true);
     setReport(undefined);
     setError("");
     setProgress(undefined);
+    setRetry(false);
     try {
       const read = await ledger.reload();
       if (!read.ok) {
-        setError(read.message);
+        setRetry(!read.needsConfiguration);
         return;
       }
-      const { snapshot } = read;
       const scope: ReportScope =
-        kind === "sale" ? { kind, saleId: saleId.trim() } : { kind };
-      setReport(
-        await buildReport(deployment, snapshot, scope, (done, total) =>
-          setProgress([done, total]),
-        ),
+        kind === "sale" ? { kind, saleId: selectedSale } : { kind };
+      const report = await buildReport(deployment, read, scope, (done, total) =>
+        setProgress([done, total]),
       );
+      setReport({ deployment, report });
     } catch (e) {
+      setRetry(true);
       setError(
-        koreanError(e, "보고서를 만들지 못했습니다. 잠시 후 다시 시도하세요."),
+        ledgerNotice(
+          "판매 건을 대조하지 못해 보고서를 만들지 못했습니다. 보고서를 다시 만드세요.",
+          ledgerReadCode(e),
+        ),
       );
     } finally {
       setLoading(false);
@@ -136,7 +151,10 @@ export function Report({
                 name="scope"
                 checked={kind === "confirmed"}
                 disabled={loading}
-                onChange={() => setKind("confirmed")}
+                onChange={() => {
+                  setKind("confirmed");
+                  resetError();
+                }}
               />
               <span>
                 가입 확정 전체
@@ -153,7 +171,10 @@ export function Report({
                 name="scope"
                 checked={kind === "sale"}
                 disabled={loading}
-                onChange={() => setKind("sale")}
+                onChange={() => {
+                  setKind("sale");
+                  resetError();
+                }}
               />
               <span>
                 판매 건 하나
@@ -168,11 +189,11 @@ export function Report({
                 ref={saleSelect}
                 value={saleId}
                 disabled={loading || sales.length === 0}
-                aria-invalid={saleMissing ? true : undefined}
+                aria-invalid={saleError ? true : undefined}
                 aria-describedby={saleErrorId}
                 onChange={(e) => {
                   setSaleId(e.target.value);
-                  setSaleMissing(false);
+                  resetError();
                 }}
               >
                 <option value="">판매 건을 선택하세요</option>
@@ -195,11 +216,13 @@ export function Report({
             </label>
           )}
           {kind === "sale" && (
-            <FieldError id={saleErrorId}>
-              {saleMissing ? "판매 건을 선택하세요." : ""}
-            </FieldError>
+            <FieldError id={saleErrorId}>{saleError}</FieldError>
           )}
-          <Button type="submit" busy={loading}>
+          <Button
+            type="submit"
+            busy={loading}
+            blocked={!deployment || ledger.needsConfiguration}
+          >
             {loading ? (
               progress ? (
                 `${progress[0]}/${progress[1]}건 대조 중`
@@ -208,7 +231,7 @@ export function Report({
               )
             ) : (
               <>
-                보고서 만들기
+                {retry ? "보고서 다시 만들기" : "보고서 만들기"}
                 <FileText size={16} data-icon="end" />
               </>
             )}
@@ -245,14 +268,16 @@ export function Report({
               }
             />
           ) : (
-            <>
-              <h2>보고서 미리보기</h2>
-              <p className={s.intro}>
-                {busy
-                  ? "판매 건마다 원장 기록을 대조하고 있습니다."
-                  : "범위를 고르고 보고서 만들기를 누르세요. 만든 보고서는 JSON과 CSV로 내려받을 수 있습니다."}
-              </p>
-            </>
+            !(error || ledger.error) && (
+              <>
+                <h2>보고서 미리보기</h2>
+                <p className={s.intro}>
+                  {busy
+                    ? "판매 건마다 원장 기록을 대조하고 있습니다."
+                    : "범위를 고르고 보고서 만들기를 누르세요. 만든 보고서는 JSON과 CSV로 내려받을 수 있습니다."}
+                </p>
+              </>
+            )
           )}
         </section>
       </div>

@@ -27,7 +27,11 @@ import {
 } from "./products.ts";
 import { answersFit, evaluateRule } from "./rules.ts";
 import {
+  createLedgerSnapshotReader,
   ledgerClient,
+  LedgerRangeError,
+  ledgerReadCode,
+  LedgerReadError,
   ledgerRpcRead,
   readLedger,
   type LedgerDiagnosis,
@@ -99,6 +103,14 @@ export type VerifyClient = Pick<
   | "getTransaction"
 >;
 
+export class LedgerDeploymentError extends Error {}
+
+/** 검증 설정을 확인해야 할 조회 오류다. */
+export const needsLedgerConfiguration = (error: unknown) =>
+  error instanceof LedgerDeploymentError ||
+  (error instanceof LedgerRangeError && error.reason === "scanLimit") ||
+  ledgerReadCode(error) === "V07";
+
 /** RPC의 체인과 원장·Verifier 코드가 배포 설정과 같은지 확인한다. */
 export async function requireDeployment(
   client: Pick<PublicClient, "getChainId" | "getCode">,
@@ -112,7 +124,7 @@ export async function requireDeployment(
     ),
   ]);
   if (chainId !== dep.chainId)
-    throw new Error(
+    throw new LedgerDeploymentError(
       "지정 RPC의 네트워크가 배포 설정과 다릅니다. 검증 설정의 RPC 주소를 확인하세요.",
     );
   if (
@@ -121,22 +133,87 @@ export async function requireDeployment(
     keccak256(ledgerCode) !== dep.ledgerCodeHash ||
     keccak256(verifierCode) !== dep.verifierCodeHash
   )
-    throw new Error(
+    throw new LedgerDeploymentError(
       "컨트랙트 코드가 고정한 배포 설정과 다릅니다. 검증 설정의 원장 주소와 RPC를 확인하세요.",
     );
 }
 
 const same = (a?: string, b?: string) =>
   !!a && !!b && a.toLowerCase() === b.toLowerCase();
-/** 사용자 파일은 형식을 믿지 않는다. 검사 중 오류는 불일치로 본다. */
+/** 자료 검사 오류는 불일치로 본다. RPC 조회 실패는 호출부로 전달한다. */
 const safely = async (test: () => boolean | Promise<boolean>) => {
   try {
     return await test();
-  } catch {
+  } catch (error) {
+    if (error instanceof LedgerReadError) throw error;
     return false;
   }
 };
 const ZERO = `0x${"0".repeat(64)}` as Hex;
+
+type ReadOnce = <T>(key: string, read: () => Promise<T>) => Promise<T>;
+
+export type LedgerVerification = {
+  snapshot: LedgerSnapshot;
+  verifySale: (
+    saleId: string,
+    receipt?: EvidenceReceipt,
+    original?: OriginalBundle,
+    voice?: Voice,
+  ) => Promise<SaleVerification>;
+};
+
+export const isValidSaleId = (saleId: string) =>
+  /^[1-9][0-9]{0,76}$/.test(saleId) && BigInt(saleId) < FIELD;
+
+function requireSaleId(saleId: string) {
+  if (!isValidSaleId(saleId))
+    throw new Error(
+      "판매 ID 형식이 맞지 않습니다. 숫자로만 된 판매 ID를 입력하세요.",
+    );
+}
+
+/** 한 번 읽은 블록에서 판매 건과 증빙을 대조한다. 같은 호출 결과는 이 대조에서 공유한다. */
+export function createLedgerVerificationReader(
+  dep: Deployment,
+  client: VerifyClient = ledgerClient(dep),
+) {
+  const readSnapshot = createLedgerSnapshotReader(dep, client);
+  return async (): Promise<LedgerVerification> => {
+    await requireDeployment(client, dep);
+    const snapshot = await readSnapshot();
+    const reads = new Map<string, Promise<unknown>>();
+    const readOnce: ReadOnce = (key, read) => {
+      const known = reads.get(key);
+      if (known) return known as ReturnType<typeof read>;
+      const result = read().catch((error) => {
+        reads.delete(key);
+        throw error;
+      });
+      reads.set(key, result);
+      return result;
+    };
+    return {
+      snapshot,
+      async verifySale(saleId, receipt, original, voice) {
+        requireSaleId(saleId);
+        return verifySnapshot(
+          dep,
+          client,
+          snapshot,
+          saleId,
+          receipt,
+          original,
+          {
+            voice,
+            blockNumber: snapshot.latestBlock,
+            readOnce,
+          },
+        );
+      },
+    };
+  };
+}
 
 export async function verifySale(
   dep: Deployment,
@@ -149,27 +226,53 @@ export async function verifySale(
     voice?: Voice;
   } = {},
 ): Promise<SaleVerification> {
-  /** 말투에 맞는 문장을 고른다. 기본은 해요체다. */
-  const say = (haeyo: string, hapnida: string) =>
-    options.voice === "hapnida" ? hapnida : haeyo;
-  if (!/^[1-9][0-9]{0,76}$/.test(saleId) || BigInt(saleId) >= FIELD)
-    throw new Error(
-      "판매 ID 형식이 맞지 않습니다. 숫자로만 된 판매 ID를 입력하세요.",
-    );
+  requireSaleId(saleId);
   const client = options.client ?? ledgerClient(dep);
   await requireDeployment(client, dep);
-  const snapshot =
-    options.snapshot ?? (await readLedger(dep, client as PublicClient));
-  const contract = { address: dep.ledger, abi: ledgerAbi } as const;
+  const snapshot = options.snapshot ?? (await readLedger(dep, client));
+  return verifySnapshot(dep, client, snapshot, saleId, receipt, original, {
+    voice: options.voice,
+  });
+}
+
+async function verifySnapshot(
+  dep: Deployment,
+  client: VerifyClient,
+  snapshot: LedgerSnapshot,
+  saleId: string,
+  receipt: EvidenceReceipt | undefined,
+  original: OriginalBundle | undefined,
+  {
+    voice,
+    blockNumber,
+    readOnce = (_key, read) => read(),
+  }: { voice?: Voice; blockNumber?: bigint; readOnce?: ReadOnce },
+): Promise<SaleVerification> {
+  /** 말투에 맞는 문장을 고른다. 기본은 해요체다. */
+  const say = (haeyo: string, hapnida: string) =>
+    voice === "hapnida" ? hapnida : haeyo;
+  const contract = {
+    address: dep.ledger,
+    abi: ledgerAbi,
+    blockNumber,
+  } as const;
+  const readContract: ReadOnce = (key, read) =>
+    readOnce(key, () => ledgerRpcRead("eth_call", read));
+  const transaction = (hash: Hex) =>
+    readOnce(`tx:${hash}`, () =>
+      ledgerRpcRead("eth_getTransactionByHash", () =>
+        client.getTransaction({ hash }),
+      ),
+    );
   const [state, coolingPeriod] = await Promise.all([
-    ledgerRpcRead("eth_call", () =>
+    readContract(`sale:${saleId}`, () =>
       client.readContract({
         ...contract,
         functionName: "getSale",
         args: [BigInt(saleId)],
       }),
     ),
-    ledgerRpcRead("eth_call", () =>
+    readContract("coolingPeriod", () =>
       client.readContract({ ...contract, functionName: "coolingPeriod" }),
     ),
   ]);
@@ -260,11 +363,13 @@ export async function verifySale(
       entry.id === sale.productId && entry.version === sale.productVersion,
   );
   const stored = product
-    ? await client.readContract({
-        ...contract,
-        functionName: "getProduct",
-        args: [product.id, product.version],
-      })
+    ? await readContract(`product:${product.id}:${product.version}`, () =>
+        client.readContract({
+          ...contract,
+          functionName: "getProduct",
+          args: [product.id, product.version],
+        }),
+      )
     : undefined;
   const newerBefore = snapshot.products.some(
     (entry) =>
@@ -352,12 +457,14 @@ export async function verifySale(
     reference("diagnosis", entry.txHash, entry.block, entry.attempt);
     proofsOk &&= await safely(async () => {
       const [view, tx] = await Promise.all([
-        client.readContract({
-          ...contract,
-          functionName: "getDiagnosis",
-          args: [BigInt(entry.customerRef), entry.attempt],
-        }),
-        client.getTransaction({ hash: entry.txHash }),
+        readContract(`diagnosis:${entry.customerRef}:${entry.attempt}`, () =>
+          client.readContract({
+            ...contract,
+            functionName: "getDiagnosis",
+            args: [BigInt(entry.customerRef), entry.attempt],
+          }),
+        ),
+        transaction(entry.txHash),
       ]);
       const decoded = decodeFunctionData({ abi: ledgerAbi, data: tx.input });
       if (
@@ -390,25 +497,30 @@ export async function verifySale(
         view.elderly === elderly;
       return (
         sameRecord &&
-        (await client.readContract({
-          address: dep.verifier,
-          abi: verifierAbi,
-          functionName: "verifyProof",
-          args: [
-            ...verifierArgs(proof),
-            [
-              BigInt(profile),
-              BigInt(limit),
-              elderly ? 1n : 0n,
-              commitment,
-              BigInt(dep.chainId),
-              BigInt(dep.ledger),
-              customerRef,
-              BigInt(attempt),
-              ruleHash,
-            ],
-          ],
-        }))
+        (await readContract(
+          `proof:${entry.customerRef}:${entry.attempt}:${entry.txHash}`,
+          () =>
+            client.readContract({
+              address: dep.verifier,
+              abi: verifierAbi,
+              blockNumber,
+              functionName: "verifyProof",
+              args: [
+                ...verifierArgs(proof),
+                [
+                  BigInt(profile),
+                  BigInt(limit),
+                  elderly ? 1n : 0n,
+                  commitment,
+                  BigInt(dep.chainId),
+                  BigInt(dep.ledger),
+                  customerRef,
+                  BigInt(attempt),
+                  ruleHash,
+                ],
+              ],
+            }),
+        ))
       );
     });
   }
@@ -493,9 +605,7 @@ export async function verifySale(
   let approvalOk = sale.attempt < 3 ? !sale.approved : sale.approved;
   if (approvalOk && sale.attempt >= 3)
     approvalOk = await safely(async () => {
-      const tx = await client.getTransaction({
-        hash: sale.subscribed.txHash,
-      });
+      const tx = await transaction(sale.subscribed.txHash);
       const decoded = decodeFunctionData({ abi: ledgerAbi, data: tx.input });
       if (decoded.functionName !== "subscribe") return false;
       const signer = await recoverMessageAddress({
