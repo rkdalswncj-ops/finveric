@@ -352,3 +352,21 @@
     max-width: 65px;
   }
 }
+.customerHistoryLink {
+  position: relative;
+  z-index: 2;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  margin-inline-start: 4px;
+  vertical-align: middle;
+  color: var(--muted-foreground);
+  border-radius: var(--rounded-control);
+}
+@media (hover: hover) {
+  .customerHistoryLink:hover {
+    color: var(--primary);
+    background: var(--card);
+  }
+}

@@ -5,6 +5,8 @@ import type { LedgerRule, LedgerSnapshot } from "@finveric/core/ledger";
 import {
   Badge,
   Count,
+  DetailColumn,
+  DetailRow,
   Facts,
   Heading,
   Notice,
@@ -53,13 +55,12 @@ function RuleAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
     );
   const used = (rule: LedgerRule) =>
     snapshot.diagnoses.filter((entry) => entry.ruleHash === rule.hash).length;
-  const select = (version: number) =>
-    setParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set("version", String(version));
-      next.delete("base");
-      return next;
-    });
+  const versionPath = (version: number) => {
+    const next = new URLSearchParams(params);
+    next.set("version", String(version));
+    next.delete("base");
+    return `?${next}`;
+  };
   return (
     <>
       <TableScroll as="section" label="등록 버전" className={s.panel}>
@@ -87,24 +88,20 @@ function RuleAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
               </th>
               {technical && <th scope="col">블록</th>}
               {technical && <th scope="col">거래 해시</th>}
+              <DetailColumn label="진단 기준 버전 선택" />
             </tr>
           </thead>
           <tbody>
             {[...rules].reverse().map((rule) => (
-              <tr
+              <DetailRow
                 key={rule.hash}
-                className={rule === selected ? s.selectedRow : undefined}
+                current={rule === selected}
+                destination={{
+                  to: versionPath(rule.version),
+                  label: `진단 기준 v${rule.version} 선택`,
+                }}
               >
-                <td>
-                  <button
-                    type="button"
-                    className={s.linkButton}
-                    aria-current={rule === selected ? "true" : undefined}
-                    onClick={() => select(rule.version)}
-                  >
-                    v{rule.version}
-                  </button>
-                </td>
+                <td>v{rule.version}</td>
                 <td>{rule.parsed?.name ?? "원문을 읽을 수 없음"}</td>
                 <td>
                   <code title={rule.hash}>{short(rule.hash, 10, 8)}</code>
@@ -124,7 +121,7 @@ function RuleAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
                     <code>{rule.txHash}</code>
                   </td>
                 )}
-              </tr>
+              </DetailRow>
             ))}
           </tbody>
         </table>

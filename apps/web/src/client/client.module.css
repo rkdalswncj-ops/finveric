@@ -13,35 +13,8 @@ td.wrapCell {
   white-space: normal;
   min-width: 200px;
 }
-.saleRow {
-  position: relative;
-}
-.saleRowAction {
-  min-inline-size: 2.5rem;
-  inline-size: 1%;
-  padding-inline: 0;
-}
-.saleRowLink {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-inline-end: 12px;
-  color: var(--muted-foreground);
-}
-.saleRowLink:focus-visible {
-  outline-offset: -3px;
-}
-.saleRow:focus-within,
-.saleRow:has(.saleRowLink:active) {
-  background: var(--primary-surface);
-}
-@media (hover: hover) {
-  .saleRow:hover {
-    background: var(--primary-surface);
-  }
+.detailBack {
+  margin-block-end: 14px;
 }
 .skeleton {
   display: block;

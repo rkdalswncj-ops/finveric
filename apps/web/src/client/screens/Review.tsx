@@ -7,6 +7,7 @@ import {
   Badge,
   Empty,
   FilterChip,
+  DetailColumn,
   Heading,
   TableScroll,
 } from "../../shared/components.tsx";
@@ -20,7 +21,7 @@ import {
   LoadingStatus,
   SaleIdText,
   SaleRow,
-  SaleTableSkeletonRows,
+  DetailTableSkeletonRows,
   Skeleton,
 } from "../components.tsx";
 import {
@@ -109,14 +110,12 @@ export function Review({
                 <th scope="col">녹취·숙려</th>
                 <th scope="col">관리자 승인</th>
                 <th scope="col">신청 시각</th>
-                <th scope="col" className={s.saleRowAction}>
-                  <span className={s.srOnly}>판매 건 상세</span>
-                </th>
+                <DetailColumn label="판매 건 상세" />
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <SaleTableSkeletonRows
+                <DetailTableSkeletonRows
                   rows={5}
                   widths={[
                     "7.5rem",

@@ -1,5 +1,4 @@
 import { Link, useLocation, useParams } from "react-router";
-import { ArrowLeft } from "lucide-react";
 import type {
   CustomerDto,
   ProductEntryDto,
@@ -11,7 +10,6 @@ import {
   Badge,
   Empty,
   Facts,
-  Heading,
   Notice,
   type Tone,
 } from "../../shared/components.tsx";
@@ -28,6 +26,7 @@ import {
 } from "../../shared/sales.ts";
 import ui from "../../shared/ui.module.css";
 import {
+  DetailHeading,
   DiagnosisTable,
   FactsSkeleton,
   LoadingStatus,
@@ -123,14 +122,11 @@ export function SaleDetail({
   const sale = sales.find((entry) => entry.id === saleId);
   const heading = (
     <>
-      <Heading title="판매 건 상세">
-        <Button variant="outline" asChild>
-          <Link to={{ pathname: "/review", search }}>
-            <ArrowLeft size={16} aria-hidden="true" />
-            판매 건 목록
-          </Link>
-        </Button>
-      </Heading>
+      <DetailHeading
+        title="판매 건 상세"
+        backTo={{ pathname: "/review", search }}
+        backLabel="판매 건 목록"
+      />
       <LoadingStatus loading={load === "loading"}>
         판매 건을 불러오고 있습니다.
       </LoadingStatus>

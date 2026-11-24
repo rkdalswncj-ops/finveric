@@ -30,7 +30,11 @@ import { networkName } from "../shared/format.ts";
 import { API_DOCS_HREF, CHANNEL_APP_HREF } from "../shared/links.ts";
 import type { Sale } from "../shared/sales.ts";
 import { Shell, type ExternalItem, type NavGroup } from "../shared/Shell.tsx";
-import { SALE_DETAIL_ROUTE } from "./paths.ts";
+import {
+  PRODUCT_DETAIL_ROUTE,
+  PRODUCT_LIST_PATH,
+  SALE_DETAIL_ROUTE,
+} from "./paths.ts";
 import { ApiKeys } from "./screens/ApiKeys.tsx";
 import { Chain } from "./screens/Chain.tsx";
 import { Dashboard } from "./screens/Dashboard.tsx";
@@ -51,7 +55,12 @@ const groups: NavGroup[] = [
     items: [
       { path: "/", label: "대시보드", icon: LayoutDashboard },
       { path: "/rules", label: "진단 기준", icon: ListChecks },
-      { path: "/products", label: "상품 관리", icon: Landmark },
+      {
+        path: PRODUCT_LIST_PATH,
+        label: "상품 관리",
+        icon: Landmark,
+        end: false,
+      },
       { path: "/review", label: "판매·검토", icon: Layers, end: false },
       { path: "/signals", label: "위험 신호", icon: Siren },
       { path: "/chain", label: "온체인 처리", icon: Activity },
@@ -66,6 +75,7 @@ const links: ExternalItem[] = [
 ];
 function pageTitle(pathname: string) {
   if (matchPath(SALE_DETAIL_ROUTE, pathname)) return "판매 건 상세";
+  if (matchPath(PRODUCT_DETAIL_ROUTE, pathname)) return "판매 상품 상세";
   for (const group of groups)
     for (const item of group.items)
       if (item.path === pathname) return item.label;
@@ -298,9 +308,10 @@ export function App() {
           }
         />
         <Route
-          path="/products"
+          path={`${PRODUCT_DETAIL_ROUTE}?`}
           element={
             <Products
+              key={location.pathname}
               load={load}
               rules={rules}
               products={products}

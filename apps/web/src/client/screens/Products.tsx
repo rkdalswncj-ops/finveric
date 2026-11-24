@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate, useParams } from "react-router";
 import { Plus } from "lucide-react";
 import {
   PRODUCT_CARD_COUNT,
@@ -20,7 +21,9 @@ import { Button } from "../../shared/button.tsx";
 import {
   Badge,
   ConfirmDialog,
+  DetailRow,
   Facts,
+  DetailColumn,
   Heading,
   Notice,
   TableScroll,
@@ -30,12 +33,14 @@ import ui from "../../shared/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
 import type { Run } from "../App.tsx";
-import { ExplanationCards } from "../../shared/sale-components.tsx";
 import {
-  ProductFacts,
+  DetailTableSkeletonRows,
+  LoadingStatus,
   ProfileProducts,
   RegisterNotice,
 } from "../components.tsx";
+import { productDetailPath } from "../paths.ts";
+import { ProductDetail } from "./ProductDetail.tsx";
 import {
   activeRule,
   gradeName,
@@ -385,31 +390,36 @@ export function Products({
   run: Run;
   register: () => unknown;
 }) {
+  const navigate = useNavigate();
+  const { productId: selected } = useParams();
   const groups = groupProducts(products);
-  const [selected, setSelected] = useState("");
   const [form, setForm] = useState<ProductDocument>();
-  const group =
-    groups.find((entry) => entry.id.toLowerCase() === selected.toLowerCase()) ??
-    groups[0];
+  const group = groups.find(
+    (entry) => entry.id.toLowerCase() === selected?.toLowerCase(),
+  );
+  const loading = load === "loading";
   const anyRegistered = products.some((entry) => entry.registered);
   const seller =
     products.find((entry) => entry.registered)?.product.document.seller ?? "";
-  return (
-    <>
-      <Heading
-        title="판매 상품을 관리하세요"
-        description="상품 유형, 위험등급, 고난도·파생결합증권 여부, 판매대상 고객군, 설명서를 버전으로 등록합니다. 등록한 버전은 고칠 수 없습니다."
-      >
-        {!form && (
-          <Button blocked={busy} onClick={() => setForm(blankProduct(seller))}>
-            <Plus size={16} />새 상품 만들기
-          </Button>
-        )}
-      </Heading>
-      {load === "ready" && !anyRegistered && !activeRule(rules) && (
-        <RegisterNotice busy={busy} register={register} />
-      )}
-      {form ? (
+  const rule = activeRule(rules);
+  const profiles = (
+    <section className={`${s.panel} ${s.pad} ${s.spaced}`}>
+      <h2>투자성향별 권유 가능 상품</h2>
+      <p>
+        적용 중인 진단 기준(v{rule?.version ?? "—"})의 적합성 기준으로 나눕니다.
+        진단 기준 화면에서 기준을 바꿀 수 있습니다.
+      </p>
+      <ProfileProducts
+        rule={rule?.document}
+        products={latestProducts(products)}
+      />
+    </section>
+  );
+
+  if (form)
+    return (
+      <>
+        <Heading title="상품 설명서 편집" />
         <ProductForm
           base={form}
           existing={products}
@@ -418,180 +428,115 @@ export function Products({
           cancel={() => setForm(undefined)}
           registered={(id) => {
             setForm(undefined);
-            setSelected(id);
+            if (selected?.toLowerCase() !== id.toLowerCase())
+              navigate(productDetailPath(id));
           }}
         />
-      ) : (
-        <>
-          <section className={s.panel}>
-            <TableScroll label="판매 상품">
-              <table>
-                <caption className={s.tableCaption}>판매 상품</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">상품</th>
-                    <th scope="col">유형</th>
-                    <th scope="col">위험등급</th>
-                    <th scope="col">속성</th>
-                    <th scope="col">최신 버전</th>
-                    <th scope="col">원장 등록</th>
-                    <th scope="col">보기</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {groups.map(({ id, latest, versions }) => {
-                    const { document } = latest.product;
-                    return (
-                      <tr
-                        key={id}
-                        className={group?.id === id ? s.selectedRow : ""}
-                      >
-                        <td className={s.wrapCell}>
-                          <strong>{productName(document)}</strong>
-                        </td>
-                        <td>{document.type}</td>
-                        <td>{gradeName(document.riskGrade)}</td>
-                        <td>
-                          {[
-                            document.complex && "고난도",
-                            document.derivative && "파생결합증권",
-                          ]
-                            .filter(Boolean)
-                            .join(" · ") || "—"}
-                        </td>
-                        <td>
-                          v{latest.product.version}
-                          {versions.length > 1 &&
-                            ` · ${versions.length}개 버전`}
-                        </td>
-                        <td>
-                          <Badge
-                            tone={latest.registered ? "success" : "warning"}
-                          >
-                            {latest.registered ? "등록" : "등록 전"}
-                          </Badge>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className={s.linkButton}
-                            onClick={() => setSelected(id)}
-                            aria-label={`보기 · ${document.name}`}
-                            aria-current={group?.id === id ? "true" : undefined}
-                          >
-                            보기
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </TableScroll>
-            {groups.length === 0 ? (
-              <p className={s.empty}>
-                {load === "ready"
-                  ? "등록한 상품이 없습니다."
-                  : load === "failed"
-                    ? "상품을 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
-                    : "상품을 불러오고 있습니다."}
-              </p>
-            ) : (
-              <p className={s.tableNote}>청약에는 최신 등록 버전을 씁니다.</p>
-            )}
-          </section>
-          {group && (
-            <>
-              {/* 상품 속성과 버전 이력을 비슷한 높이로 나란히 두고, 핵심 설명 카드는 아래 화면 너비의 패널에 둔다. */}
-              <div className={`${s.detailGrid} ${s.spaced}`}>
-                <section className={`${s.panel} ${s.pad}`}>
-                  <div className={s.row}>
-                    <h2>
-                      {productName(group.latest.product.document)} v
-                      {group.latest.product.version}
-                    </h2>
-                    <Badge
-                      tone={group.latest.registered ? "success" : "warning"}
-                    >
-                      {group.latest.registered ? "원장 등록" : "등록 전"}
-                    </Badge>
-                  </div>
-                  <p className={s.lead}>
-                    {group.latest.product.document.summary}
-                  </p>
-                  <ProductFacts document={group.latest.product.document} />
-                </section>
-                <aside className={`${s.panel} ${s.pad}`}>
-                  <h2>버전 이력</h2>
-                  <ul className={s.versionList}>
-                    {[...group.versions].reverse().map((entry) => (
-                      <li key={entry.product.version}>
-                        <div>
-                          <span>
-                            <strong>v{entry.product.version}</strong>{" "}
-                            {gradeName(entry.product.document.riskGrade)}
-                          </span>
-                          <small>
-                            설명서 지문{" "}
-                            <code>{entry.product.documentHash}</code>
-                          </small>
-                          <small>
-                            등록 거래{" "}
-                            {entry.txHash ? <code>{entry.txHash}</code> : "—"}
-                          </small>
-                          <Badge
-                            tone={
-                              entry.latest
-                                ? "success"
-                                : entry.registered
-                                  ? "neutral"
-                                  : "warning"
-                            }
-                          >
-                            {entry.latest
-                              ? "판매 중"
-                              : entry.registered
-                                ? "이전 버전"
-                                : "등록 전"}
-                          </Badge>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    variant="outline"
-                    blocked={busy || !group.latest.registered}
-                    onClick={() =>
-                      setForm(structuredClone(group.latest.product.document))
-                    }
-                  >
-                    새 버전 만들기
-                  </Button>
-                  <p className={s.small}>
-                    새 버전을 등록하면 다음 청약부터 새 설명서를 씁니다. 청약한
-                    판매 건은 그때의 버전으로 남습니다.
-                  </p>
-                </aside>
-              </div>
-              <section className={`${s.panel} ${s.pad} ${s.spaced}`}>
-                <h2>핵심 설명 카드</h2>
-                <ExplanationCards cards={group.latest.product.document.cards} />
-              </section>
-            </>
-          )}
-        </>
+        {profiles}
+      </>
+    );
+
+  if (selected)
+    return (
+      <ProductDetail
+        load={load}
+        latest={group?.latest}
+        versions={group?.versions ?? []}
+        busy={busy}
+        newVersion={setForm}
+      />
+    );
+
+  return (
+    <>
+      <Heading
+        title="판매 상품을 관리하세요"
+        description="상품 유형, 위험등급, 고난도·파생결합증권 여부, 판매대상 고객군, 설명서를 버전으로 등록합니다. 등록한 버전은 고칠 수 없습니다."
+      >
+        <Button blocked={busy} onClick={() => setForm(blankProduct(seller))}>
+          <Plus size={16} />새 상품 만들기
+        </Button>
+      </Heading>
+      <LoadingStatus loading={loading}>상품을 불러오고 있습니다.</LoadingStatus>
+      {load === "ready" && !anyRegistered && !rule && (
+        <RegisterNotice busy={busy} register={register} />
       )}
-      <section className={`${s.panel} ${s.pad} ${s.spaced}`}>
-        <h2>투자성향별 권유 가능 상품</h2>
-        <p>
-          적용 중인 진단 기준(v{activeRule(rules)?.version ?? "—"})의 적합성
-          기준으로 나눕니다. 진단 기준 화면에서 기준을 바꿀 수 있습니다.
-        </p>
-        <ProfileProducts
-          rule={activeRule(rules)?.document}
-          products={latestProducts(products)}
-        />
+      <section className={s.panel} aria-busy={loading || undefined}>
+        <TableScroll label="판매 상품">
+          <table>
+            <caption className={s.tableCaption}>판매 상품</caption>
+            <thead>
+              <tr>
+                <th scope="col">상품</th>
+                <th scope="col">유형</th>
+                <th scope="col">위험등급</th>
+                <th scope="col">속성</th>
+                <th scope="col">최신 버전</th>
+                <th scope="col">원장 등록</th>
+                <DetailColumn label="판매 상품 상세" />
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <DetailTableSkeletonRows
+                  widths={["15rem", "5rem", "5rem", "8rem", "5rem", "4rem"]}
+                />
+              ) : (
+                groups.map(({ id, latest, versions }) => {
+                  const { document } = latest.product;
+                  const name = productName(document);
+                  return (
+                    <DetailRow
+                      key={id}
+                      destination={{
+                        to: productDetailPath(id),
+                        label: `${name} · 판매 상품 상세`,
+                      }}
+                    >
+                      <td className={s.wrapCell}>
+                        <strong>{name}</strong>
+                      </td>
+                      <td>{document.type}</td>
+                      <td>{gradeName(document.riskGrade)}</td>
+                      <td>
+                        {[
+                          document.complex && "고난도",
+                          document.derivative && "파생결합증권",
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
+                      </td>
+                      <td>
+                        v{latest.product.version}
+                        {versions.length > 1 && ` · ${versions.length}개 버전`}
+                      </td>
+                      <td>
+                        <Badge tone={latest.registered ? "success" : "warning"}>
+                          {latest.registered ? "등록" : "등록 전"}
+                        </Badge>
+                      </td>
+                    </DetailRow>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </TableScroll>
+        {!loading &&
+          (groups.length === 0 ? (
+            <p className={s.empty}>
+              {load === "ready"
+                ? "등록한 상품이 없습니다."
+                : "상품을 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."}
+            </p>
+          ) : (
+            <p className={s.tableNote}>
+              상품을 선택하면 설명서와 버전 이력을 확인할 수 있습니다. 청약에는
+              최신 등록 버전을 씁니다.
+            </p>
+          ))}
       </section>
+      {!loading && profiles}
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { Link, useSearchParams } from "react-router";
+import { UserRound } from "lucide-react";
 import {
   computeSignals,
   SIGNAL_KINDS,
@@ -11,6 +12,8 @@ import type { LedgerSnapshot } from "@finveric/core/ledger";
 import {
   Badge,
   Count,
+  DetailColumn,
+  DetailRow,
   FilterChip,
   Heading,
   TableScroll,
@@ -120,6 +123,7 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
                 <th scope="col">판매 건</th>
                 <th scope="col">회차</th>
                 <th scope="col">블록 시각</th>
+                <DetailColumn label="신호 상세" />
               </tr>
             </thead>
             <tbody>
@@ -127,37 +131,56 @@ function SignalList({ snapshot }: { snapshot: LedgerSnapshot }) {
                 const sale = snapshot.sales.find(
                   (entry) => entry.saleId === signal.saleId,
                 );
+                const customer = short(signal.customerRef, 10, 8);
+                const customerHistory = customerPath(signal.customerRef);
                 return (
-                  <tr
+                  <DetailRow
                     key={`${signal.kind}:${signal.customerRef}:${signal.saleId ?? signal.attempt}:${index}`}
+                    destination={
+                      signal.saleId
+                        ? {
+                            to: salePath(signal.saleId),
+                            label: `판매 건 대조 · ${SIGNAL_LABELS[signal.kind]} · ${short(signal.saleId)}`,
+                          }
+                        : {
+                            to: customerHistory,
+                            label: `고객 이력 · ${SIGNAL_LABELS[signal.kind]} · ${customer}`,
+                          }
+                    }
                   >
                     <td>
                       <Badge tone="warning">{SIGNAL_LABELS[signal.kind]}</Badge>
                     </td>
                     <td className={s.wrap}>{signal.detail}</td>
                     <td>
-                      <Link to={customerPath(signal.customerRef)}>
-                        <code title={signal.customerRef}>
-                          {short(signal.customerRef, 10, 8)}
-                        </code>
-                      </Link>
+                      <code title={signal.customerRef}>{customer}</code>
+                      {signal.saleId && (
+                        <Link
+                          to={customerHistory}
+                          className={s.customerHistoryLink}
+                          aria-label={`고객 이력 · ${customer}`}
+                          title="고객 이력"
+                        >
+                          <UserRound size={16} aria-hidden="true" />
+                        </Link>
+                      )}
                     </td>
                     <td>
                       {signal.saleId ? (
-                        <Link to={salePath(signal.saleId)}>
+                        <>
                           <code title={signal.saleId}>
                             {short(signal.saleId)}
                           </code>
                           {sale &&
                             ` · ${productName(snapshot, sale.productId, sale.productVersion)}`}
-                        </Link>
+                        </>
                       ) : (
                         "—"
                       )}
                     </td>
                     <td>{signal.attempt ? `${signal.attempt}회차` : "—"}</td>
                     <td>{dateTime(signalTime(snapshot, signal))}</td>
-                  </tr>
+                  </DetailRow>
                 );
               })}
             </tbody>

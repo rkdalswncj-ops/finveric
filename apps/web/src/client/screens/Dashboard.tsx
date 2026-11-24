@@ -9,6 +9,7 @@ import { Button } from "../../shared/button.tsx";
 import {
   Badge,
   Facts,
+  DetailColumn,
   Heading,
   Stat,
   TableScroll,
@@ -24,7 +25,7 @@ import {
   RegisterNotice,
   SaleIdText,
   SaleRow,
-  SaleTableSkeletonRows,
+  DetailTableSkeletonRows,
   Skeleton,
 } from "../components.tsx";
 import {
@@ -141,14 +142,12 @@ export function Dashboard({
                 <th scope="col">회차</th>
                 <th scope="col">적합성</th>
                 <th scope="col">신청 시각</th>
-                <th scope="col" className={s.saleRowAction}>
-                  <span className={s.srOnly}>판매 건 상세</span>
-                </th>
+                <DetailColumn label="판매 건 상세" />
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <SaleTableSkeletonRows
+                <DetailTableSkeletonRows
                   widths={[
                     "6.75rem",
                     "8.5rem",

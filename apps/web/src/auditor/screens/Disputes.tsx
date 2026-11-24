@@ -33,6 +33,8 @@ import { Button } from "../../shared/button.tsx";
 import {
   AccessCodeForm,
   Badge,
+  DetailColumn,
+  DetailRow,
   Facts,
   FieldError,
   Heading,
@@ -1146,15 +1148,20 @@ function CustomerTables({
               <th scope="col">적합</th>
               <th scope="col">상태</th>
               <th scope="col">청약 시각</th>
+              <DetailColumn label="판매 건 대조" />
             </tr>
           </thead>
           <tbody>
             {sales.map((sale) => (
-              <tr key={sale.saleId}>
+              <DetailRow
+                key={sale.saleId}
+                destination={{
+                  to: salePath(sale.saleId),
+                  label: `판매 건 대조 · ${short(sale.saleId)}`,
+                }}
+              >
                 <td>
-                  <Link to={salePath(sale.saleId)}>
-                    <code title={sale.saleId}>{short(sale.saleId)}</code>
-                  </Link>
+                  <code title={sale.saleId}>{short(sale.saleId)}</code>
                 </td>
                 <td className={s.wrap}>
                   {productName(snapshot, sale.productId, sale.productVersion)} v
@@ -1174,7 +1181,7 @@ function CustomerTables({
                   </Badge>
                 </td>
                 <td>{dateTime(sale.subscribed.at)}</td>
-              </tr>
+              </DetailRow>
             ))}
           </tbody>
         </table>

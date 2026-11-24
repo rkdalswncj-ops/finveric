@@ -30,12 +30,36 @@
   gap: 12px;
 }
 .fundCard {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--rounded-surface);
   padding: 20px;
+}
+.fundCardLink {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+.fundCardLink:focus-visible {
+  outline-offset: -3px;
+}
+.fundTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.fundTitle > svg {
+  color: var(--muted-foreground);
+}
+@media (hover: hover) {
+  .fundCard:has(.fundCardLink:hover) {
+    border-color: var(--input);
+  }
 }
 .cardTop {
   display: flex;
@@ -92,9 +116,9 @@
   min-width: 0;
 }
 .cardActions {
+  position: relative;
+  z-index: 2;
   display: grid;
-  grid-template-columns: 1fr 1.4fr;
-  gap: 8px;
   margin-top: auto;
 }
 .catalogNote {

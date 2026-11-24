@@ -10,6 +10,8 @@ import type { LedgerProduct, LedgerSnapshot } from "@finveric/core/ledger";
 import {
   Badge,
   Count,
+  DetailColumn,
+  DetailRow,
   Facts,
   Heading,
   Notice,
@@ -77,14 +79,13 @@ function ProductAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
         sale.productId === id &&
         (version === undefined || sale.productVersion === version),
     ).length;
-  const update = (values: Record<string, string | undefined>) =>
-    setParams((current) => {
-      const next = new URLSearchParams(current);
-      for (const [key, value] of Object.entries(values))
-        if (value === undefined) next.delete(key);
-        else next.set(key, value);
-      return next;
-    });
+  const withParams = (values: Record<string, string | undefined>) => {
+    const next = new URLSearchParams(params);
+    for (const [key, value] of Object.entries(values))
+      if (value === undefined) next.delete(key);
+      else next.set(key, value);
+    return next;
+  };
   return (
     <>
       <TableScroll as="section" label="등록 상품" className={s.panel}>
@@ -101,6 +102,7 @@ function ProductAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
               <th scope="col" className={s.numeric}>
                 청약
               </th>
+              <DetailColumn label="상품 선택" />
             </tr>
           </thead>
           <tbody>
@@ -109,27 +111,17 @@ function ProductAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
               const latest = versions.at(-1)!;
               const document = productDocument(latest);
               const allMatch = versions.every((entry) => entry.matches);
+              const name = productName(snapshot, id);
               return (
-                <tr
+                <DetailRow
                   key={id}
-                  className={id === selectedId ? s.selectedRow : undefined}
+                  current={id === selectedId}
+                  destination={{
+                    to: `?${withParams({ product: id, version: undefined, base: undefined })}`,
+                    label: `${name} 선택`,
+                  }}
                 >
-                  <td className={s.wrap}>
-                    <button
-                      type="button"
-                      className={s.linkButton}
-                      aria-current={id === selectedId ? "true" : undefined}
-                      onClick={() =>
-                        update({
-                          product: id,
-                          version: undefined,
-                          base: undefined,
-                        })
-                      }
-                    >
-                      {productName(snapshot, id)}
-                    </button>
-                  </td>
+                  <td className={s.wrap}>{name}</td>
                   <td>{document?.type ?? "—"}</td>
                   <td>{document?.issuer ?? "—"}</td>
                   <td>
@@ -142,7 +134,7 @@ function ProductAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
                     </Badge>
                   </td>
                   <Count value={salesOf(id)} />
-                </tr>
+                </DetailRow>
               );
             })}
           </tbody>
@@ -154,8 +146,10 @@ function ProductAudit({ snapshot }: { snapshot: LedgerSnapshot }) {
         version={params.get("version")}
         base={params.get("base")}
         salesOf={(version) => salesOf(selectedId, version)}
-        select={(version) => update({ version, base: undefined })}
-        setBase={(base, version) => update({ version, base })}
+        versionPath={(version) =>
+          `?${withParams({ version, base: undefined })}`
+        }
+        setBase={(base, version) => setParams(withParams({ version, base }))}
       />
     </>
   );
@@ -166,14 +160,14 @@ function ProductDetail({
   version,
   base,
   salesOf,
-  select,
+  versionPath,
   setBase,
 }: {
   versions: LedgerProduct[];
   version: string | null;
   base: string | null;
   salesOf: (version: number) => number;
-  select: (version: string) => void;
+  versionPath: (version: string) => string;
   setBase: (base: string, version: string) => void;
 }) {
   const [technical, setTechnical] = useState(false);
@@ -225,24 +219,20 @@ function ProductDetail({
               </th>
               {technical && <th scope="col">블록</th>}
               {technical && <th scope="col">거래 해시</th>}
+              <DetailColumn label="설명서 버전 선택" />
             </tr>
           </thead>
           <tbody>
             {[...versions].reverse().map((entry) => (
-              <tr
+              <DetailRow
                 key={entry.version}
-                className={entry === selected ? s.selectedRow : undefined}
+                current={entry === selected}
+                destination={{
+                  to: versionPath(String(entry.version)),
+                  label: `설명서 v${entry.version} 선택`,
+                }}
               >
-                <td>
-                  <button
-                    type="button"
-                    className={s.linkButton}
-                    aria-current={entry === selected ? "true" : undefined}
-                    onClick={() => select(String(entry.version))}
-                  >
-                    v{entry.version}
-                  </button>
-                </td>
+                <td>v{entry.version}</td>
                 <td>{gradeLabel(entry.riskGrade)}</td>
                 <td>{yesNo(entry.complex)}</td>
                 <td>{yesNo(entry.derivative)}</td>
@@ -266,7 +256,7 @@ function ProductDetail({
                     <code>{entry.txHash}</code>
                   </td>
                 )}
-              </tr>
+              </DetailRow>
             ))}
           </tbody>
         </table>

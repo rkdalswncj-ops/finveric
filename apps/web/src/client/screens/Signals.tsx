@@ -11,6 +11,7 @@ import { Button } from "../../shared/button.tsx";
 import {
   Badge,
   FilterChip,
+  DetailColumn,
   Heading,
   TableScroll,
 } from "../../shared/components.tsx";
@@ -23,7 +24,7 @@ import {
   LoadingStatus,
   SaleIdText,
   SaleRow,
-  SaleTableSkeletonRows,
+  DetailTableSkeletonRows,
   Skeleton,
 } from "../components.tsx";
 import { saleSignals } from "../signals.ts";
@@ -99,14 +100,12 @@ export function Signals({
                 <th scope="col">상품</th>
                 <th scope="col">회차</th>
                 <th scope="col">근거</th>
-                <th scope="col" className={s.saleRowAction}>
-                  <span className={s.srOnly}>판매 건 상세</span>
-                </th>
+                <DetailColumn label="판매 건 상세" />
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <SaleTableSkeletonRows
+                <DetailTableSkeletonRows
                   widths={["5rem", "8rem", "8rem", "12rem", "3rem", "15rem"]}
                 />
               ) : (

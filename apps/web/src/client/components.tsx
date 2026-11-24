@@ -1,7 +1,7 @@
 // client 페이지의 여러 화면이 함께 쓰는 표시 요소.
 import type { ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
-import { Link } from "react-router";
+import { ArrowLeft } from "lucide-react";
+import { Link, type To } from "react-router";
 import {
   isSuitable,
   PROFILE_NAMES,
@@ -10,7 +10,13 @@ import {
 } from "@finveric/core";
 import type { DiagnosisDto } from "@finveric/core/api";
 import { Button } from "../shared/button.tsx";
-import { Facts, Notice, TableScroll } from "../shared/components.tsx";
+import {
+  DetailRow,
+  Facts,
+  Heading,
+  Notice,
+  TableScroll,
+} from "../shared/components.tsx";
 import { dateTime, short } from "../shared/format.ts";
 import {
   gradeName,
@@ -31,7 +37,30 @@ export function SaleIdText({ saleId }: { saleId: string }) {
   return <code title={saleId}>{short(saleId)}</code>;
 }
 
-/** 판매 건 상세 링크가 행 전체를 차지한다. */
+export function DetailHeading({
+  title,
+  backTo,
+  backLabel,
+}: {
+  title: string;
+  backTo: To;
+  backLabel: string;
+}) {
+  return (
+    <>
+      <div className={s.detailBack}>
+        <Button variant="outline" asChild>
+          <Link to={backTo}>
+            <ArrowLeft size={16} aria-hidden="true" />
+            {backLabel}
+          </Link>
+        </Button>
+      </div>
+      <Heading title={title} />
+    </>
+  );
+}
+
 export function SaleRow({
   saleId,
   search,
@@ -44,20 +73,18 @@ export function SaleRow({
   children: ReactNode;
 }) {
   return (
-    <tr className={saleId ? s.saleRow : undefined}>
+    <DetailRow
+      destination={
+        saleId
+          ? {
+              to: { pathname: saleReviewPath(saleId), search },
+              label: label ?? `판매 건 상세 · ${short(saleId)}`,
+            }
+          : undefined
+      }
+    >
       {children}
-      <td className={s.saleRowAction}>
-        {saleId && (
-          <Link
-            className={s.saleRowLink}
-            to={{ pathname: saleReviewPath(saleId), search }}
-            aria-label={label ?? `판매 건 상세 · ${short(saleId)}`}
-          >
-            <ChevronRight size={16} aria-hidden="true" />
-          </Link>
-        )}
-      </td>
-    </tr>
+    </DetailRow>
   );
 }
 
@@ -91,7 +118,7 @@ export function LoadingStatus({
   );
 }
 
-export function SaleTableSkeletonRows({
+export function DetailTableSkeletonRows({
   widths,
   rows = 4,
 }: {
@@ -105,7 +132,7 @@ export function SaleTableSkeletonRows({
           <Skeleton width={width} />
         </td>
       ))}
-      <td className={s.saleRowAction} />
+      <td className={s.detailRowAction} />
     </tr>
   ));
 }

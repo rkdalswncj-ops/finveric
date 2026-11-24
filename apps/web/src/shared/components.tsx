@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { Link } from "react-router";
+import { Link, type To } from "react-router";
 import { AlertTriangle, ChevronRight, FileText } from "lucide-react";
 import { Button } from "./button.tsx";
 import s from "./ui.module.css";
@@ -188,6 +188,46 @@ export function Facts({ rows }: { rows: [string, ReactNode][] }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/** 상세 링크 한 개가 행 전체를 차지한다. 보조 링크는 그 위에 둔다. */
+export function DetailRow({
+  destination,
+  current = false,
+  children,
+}: {
+  destination?: { to: To; label: string };
+  current?: boolean;
+  children: ReactNode;
+}) {
+  const className = [destination && s.detailRow, current && s.selectedRow]
+    .filter(Boolean)
+    .join(" ");
+  return (
+    <tr className={className || undefined}>
+      {children}
+      <td className={s.detailRowAction}>
+        {destination && (
+          <Link
+            className={s.detailRowLink}
+            to={destination.to}
+            aria-label={destination.label}
+            aria-current={current || undefined}
+          >
+            <ChevronRight size={16} aria-hidden="true" />
+          </Link>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+export function DetailColumn({ label }: { label: string }) {
+  return (
+    <th scope="col" className={s.detailRowAction}>
+      <span className={s.srOnly}>{label}</span>
+    </th>
   );
 }
 export function TransactionFacts({

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import {
   ArrowRight,
+  ChevronRight,
   Landmark,
   Search,
   ShieldCheck,
@@ -34,7 +35,7 @@ const ICONS: Record<ProductType, [typeof TrendingUp, string]> = {
 
 /**
  * 상품 목록. 원장에 등록한 최신 버전만 판다.
- * 카드의 "가입하기"는 그 상품의 가입에 바로 들어간다. "자세히 보기"는 상품 상세로 간다.
+ * 카드를 누르면 상품 상세로 간다. "가입하기"는 그 상품의 가입에 바로 들어간다.
  */
 export function Catalog({
   load,
@@ -99,6 +100,7 @@ export function Catalog({
       <div className={s.catalog}>
         {filtered.map(({ product }) => {
           const { document } = product;
+          const name = productName(document);
           const [Icon, tone] = ICONS[document.type];
           const enrollLabel = enroll.same(product.id)
             ? "가입 이어 하기"
@@ -117,7 +119,10 @@ export function Catalog({
                 {document.type}
                 {document.derivative && " · 파생결합증권"}
               </p>
-              <h2>{productName(document)}</h2>
+              <div className={s.fundTitle}>
+                <h2>{name}</h2>
+                <ChevronRight size={18} aria-hidden="true" />
+              </div>
               <p className={s.strategy}>{document.summary}</p>
               <dl className={s.parties}>
                 <div>
@@ -137,15 +142,12 @@ export function Catalog({
                   <dd>{document.maxLoss}</dd>
                 </div>
               </dl>
+              <Link
+                to={fundPath(product.id)}
+                className={s.fundCardLink}
+                aria-label={`${name} 상세`}
+              />
               <div className={s.cardActions}>
-                <Button variant="outline" asChild>
-                  <Link
-                    to={fundPath(product.id)}
-                    aria-label={`${document.name} 자세히 보기`}
-                  >
-                    자세히 보기
-                  </Link>
-                </Button>
                 <Button
                   busy={!!busy && starting === product.id}
                   blocked={!!busy && starting !== product.id}

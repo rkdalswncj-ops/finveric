@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Link } from "react-router";
 import type { Deployment } from "@finveric/core";
 import type { EventRef, LedgerSnapshot } from "@finveric/core/ledger";
 import {
   Badge,
   Count,
+  DetailColumn,
+  DetailRow,
   Facts,
   Heading,
   Stat,
@@ -353,22 +354,27 @@ function Summary({
               <th scope="col">대상</th>
               {technical && <th scope="col">블록</th>}
               {technical && <th scope="col">거래 해시</th>}
+              <DetailColumn label="이벤트 상세" />
             </tr>
           </thead>
           <tbody>
             {events.map((event) => (
-              <tr key={`${event.txHash}:${event.name}:${event.subject}`}>
+              <DetailRow
+                key={`${event.txHash}:${event.name}:${event.subject}`}
+                destination={
+                  event.to
+                    ? {
+                        to: event.to,
+                        label: `${event.name} 상세 · ${event.subject}`,
+                      }
+                    : undefined
+                }
+              >
                 <td>{dateTime(event.at)}</td>
                 <td>
                   <Badge tone={event.tone}>{event.name}</Badge>
                 </td>
-                <td>
-                  {event.to ? (
-                    <Link to={event.to}>{event.subject}</Link>
-                  ) : (
-                    event.subject
-                  )}
-                </td>
+                <td>{event.subject}</td>
                 {technical && (
                   <td className={s.numeric}>{event.block.toString()}</td>
                 )}
@@ -377,7 +383,7 @@ function Summary({
                     <code>{event.txHash}</code>
                   </td>
                 )}
-              </tr>
+              </DetailRow>
             ))}
           </tbody>
         </table>

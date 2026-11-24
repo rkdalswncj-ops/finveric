@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { Download, FileText } from "lucide-react";
 import { SIGNAL_KINDS, SIGNAL_LABELS, type Deployment } from "@finveric/core";
 import { ledgerReadCode } from "@finveric/core/ledger";
@@ -12,6 +12,8 @@ import { saveFile } from "../../shared/api.ts";
 import { Button } from "../../shared/button.tsx";
 import {
   Badge,
+  DetailColumn,
+  DetailRow,
   Facts,
   Heading,
   Notice,
@@ -388,17 +390,22 @@ function ReportTable({ report }: { report: AuditReport }) {
             <th scope="col">대조 결과</th>
             <th scope="col">확인 필요 항목</th>
             <th scope="col">위험 신호</th>
+            <DetailColumn label="판매 건 대조" />
           </tr>
         </thead>
         <tbody>
           {report.sales.map((sale) => {
             const failed = sale.checks.filter((check) => !check.ok);
             return (
-              <tr key={sale.saleId}>
+              <DetailRow
+                key={sale.saleId}
+                destination={{
+                  to: salePath(sale.saleId),
+                  label: `판매 건 대조 · ${short(sale.saleId)}`,
+                }}
+              >
                 <td>
-                  <Link to={salePath(sale.saleId)}>
-                    <code title={sale.saleId}>{short(sale.saleId)}</code>
-                  </Link>
+                  <code title={sale.saleId}>{short(sale.saleId)}</code>
                 </td>
                 <td className={s.wrap}>
                   {sale.product
@@ -427,7 +434,7 @@ function ReportTable({ report }: { report: AuditReport }) {
                 <td className={s.wrap}>
                   {sale.signals.length ? sale.signals.join(", ") : "—"}
                 </td>
-              </tr>
+              </DetailRow>
             );
           })}
         </tbody>
