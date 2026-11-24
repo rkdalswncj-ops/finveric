@@ -14,26 +14,56 @@ td.wrapCell {
   min-width: 200px;
 }
 .saleRow {
-  cursor: pointer;
+  position: relative;
 }
-.saleRow > td:first-child {
-  padding-block: 0;
+.saleRowAction {
+  min-inline-size: 2.5rem;
+  inline-size: 1%;
+  padding-inline: 0;
 }
-.saleRow > td:first-child a {
-  display: inline-flex;
+.saleRowLink {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
   align-items: center;
-  min-block-size: 44px;
-  text-decoration: underline;
+  justify-content: flex-end;
+  padding-inline-end: 12px;
+  color: var(--muted-foreground);
 }
-.saleRow > td:first-child code {
-  font-size: inherit;
+.saleRowLink:focus-visible {
+  outline-offset: -3px;
 }
-.saleRow:focus-within {
+.saleRow:focus-within,
+.saleRow:has(.saleRowLink:active) {
   background: var(--primary-surface);
 }
 @media (hover: hover) {
   .saleRow:hover {
     background: var(--primary-surface);
+  }
+}
+.skeleton {
+  display: block;
+  max-inline-size: 100%;
+  border-radius: var(--rounded-control);
+  background: var(--border);
+}
+.skeletonRow {
+  height: 49px;
+}
+.skeletonFact {
+  align-items: center;
+  min-block-size: 40px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton {
+    animation: skeletonFade 1.6s ease-in-out 3;
+  }
+  @keyframes skeletonFade {
+    50% {
+      opacity: 0.56;
+    }
   }
 }
 /* 요약 수치 카드는 ui의 .stats와 Stat을 쓴다. 여기서는 열 수만 정한다. */

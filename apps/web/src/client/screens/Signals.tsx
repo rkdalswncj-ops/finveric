@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router";
 import {
   SIGNAL_KINDS,
   SIGNAL_LABELS,
@@ -20,7 +19,13 @@ import ui from "../../shared/ui.module.css";
 import client from "../client.module.css";
 import local from "./operations.module.css";
 import { productName, saleProduct, type Sale } from "../../shared/sales.ts";
-import { saleReviewPath } from "../paths.ts";
+import {
+  LoadingStatus,
+  SaleIdText,
+  SaleRow,
+  SaleTableSkeletonRows,
+  Skeleton,
+} from "../components.tsx";
 import { saleSignals } from "../signals.ts";
 
 const s = { ...ui, ...client, ...local };
@@ -38,6 +43,7 @@ export function Signals({
   customer?: CustomerDto;
 }) {
   const [kind, setKind] = useState<SignalKind | "">("");
+  const loading = load === "loading";
   const signals = saleSignals(customer, sales);
   const shown = signals.filter((signal) => !kind || signal.kind === kind);
   /** 신호에 판매 ID가 없으면(재진단 반복, 짧은 간격 재진단) 그 고객의 가장 최근 판매 건을 연다. */
@@ -54,20 +60,31 @@ export function Signals({
         title="위험 신호를 확인하세요"
         description={`진단 ${SIGNAL_THRESHOLDS.repeatAttempts}회 이상, 투자성향이 오른 회차로 청약, 부적합 가입 확정, 설명 확인 ${SIGNAL_THRESHOLDS.shortExplanationSeconds}초 미만, ${SIGNAL_THRESHOLDS.shortIntervalSeconds / 60}분 안의 재진단을 신호로 표시합니다. 근거는 원장 기록입니다.`}
       />
+      <LoadingStatus loading={loading}>
+        위험 신호를 불러오고 있습니다.
+      </LoadingStatus>
       <div className={s.chips} role="group" aria-label="위험 신호 종류 필터">
-        {(["", ...SIGNAL_KINDS] as const).map((value) => (
-          <FilterChip
-            key={value || "all"}
-            label={value ? SIGNAL_LABELS[value] : "전체"}
-            count={
-              signals.filter((signal) => !value || signal.kind === value).length
-            }
-            pressed={kind === value}
-            onClick={() => setKind(value)}
-          />
-        ))}
+        {(["", ...SIGNAL_KINDS] as const).map((value) =>
+          loading ? (
+            <Skeleton key={value || "all"} width="6rem" height="2.5rem" />
+          ) : (
+            <FilterChip
+              key={value || "all"}
+              label={value ? SIGNAL_LABELS[value] : "전체"}
+              count={
+                signals.filter((signal) => !value || signal.kind === value)
+                  .length
+              }
+              pressed={kind === value}
+              onClick={() => setKind(value)}
+            />
+          ),
+        )}
       </div>
-      <div className={`${s.panel} ${s.salesTable}`}>
+      <div
+        className={`${s.panel} ${s.salesTable}`}
+        aria-busy={loading || undefined}
+      >
         <p className={s.tableNote}>
           위험 신호 목록 · 판매 건을 열어 회차 이력을 확인합니다.
         </p>
@@ -82,59 +99,61 @@ export function Signals({
                 <th scope="col">상품</th>
                 <th scope="col">회차</th>
                 <th scope="col">근거</th>
-                <th scope="col">보기</th>
+                <th scope="col" className={s.saleRowAction}>
+                  <span className={s.srOnly}>판매 건 상세</span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {shown.map((signal, index) => {
-                const sale = saleFor(signal.customerRef, signal.saleId);
-                return (
-                  <tr
-                    key={`${signal.kind}:${signal.saleId ?? signal.customerRef}:${index}`}
-                  >
-                    <td>
-                      <Badge tone="warning">{SIGNAL_LABELS[signal.kind]}</Badge>
-                    </td>
-                    <td>
-                      <code title={signal.customerRef}>
-                        {short(signal.customerRef)}
-                      </code>
-                    </td>
-                    <td>
-                      {signal.saleId ? (
-                        <code title={signal.saleId}>
-                          {short(signal.saleId)}
+              {loading ? (
+                <SaleTableSkeletonRows
+                  widths={["5rem", "8rem", "8rem", "12rem", "3rem", "15rem"]}
+                />
+              ) : (
+                shown.map((signal, index) => {
+                  const sale = saleFor(signal.customerRef, signal.saleId);
+                  return (
+                    <SaleRow
+                      key={`${signal.kind}:${signal.saleId ?? signal.customerRef}:${index}`}
+                      saleId={sale?.id}
+                      label={
+                        sale &&
+                        `판매 건 상세 · ${SIGNAL_LABELS[signal.kind]} · ${short(sale.id)}`
+                      }
+                    >
+                      <td>
+                        <Badge tone="warning">
+                          {SIGNAL_LABELS[signal.kind]}
+                        </Badge>
+                      </td>
+                      <td>
+                        <code title={signal.customerRef}>
+                          {short(signal.customerRef)}
                         </code>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className={s.wrapCell}>
-                      {signal.saleId
-                        ? productName(saleProduct(products, sale)?.document)
-                        : "—"}
-                    </td>
-                    <td>{signal.attempt ? `${signal.attempt}회차` : "—"}</td>
-                    <td>{signal.detail}</td>
-                    <td>
-                      {sale ? (
-                        <Link
-                          to={saleReviewPath(sale.id)}
-                          aria-label={`판매·검토 · ${SIGNAL_LABELS[signal.kind]} 판매 건`}
-                        >
-                          판매·검토
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td>
+                        {signal.saleId ? (
+                          <SaleIdText saleId={signal.saleId} />
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className={s.wrapCell}>
+                        {signal.saleId
+                          ? productName(saleProduct(products, sale)?.document)
+                          : "—"}
+                      </td>
+                      <td>{signal.attempt ? `${signal.attempt}회차` : "—"}</td>
+                      <td>{signal.detail}</td>
+                    </SaleRow>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </TableScroll>
-        {shown.length === 0 &&
+        {!loading &&
+          shown.length === 0 &&
           (load === "ready" && kind ? (
             <div className={s.empty}>
               <p>{SIGNAL_LABELS[kind]} 신호가 없습니다.</p>
@@ -146,9 +165,7 @@ export function Signals({
             <p className={s.empty}>
               {load === "ready"
                 ? "표시할 위험 신호가 없습니다."
-                : load === "failed"
-                  ? "위험 신호를 계산할 자료를 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
-                  : "위험 신호를 계산할 자료를 불러오고 있습니다."}
+                : "위험 신호를 계산할 자료를 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."}
             </p>
           ))}
       </div>

@@ -175,6 +175,10 @@
   gap: 24px;
   min-width: 0;
 }
+.detailSkeletonCard {
+  display: grid;
+  gap: 12px;
+}
 .salesTable caption {
   padding: 16px;
 }

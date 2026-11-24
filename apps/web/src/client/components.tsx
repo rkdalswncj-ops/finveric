@@ -1,6 +1,7 @@
 // client 페이지의 여러 화면이 함께 쓰는 표시 요소.
 import type { ReactNode } from "react";
-import { Link, useLinkClickHandler } from "react-router";
+import { ChevronRight } from "lucide-react";
+import { Link } from "react-router";
 import {
   isSuitable,
   PROFILE_NAMES,
@@ -26,37 +27,99 @@ import { saleReviewPath } from "./paths.ts";
 const s = { ...ui, ...local };
 const PROFILES = Object.keys(PROFILE_NAMES).map(Number);
 
-/** 행을 누르거나 판매 ID 링크에 초점을 맞춰 판매 건 상세를 연다. */
+export function SaleIdText({ saleId }: { saleId: string }) {
+  return <code title={saleId}>{short(saleId)}</code>;
+}
+
+/** 판매 건 상세 링크가 행 전체를 차지한다. */
 export function SaleRow({
   saleId,
   search,
+  label,
   children,
 }: {
-  saleId: string;
+  saleId?: string;
   search?: string;
+  label?: string;
   children: ReactNode;
 }) {
-  const to = { pathname: saleReviewPath(saleId), search };
-  const open = useLinkClickHandler<HTMLTableRowElement>(to);
   return (
-    <tr
-      className={s.saleRow}
-      onClick={(event) => {
-        if (
-          !event.defaultPrevented &&
-          window.getSelection()?.isCollapsed !== false
-        )
-          open(event);
-      }}
-    >
-      <td>
-        <Link to={to}>
-          <code title={saleId}>{short(saleId)}</code>
-          <span className={s.srOnly}> 판매 건 상세</span>
-        </Link>
-      </td>
+    <tr className={saleId ? s.saleRow : undefined}>
       {children}
+      <td className={s.saleRowAction}>
+        {saleId && (
+          <Link
+            className={s.saleRowLink}
+            to={{ pathname: saleReviewPath(saleId), search }}
+            aria-label={label ?? `판매 건 상세 · ${short(saleId)}`}
+          >
+            <ChevronRight size={16} aria-hidden="true" />
+          </Link>
+        )}
+      </td>
     </tr>
+  );
+}
+
+export function Skeleton({
+  width = "100%",
+  height = "0.75rem",
+}: {
+  width?: string;
+  height?: string;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={s.skeleton}
+      style={{ inlineSize: width, blockSize: height }}
+    />
+  );
+}
+
+export function LoadingStatus({
+  loading,
+  children,
+}: {
+  loading: boolean;
+  children: string;
+}) {
+  return (
+    <p className={s.srOnly} role="status">
+      {loading ? children : ""}
+    </p>
+  );
+}
+
+export function SaleTableSkeletonRows({
+  widths,
+  rows = 4,
+}: {
+  widths: readonly string[];
+  rows?: number;
+}) {
+  return Array.from({ length: rows }, (_, row) => (
+    <tr key={row} aria-hidden="true" className={s.skeletonRow}>
+      {widths.map((width, column) => (
+        <td key={column}>
+          <Skeleton width={width} />
+        </td>
+      ))}
+      <td className={s.saleRowAction} />
+    </tr>
+  ));
+}
+
+export function FactsSkeleton({ widths }: { widths: readonly string[] }) {
+  return (
+    <div className={s.facts} aria-hidden="true">
+      {widths.map((width, index) => (
+        <div key={index} className={s.skeletonFact}>
+          <Skeleton width="5rem" />
+          <Skeleton width={width} />
+        </div>
+      ))}
+    </div>
   );
 }
 

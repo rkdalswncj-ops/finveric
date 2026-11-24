@@ -27,7 +27,12 @@ import {
   type Sale,
 } from "../../shared/sales.ts";
 import ui from "../../shared/ui.module.css";
-import { DiagnosisTable } from "../components.tsx";
+import {
+  DiagnosisTable,
+  FactsSkeleton,
+  LoadingStatus,
+  Skeleton,
+} from "../components.tsx";
 import { traceLabel, traceStatus } from "../traces.ts";
 import local from "./operations.module.css";
 
@@ -43,6 +48,53 @@ function approvalText(sale: Sale) {
     : sale.approvedAttempt
       ? `다시 필요 · ${sale.approvedAttempt}회차 승인 뒤 ${attempt}회차 진단`
       : `필요 · ${attempt}회차`;
+}
+
+function SaleDetailSkeleton() {
+  return (
+    <div aria-hidden="true">
+      <div className={s.reviewGrid}>
+        <div className={`${s.panel} ${s.pad}`}>
+          <div className={s.row}>
+            <Skeleton width="56%" height="1.25rem" />
+            <Skeleton width="3rem" height="1.25rem" />
+          </div>
+          <FactsSkeleton
+            widths={[
+              "76%",
+              "68%",
+              "6rem",
+              "7rem",
+              "3rem",
+              "5rem",
+              "8rem",
+              "3rem",
+              "5rem",
+              "4rem",
+            ]}
+          />
+        </div>
+        <div className={s.stack}>
+          <div className={`${s.panel} ${s.pad} ${s.detailSkeletonCard}`}>
+            <Skeleton width="6rem" height="1.25rem" />
+            <Skeleton width="75%" />
+            <FactsSkeleton widths={["7rem"]} />
+            <Skeleton width="7.5rem" height="2.5rem" />
+          </div>
+          <div className={`${s.panel} ${s.pad}`}>
+            <Skeleton width="5.5rem" height="1.25rem" />
+            <FactsSkeleton widths={["50%", "45%", "52%"]} />
+          </div>
+        </div>
+      </div>
+      <div
+        className={`${s.panel} ${s.pad} ${s.spaced} ${s.detailSkeletonCard}`}
+      >
+        <Skeleton width="5rem" height="1.25rem" />
+        <Skeleton width="55%" />
+      </div>
+    </div>
+  );
 }
 
 /** 판매 건의 회차 이력과 필수 확인, 관리자 승인, 타임라인. */
@@ -70,14 +122,19 @@ export function SaleDetail({
   const { search } = useLocation();
   const sale = sales.find((entry) => entry.id === saleId);
   const heading = (
-    <Heading title="판매 건 상세">
-      <Button variant="outline" asChild>
-        <Link to={{ pathname: "/review", search }}>
-          <ArrowLeft size={16} aria-hidden="true" />
-          판매 건 목록
-        </Link>
-      </Button>
-    </Heading>
+    <>
+      <Heading title="판매 건 상세">
+        <Button variant="outline" asChild>
+          <Link to={{ pathname: "/review", search }}>
+            <ArrowLeft size={16} aria-hidden="true" />
+            판매 건 목록
+          </Link>
+        </Button>
+      </Heading>
+      <LoadingStatus loading={load === "loading"}>
+        판매 건을 불러오고 있습니다.
+      </LoadingStatus>
+    </>
   );
 
   if (!sale)
@@ -85,9 +142,7 @@ export function SaleDetail({
       <>
         {heading}
         {load === "loading" ? (
-          <p className={s.empty} role="status">
-            판매 건을 불러오고 있습니다.
-          </p>
+          <SaleDetailSkeleton />
         ) : load === "failed" ? (
           <Empty
             title="판매 건을 불러오지 못했습니다"

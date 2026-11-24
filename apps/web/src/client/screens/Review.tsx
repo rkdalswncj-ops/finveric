@@ -16,7 +16,13 @@ import client from "../client.module.css";
 import local from "./operations.module.css";
 import { CHANNEL_APP_HREF } from "../../shared/links.ts";
 import { StatusBadge } from "../../shared/sale-components.tsx";
-import { SaleRow } from "../components.tsx";
+import {
+  LoadingStatus,
+  SaleIdText,
+  SaleRow,
+  SaleTableSkeletonRows,
+  Skeleton,
+} from "../components.tsx";
 import {
   awaitingApproval,
   nowSeconds,
@@ -60,25 +66,36 @@ export function Review({
   const shown = ordered.filter(
     (sale) => !filter || statusKey(sale, now) === filter,
   );
+  const loading = load === "loading";
   return (
     <>
       <Heading
         title="판매 건을 검토하세요"
         description="판매 건을 선택하면 상세 화면에서 진단 회차와 처리 근거를 확인할 수 있습니다."
       />
+      <LoadingStatus loading={loading}>
+        판매 건을 불러오고 있습니다.
+      </LoadingStatus>
       <div className={s.chips} role="group" aria-label="판매 건 상태 필터">
-        {(["", ...STATUS_KEYS] as const).map((key) => (
-          <FilterChip
-            key={key || "all"}
-            label={key ? STATUS_LABELS[key] : "전체"}
-            count={count(key)}
-            pressed={filter === key}
-            onClick={() => setFilter(key)}
-            tone={key ? STATUS_TONES[key] : undefined}
-          />
-        ))}
+        {(["", ...STATUS_KEYS] as const).map((key) =>
+          loading ? (
+            <Skeleton key={key || "all"} width="5.25rem" height="2.5rem" />
+          ) : (
+            <FilterChip
+              key={key || "all"}
+              label={key ? STATUS_LABELS[key] : "전체"}
+              count={count(key)}
+              pressed={filter === key}
+              onClick={() => setFilter(key)}
+              tone={key ? STATUS_TONES[key] : undefined}
+            />
+          ),
+        )}
       </div>
-      <div className={`${s.panel} ${s.salesTable}`}>
+      <div
+        className={`${s.panel} ${s.salesTable}`}
+        aria-busy={loading || undefined}
+      >
         <TableScroll label="판매 건 목록">
           <table>
             <caption className={s.srOnly}>판매 건 목록</caption>
@@ -92,57 +109,80 @@ export function Review({
                 <th scope="col">녹취·숙려</th>
                 <th scope="col">관리자 승인</th>
                 <th scope="col">신청 시각</th>
+                <th scope="col" className={s.saleRowAction}>
+                  <span className={s.srOnly}>판매 건 상세</span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {shown.map((record) => {
-                const attempt = record.chain?.attempt ?? record.latestAttempt;
-                const abandoned = record.status === "abandoned";
-                return (
-                  <SaleRow key={record.id} saleId={record.id} search={search}>
-                    <td className={s.wrapCell}>
-                      {productName(saleProduct(products, record)?.document)} v
-                      {record.productVersion}
-                    </td>
-                    <td>
-                      <StatusBadge sale={record} now={now} />
-                    </td>
-                    <td>
-                      {abandoned
-                        ? "—"
-                        : attempt
-                          ? `${attempt}회차${attempt > 1 ? " · 재진단" : ""}`
-                          : "진단 전"}
-                    </td>
-                    <td>
-                      {abandoned
-                        ? "—"
-                        : yesNo(record.suitable, "적합", "부적합")}
-                    </td>
-                    <td>
-                      {abandoned
-                        ? "—"
-                        : yesNo(record.protectedSale, "대상", "—")}
-                    </td>
-                    <td>
-                      {awaitingApproval(record) ? (
-                        <Badge tone="warning">승인 필요</Badge>
-                      ) : record.chain?.approved ||
-                        (record.status === "draft" &&
-                          record.approvalRequired) ? (
-                        "승인"
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td>{dateTime(record.createdAt)}</td>
-                  </SaleRow>
-                );
-              })}
+              {loading ? (
+                <SaleTableSkeletonRows
+                  rows={5}
+                  widths={[
+                    "7.5rem",
+                    "11rem",
+                    "2.75rem",
+                    "4rem",
+                    "2.5rem",
+                    "2.75rem",
+                    "3.25rem",
+                    "7.25rem",
+                  ]}
+                />
+              ) : (
+                shown.map((record) => {
+                  const attempt = record.chain?.attempt ?? record.latestAttempt;
+                  const abandoned = record.status === "abandoned";
+                  return (
+                    <SaleRow key={record.id} saleId={record.id} search={search}>
+                      <td>
+                        <SaleIdText saleId={record.id} />
+                      </td>
+                      <td className={s.wrapCell}>
+                        {productName(saleProduct(products, record)?.document)} v
+                        {record.productVersion}
+                      </td>
+                      <td>
+                        <StatusBadge sale={record} now={now} />
+                      </td>
+                      <td>
+                        {abandoned
+                          ? "—"
+                          : attempt
+                            ? `${attempt}회차${attempt > 1 ? " · 재진단" : ""}`
+                            : "진단 전"}
+                      </td>
+                      <td>
+                        {abandoned
+                          ? "—"
+                          : yesNo(record.suitable, "적합", "부적합")}
+                      </td>
+                      <td>
+                        {abandoned
+                          ? "—"
+                          : yesNo(record.protectedSale, "대상", "—")}
+                      </td>
+                      <td>
+                        {awaitingApproval(record) ? (
+                          <Badge tone="warning">승인 필요</Badge>
+                        ) : record.chain?.approved ||
+                          (record.status === "draft" &&
+                            record.approvalRequired) ? (
+                          "승인"
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td>{dateTime(record.createdAt)}</td>
+                    </SaleRow>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </TableScroll>
-        {shown.length === 0 &&
+        {!loading &&
+          shown.length === 0 &&
           (load === "ready" && filter ? (
             <div className={s.empty}>
               <p>{STATUS_LABELS[filter]} 상태의 판매 건이 없습니다.</p>
@@ -165,9 +205,8 @@ export function Review({
             </Empty>
           ) : (
             <p className={s.empty}>
-              {load === "failed"
-                ? "판매 건을 불러오지 못했습니다. 연결을 확인하고 화면을 새로 고치세요."
-                : "판매 건을 불러오고 있습니다."}
+              판매 건을 불러오지 못했습니다. 연결을 확인하고 화면을 새로
+              고치세요.
             </p>
           ))}
       </div>
