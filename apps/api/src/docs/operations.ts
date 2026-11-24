@@ -25,6 +25,7 @@ import {
   tamperResponseSchema,
   traceSchema,
   type DiagnoseRequest,
+  type ApproveRequest,
   type HealthResponse,
   type IssueApiKeyRequest,
   type OpenSaleRequest,
@@ -310,7 +311,7 @@ export const OPERATIONS: Record<string, Operation> = {
     tag: "판매 채널 연동",
     summary: "투자성향 진단 기록",
     description:
-      "최신 기준의 문항 순서대로 고른 선택지 번호(0부터)를 보냅니다. 서버가 영지식 증명을 만들고, 판매사 키로 다음 회차를 원장에 기록합니다. 원장에는 결과(투자성향, 권유 가능 등급, 고령 여부)와 커밋먼트만 남습니다. 답변과 임의값은 원본 묶음에만 보관합니다. 증명 생성 때문에 몇 초가 걸립니다.",
+      "최신 기준의 문항 순서대로 고른 선택지 번호(0부터)를 보냅니다. 서버가 영지식 증명을 만들고, 판매사 키로 다음 회차를 원장에 기록합니다. 원장에는 판정 결과와 커밋먼트, 가명 ID·누적 회차·기준 해시 등 검증 문맥을 기록합니다. 답변과 임의값은 API가 처리하고 오프체인에 보관하며 권한 있는 원본 다운로드에 포함합니다. 선택형 reassessmentReason은 2회차부터 오프체인에만 보관합니다. 증명 생성 때문에 몇 초가 걸립니다.",
     responses: {
       200: { description: "기록한 진단 회차", schema: diagnosisSchema },
     },
@@ -507,10 +508,11 @@ export const OPERATIONS: Record<string, Operation> = {
   },
   "POST /api/sales/:id/action/approve": {
     operationId: "approveSale",
+    example: { reason: "correction_reviewed", reviewBasis: ["diagnosis_history", "risk_signals"] } satisfies ApproveRequest,
     tag: "판매사 콘솔",
     summary: "관리자 승인",
     description:
-      "최신 회차가 3 이상인 고객의 청약 전에 승인자 키로 승인 서명을 만듭니다. 서명은 청약 거래에 들어갑니다. 고객이 다시 진단하면 새로 승인해야 합니다.",
+      "FINVERIC 자체 내부통제 정책에 따라 최신 누적 회차가 3 이상인 고객의 청약 전에 승인 서명을 만듭니다. 일별 횟수나 법정 횟수 기준이 아닙니다. 선택형 reason·reviewBasis와 서버 시각은 오프체인에만 보관합니다. 본문을 생략해도 기존처럼 승인합니다. 동일 회차의 재요청은 기록을 덮어쓰지 않습니다. 서명은 청약 거래 입력으로 공개됩니다. 고객이 다시 진단하면 새로 승인해야 합니다.",
     responses: sale(
       "승인한 판매 건(status: draft, approvedAttempt 포함)",
       SALE_EXAMPLES.approved,

@@ -13,6 +13,7 @@ import {
 } from "@finveric/core";
 import type {
   DiagnoseRequest,
+  ApproveRequest,
   OpenSaleRequest,
   SaleAction,
   SaleView,
@@ -201,11 +202,12 @@ export class FundService {
     id: string,
     action: SaleAction,
     customerNo?: string,
+    approvalRequest: ApproveRequest = {},
   ): Promise<SaleView> {
     const record = this.find(id, customerNo);
     switch (action) {
       case "approve":
-        await review.approve(this, record);
+        await review.approve(this, record, approvalRequest);
         break;
       case "abandon":
         await enrollment.abandon(this, record);

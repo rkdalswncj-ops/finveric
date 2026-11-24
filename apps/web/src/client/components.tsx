@@ -248,7 +248,7 @@ export function DiagnosisTable({
         {caption && <caption className={s.tableCaption}>{caption}</caption>}
         <thead>
           <tr>
-            <th scope="col">회차</th>
+            <th scope="col">누적 회차</th>
             <th scope="col">투자성향</th>
             <th scope="col">권유 가능 위험등급</th>
             <th scope="col">고령</th>

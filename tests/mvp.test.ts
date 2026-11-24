@@ -531,8 +531,24 @@ test(
         assert.equal(sale.latestAttempt, 1);
         assert.equal(sale.suitable, false);
         assert.equal(sale.protectedSale, true);
-        const second = await diagnose(ANSWERS[1]);
+        const second = await request<DiagnosisDto>(
+          `/customers/${CUSTOMER}/diagnose`,
+          {
+            answers: ANSWERS[1],
+            reassessmentReason: "correction",
+          },
+        );
         const third = await diagnose(ANSWERS[2]);
+        assert.equal(
+          service.repository.diagnoses(ref).find((d) => d.attempt === 2)
+            ?.reassessmentReason,
+          "correction",
+        );
+        assert.equal(
+          service.repository.diagnoses(ref).find((d) => d.attempt === 3)
+            ?.reassessmentReason,
+          undefined,
+        );
         assert.deepEqual(
           [second.attempt, second.profile, second.limit],
           [2, 4, 2],
@@ -700,7 +716,25 @@ test(
           ),
           /관리자 승인/,
         );
-        const approved = await action(saleId, "approve");
+        const approved = await action(saleId, "approve", {
+          reason: "correction_reviewed",
+          reviewBasis: ["diagnosis_history", "risk_signals"],
+        });
+        const reviews = service.find(saleId).approvalReviews!;
+        assert.equal(reviews.length, 1);
+        assert.equal(reviews[0].attempt, 3);
+        assert.equal(reviews[0].reason, "correction_reviewed");
+        assert.deepEqual(reviews[0].reviewBasis, [
+          "diagnosis_history",
+          "risk_signals",
+        ]);
+        assert.ok(Number.isFinite(Date.parse(reviews[0].reviewedAt)));
+        await action(saleId, "approve", { reason: "circumstances_reviewed" });
+        assert.deepEqual(
+          service.find(saleId).approvalReviews,
+          reviews,
+          "중복 요청은 승인 근거를 덮어쓰지 않는다",
+        );
         assert.equal(approved.approvalRequired, true);
         assert.equal(approved.approvedAttempt, 3);
         assert.match(
@@ -977,14 +1011,17 @@ test(
           const data = JSON.stringify(await request(path));
           assert.doesNotMatch(
             data,
-            /"(answers|salt|score|privateKey|signature)"/,
+            /"(answers|salt|score|privateKey|signature|approvalReviews|reason|reviewBasis|reviewedAt|reassessmentReason)"/,
           );
           assert.doesNotMatch(data, new RegExp(CUSTOMER));
         }
         const customer = JSON.stringify(
           await request(`/customers/${CUSTOMER}`),
         );
-        assert.doesNotMatch(customer, /"(answers|salt|score)"/);
+        assert.doesNotMatch(
+          customer,
+          /"(answers|salt|score|reassessmentReason)"/,
+        );
       },
     );
 
@@ -1093,6 +1130,15 @@ test(
         const before = await blockNumber();
         const recovered = new FundService({ env, dep, file: service.file });
         await recovered.initialize();
+        assert.equal(
+          recovered.repository.diagnoses(ref).find((d) => d.attempt === 2)
+            ?.reassessmentReason,
+          "correction",
+        );
+        assert.deepEqual(
+          recovered.find(saleId).approvalReviews,
+          service.find(saleId).approvalReviews,
+        );
         assert.equal(
           recovered
             .find(bondId)

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import {
   isProtectedSale,
+  diagnosisCounts,
   isSuitable,
   RISK_GRADE_NAMES,
   type Deployment,
@@ -16,6 +17,7 @@ import {
 import type {
   CustomerDto,
   DiagnoseRequest,
+  ReassessmentReason,
   DiagnosisDto,
   ExportKind,
   ProductEntryDto,
@@ -189,6 +191,9 @@ export function Enrollment({
     }),
   );
   const [confirm, setConfirm] = useState<"stop" | "withdraw">();
+  const [reassessmentReason, setReassessmentReason] = useState<
+    ReassessmentReason | ""
+  >("");
   const update = (change: Partial<Flow>) =>
     setFlow((current) => ({ ...current, ...change }));
   useEffect(() => {
@@ -307,7 +312,8 @@ export function Enrollment({
   const protectedSale = latest
     ? isProtectedSale(document, latest, suitable)
     : document.complex;
-  const nextAttempt = diagnoses.length + 1;
+  const counts = diagnosisCounts(diagnoses, nowSeconds());
+  const nextAttempt = counts.cumulativeAttempt + 1;
   const explanationSeconds = Math.min(
     86400,
     Math.max(1, Math.round(flow.explanationMs / 1000)),
@@ -321,7 +327,12 @@ export function Enrollment({
     const result = await run("투자성향을 진단하고 기록하고 있어요", () =>
       request<DiagnosisDto>(
         `/customers/${encodeURIComponent(customer.number)}/diagnose`,
-        { answers: answers as number[] } satisfies DiagnoseRequest,
+        {
+          answers: answers as number[],
+          ...(nextAttempt > 1 && reassessmentReason
+            ? { reassessmentReason }
+            : {}),
+        } satisfies DiagnoseRequest,
       ),
     );
     if (result)
@@ -332,7 +343,8 @@ export function Enrollment({
         cardsRead: false,
       });
   };
-  const restart = () =>
+  const restart = () => {
+    setReassessmentReason("");
     update({
       phase: "question",
       question: 0,
@@ -341,6 +353,7 @@ export function Enrollment({
       consent: false,
       cardsRead: false,
     });
+  };
   const subscribe = () =>
     run("청약을 기록하고 있어요", () =>
       request<SaleDto>(`/sales/${sale.id}/action/subscribe`, {
@@ -580,7 +593,11 @@ export function Enrollment({
             rows={[
               ["투자성향", profileName(latest.profile)],
               ["권유 가능 위험등급", limitRange(latest.limit)],
-              ["진단 회차", `${latest.attempt}회차`],
+              ["누적 진단 회차", `${latest.attempt}회차`],
+              [
+                "오늘 진단 · 한국 시간",
+                `${counts.dailyDiagnoses}회 · 그중 재진단 ${counts.dailyReassessments}회`,
+              ],
               ["진단 시각", dateTime(latest.at)],
             ]}
           />
@@ -625,9 +642,35 @@ export function Enrollment({
       content: (
         <>
           <p className={s.small}>
-            {nextAttempt > 1 ? `재진단 ${nextAttempt}회차` : "투자성향 진단"} ·
-            답변은 판매사가 보관하고, 진단 결과는 고칠 수 없게 기록돼요.
+            {nextAttempt > 1
+              ? `누적 진단 ${nextAttempt}회차 · 재진단`
+              : "투자성향 진단"}{" "}
+            · 답변은 판매사가 보관하고, 진단 결과는 고칠 수 없게 기록돼요.
           </p>
+          {nextAttempt > 1 && q === 0 && (
+            <label className={s.field}>
+              재진단 사유 (선택)
+              <select
+                value={reassessmentReason}
+                onChange={(event) => {
+                  if (!isBusy)
+                    setReassessmentReason(
+                      event.target.value as ReassessmentReason | "",
+                    );
+                }}
+                aria-disabled={isBusy}
+              >
+                <option value="">선택하지 않음</option>
+                <option value="correction">잘못 입력한 답변 정정</option>
+                <option value="changed_circumstances">투자 상황 변경</option>
+                <option value="reconfirmation">기존 응답 재확인</option>
+              </select>
+              <span className={s.small}>
+                사유 유형은 판매사가 별도로 보관해요. 진단 결과에는 공개하지
+                않아요.
+              </span>
+            </label>
+          )}
           <fieldset
             className={s.choices}
             disabled={isBusy}

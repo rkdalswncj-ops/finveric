@@ -201,12 +201,22 @@ export const registerProductBodySchema = {
 } as const satisfies ObjectSchema<RegisterProductRequest>;
 
 /** POST `/api/customers/:customerNo/diagnose`. 최신 등록 기준의 문항 순서대로 고른 선택지 번호(0부터). */
-export type DiagnoseRequest = { answers: number[] };
+export const REASSESSMENT_REASONS = [
+  "correction",
+  "changed_circumstances",
+  "reconfirmation",
+] as const;
+export type ReassessmentReason = (typeof REASSESSMENT_REASONS)[number];
+export type DiagnoseRequest = {
+  answers: number[];
+  reassessmentReason?: ReassessmentReason;
+};
 export const diagnoseBodySchema = {
   type: "object",
   additionalProperties: false,
   required: ["answers"],
   properties: {
+    reassessmentReason: { type: "string", enum: REASSESSMENT_REASONS },
     answers: {
       type: "array",
       minItems: 1,
@@ -215,6 +225,37 @@ export const diagnoseBodySchema = {
     },
   },
 } as const satisfies ObjectSchema<DiagnoseRequest>;
+
+/** 선택형 검토 기록은 오프체인에만 보관한다. 기존 본문 없는 승인도 허용한다. */
+export const APPROVAL_REASONS = [
+  "correction_reviewed",
+  "circumstances_reviewed",
+  "reconfirmation_reviewed",
+] as const;
+export const REVIEW_BASES = [
+  "diagnosis_history",
+  "risk_signals",
+  "customer_confirmation",
+] as const;
+export type ApproveRequest = {
+  reason?: (typeof APPROVAL_REASONS)[number];
+  reviewBasis?: (typeof REVIEW_BASES)[number][];
+};
+export const approveBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [],
+  properties: {
+    reason: { type: "string", enum: APPROVAL_REASONS },
+    reviewBasis: {
+      type: "array",
+      minItems: 1,
+      maxItems: 3,
+      uniqueItems: true,
+      items: { type: "string", enum: REVIEW_BASES },
+    },
+  },
+} as const satisfies ObjectSchema<ApproveRequest>;
 
 /** POST `/api/sales`. 고객과 상품으로 청약 전 신청(초안)을 만든다. 원장 거래는 없다. */
 export type OpenSaleRequest = { productId: Hex; customerNo: string };
