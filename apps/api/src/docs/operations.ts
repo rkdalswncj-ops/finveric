@@ -387,7 +387,7 @@ export const OPERATIONS: Record<string, Operation> = {
     tag: "판매 채널 연동",
     summary: "최종 확인",
     description:
-      "고객 키로 가입을 확정합니다. 녹취·숙려 대상은 `coolingEndsAt`이 지나야 합니다. 그전에는 원장이 `TooEarly`로 거절합니다. 이미 확정한 건은 거래를 다시 보내지 않습니다.",
+      "고객 키로 가입을 확정합니다. 녹취·숙려 대상은 `coolingEndsAt`이 지나야 합니다. 그전에는 원장이 `TooEarly`로 거절합니다. 지난 직후에 부르면 블록 시각이 숙려 종료를 지날 때까지(최대 30초) 기다렸다가 보냅니다. 이미 확정한 건은 거래를 다시 보내지 않습니다.",
     responses: sale(
       "확정한 판매 건(status: confirmed)",
       SALE_EXAMPLES.confirmed,
@@ -467,12 +467,13 @@ export const OPERATIONS: Record<string, Operation> = {
     tag: "판매사 콘솔",
     summary: "상품 설명서 등록",
     description:
-      "상품 설명서를 원장에 그 상품의 다음 버전으로 등록합니다. `version`은 서버가 정합니다. 이전 버전은 그대로 남습니다.",
+      "상품 설명서를 원장에 그 상품의 다음 버전으로 등록합니다. `version`은 서버가 정합니다. 수정 화면에서 읽은 버전을 `expectedVersion`에 보내면 최신 버전이 달라졌을 때 요청을 거절합니다.",
     responses: {
       200: { description: "등록한 상품 버전", schema: productEntrySchema },
     },
     errors: [
       "PRODUCT_DOCUMENT_INVALID",
+      "PRODUCT_EDIT_VERSION_CHANGED",
       ...sends("InvalidVersion", "Unauthorized"),
     ],
     example: { document: els.document },
@@ -508,11 +509,15 @@ export const OPERATIONS: Record<string, Operation> = {
   },
   "POST /api/sales/:id/action/approve": {
     operationId: "approveSale",
-    example: { reason: "correction_reviewed", reviewBasis: ["diagnosis_history", "risk_signals"] } satisfies ApproveRequest,
+    example: {
+      expectedAttempt: 3,
+      reason: "correction_reviewed",
+      reviewBasis: ["diagnosis_history", "risk_signals"],
+    } satisfies ApproveRequest,
     tag: "판매사 콘솔",
     summary: "관리자 승인",
     description:
-      "FINVERIC 자체 내부통제 정책에 따라 최신 누적 회차가 3 이상인 고객의 청약 전에 승인 서명을 만듭니다. 일별 횟수나 법정 횟수 기준이 아닙니다. 선택형 reason·reviewBasis와 서버 시각은 오프체인에만 보관합니다. 본문을 생략해도 기존처럼 승인합니다. 동일 회차의 재요청은 기록을 덮어쓰지 않습니다. 서명은 청약 거래 입력으로 공개됩니다. 고객이 다시 진단하면 새로 승인해야 합니다.",
+      "FINVERIC 내부통제 정책에 따라 누적 3회차부터 청약 전에 승인 서명을 만듭니다. 화면에서 검토한 회차를 expectedAttempt로 보내면 원장의 최신 회차가 달라졌을 때 요청을 거절합니다. 선택형 reason·reviewBasis와 서버 시각은 오프체인에만 보관합니다. 본문을 생략할 수 있습니다. 동일 회차의 재요청은 기록을 덮어쓰지 않습니다. 서명은 청약 거래 입력으로 공개됩니다.",
     responses: sale(
       "승인한 판매 건(status: draft, approvedAttempt 포함)",
       SALE_EXAMPLES.approved,
@@ -520,6 +525,7 @@ export const OPERATIONS: Record<string, Operation> = {
     errors: [
       "SALE_NOT_FOUND",
       "APPROVAL_NOT_NEEDED",
+      "APPROVAL_ATTEMPT_CHANGED",
       "SALE_ABANDONED",
       "SALE_ALREADY_SUBSCRIBED",
       "STORED_RECORD_MISMATCH",

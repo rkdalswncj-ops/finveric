@@ -192,12 +192,18 @@ export const productDocumentSchema = {
  * POST `/api/products`. 상품 설명서를 원장에 새 버전으로 등록한다.
  * `version`은 API가 그 상품의 다음 버전 번호로 정한다.
  */
-export type RegisterProductRequest = { document: ProductDocument };
+export type RegisterProductRequest = {
+  document: ProductDocument;
+  expectedVersion?: number;
+};
 export const registerProductBodySchema = {
   type: "object",
   additionalProperties: false,
   required: ["document"],
-  properties: { document: productDocumentSchema },
+  properties: {
+    document: productDocumentSchema,
+    expectedVersion: { type: "integer", minimum: 1, maximum: 4_294_967_295 },
+  },
 } as const satisfies ObjectSchema<RegisterProductRequest>;
 
 /** POST `/api/customers/:customerNo/diagnose`. 최신 등록 기준의 문항 순서대로 고른 선택지 번호(0부터). */
@@ -238,6 +244,7 @@ export const REVIEW_BASES = [
   "customer_confirmation",
 ] as const;
 export type ApproveRequest = {
+  expectedAttempt?: number;
   reason?: (typeof APPROVAL_REASONS)[number];
   reviewBasis?: (typeof REVIEW_BASES)[number][];
 };
@@ -246,6 +253,7 @@ export const approveBodySchema = {
   additionalProperties: false,
   required: [],
   properties: {
+    expectedAttempt: { type: "integer", minimum: 1, maximum: 4_294_967_295 },
     reason: { type: "string", enum: APPROVAL_REASONS },
     reviewBasis: {
       type: "array",

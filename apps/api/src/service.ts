@@ -167,8 +167,8 @@ export class FundService {
   products() {
     return products.listProducts(this);
   }
-  registerProduct(document: ProductDocument) {
-    return products.registerProduct(this, document);
+  registerProduct(document: ProductDocument, expectedVersion?: number) {
+    return products.registerProduct(this, document, expectedVersion);
   }
   register() {
     return products.registerDemo(this);

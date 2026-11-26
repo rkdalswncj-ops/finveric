@@ -46,6 +46,7 @@ import {
   type OriginalBundle,
 } from "@finveric/core";
 import {
+  APPROVAL_REASONS,
   DEMO_SESSION_PREFIX,
   type ConfigDto,
   type CustomerDto,
@@ -355,6 +356,10 @@ test(
           },
         });
         assert.equal(entry.product.version, 2);
+        await reject("/products", 409, "PRODUCT_EDIT_VERSION_CHANGED", {
+          document: fund.document,
+          expectedVersion: 1,
+        });
         await reject(
           `/sales/${stale.id}/action/subscribe`,
           409,
@@ -716,11 +721,19 @@ test(
           ),
           /관리자 승인/,
         );
+        await reject(
+          `/sales/${saleId}/action/approve`,
+          409,
+          "APPROVAL_ATTEMPT_CHANGED",
+          { expectedAttempt: 2, reason: "circumstances_reviewed" },
+        );
+        assert.equal(service.find(saleId).approvalReviews, undefined);
         const approved = await action(saleId, "approve", {
+          expectedAttempt: 3,
           reason: "correction_reviewed",
           reviewBasis: ["diagnosis_history", "risk_signals"],
         });
-        const reviews = service.find(saleId).approvalReviews!;
+        const reviews = structuredClone(service.find(saleId).approvalReviews!);
         assert.equal(reviews.length, 1);
         assert.equal(reviews[0].attempt, 3);
         assert.equal(reviews[0].reason, "correction_reviewed");
@@ -1011,8 +1024,10 @@ test(
           const data = JSON.stringify(await request(path));
           assert.doesNotMatch(
             data,
-            /"(answers|salt|score|privateKey|signature|approvalReviews|reason|reviewBasis|reviewedAt|reassessmentReason)"/,
+            /"(answers|salt|score|privateKey|signature|approvalReviews|reviewBasis|reviewedAt|reassessmentReason)"/,
           );
+          for (const reason of APPROVAL_REASONS)
+            assert.ok(!data.includes(JSON.stringify(reason)));
           assert.doesNotMatch(data, new RegExp(CUSTOMER));
         }
         const customer = JSON.stringify(

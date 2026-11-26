@@ -16,8 +16,16 @@ export async function approve(
 ) {
   await ensureDraft(svc, record);
   const attempt = await readAttemptCount(svc, record.customerRef);
+  if (
+    request.expectedAttempt !== undefined &&
+    request.expectedAttempt !== attempt
+  )
+    throw new CodedError("APPROVAL_ATTEMPT_CHANGED");
   if (attempt < 3) throw new CodedError("APPROVAL_NOT_NEEDED");
   if (record.approval?.attempt === attempt) return;
+  const previousApproval = record.approval;
+  const previousReviews = record.approvalReviews;
+  const previousTraceCount = record.traces.length;
   record.approval = {
     attempt,
     signature: await signApproval(
@@ -26,20 +34,31 @@ export async function approve(
     ),
   };
   // FINVERIC 자체 정책의 검토 기록. 재승인 이력은 유지하고 공개 trace에는 넣지 않는다.
-  (record.approvalReviews ??= []).push({
-    attempt,
-    reviewedAt: new Date().toISOString(),
-    ...(request.reason ? { reason: request.reason } : {}),
-    ...(request.reviewBasis ? { reviewBasis: [...request.reviewBasis] } : {}),
-  });
-  note(
-    svc,
+  record.approvalReviews = [
+    ...(previousReviews ?? []),
     {
-      source: "approver",
-      action: "관리자 승인 서명",
-      status: "confirmed",
-      detail: { attempt },
+      attempt,
+      reviewedAt: new Date().toISOString(),
+      ...(request.reason ? { reason: request.reason } : {}),
+      ...(request.reviewBasis ? { reviewBasis: [...request.reviewBasis] } : {}),
     },
-    record,
-  );
+  ];
+  try {
+    note(
+      svc,
+      {
+        source: "approver",
+        action: "관리자 승인 서명",
+        status: "confirmed",
+        detail: { attempt },
+      },
+      record,
+    );
+  } catch (error) {
+    // 파일 저장이 실패하면 같은 회차의 재요청이 다시 저장할 수 있어야 한다.
+    record.approval = previousApproval;
+    record.approvalReviews = previousReviews;
+    record.traces.length = previousTraceCount;
+    throw error;
+  }
 }

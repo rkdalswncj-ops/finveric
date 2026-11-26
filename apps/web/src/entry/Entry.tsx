@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import type { HealthResponse } from "@finveric/core/api";
 import { api, ApiError } from "../shared/api.ts";
-import { Badge } from "../shared/components.tsx";
+import { Disclosure, Badge } from "../shared/components.tsx";
 import { useDeployment } from "../shared/deployment.ts";
 import { networkName } from "../shared/format.ts";
 import {
@@ -133,8 +133,7 @@ export function Entry() {
           </div>
         </dl>
         {deployment && (
-          <details className={s.connection}>
-            <summary>원장 연결 정보</summary>
+          <Disclosure className={s.connection} label="원장 연결 정보">
             <dl>
               <div>
                 <dt>원장 버전</dt>
@@ -147,7 +146,7 @@ export function Entry() {
                 </dd>
               </div>
             </dl>
-          </details>
+          </Disclosure>
         )}
       </section>
       <p className={s.foot}>

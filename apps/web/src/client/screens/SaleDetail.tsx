@@ -1,3 +1,4 @@
+import { SelectField } from "../../shared/SelectField.tsx";
 import { useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { diagnosisCounts } from "@finveric/core";
@@ -29,6 +30,7 @@ import {
   type Sale,
 } from "../../shared/sales.ts";
 import ui from "../../shared/ui.module.css";
+import { useKoreanDay } from "../../shared/useKoreanDay.ts";
 import {
   DetailHeading,
   DiagnosisTable,
@@ -122,6 +124,7 @@ export function SaleDetail({
   ) => Promise<unknown>;
 }) {
   const { saleId } = useParams();
+  const koreanDay = useKoreanDay();
   const sale = sales.find((entry) => entry.id === saleId);
   const reviewContext = `${saleId}:${sale?.latestAttempt}`;
   const [review, setReview] = useState<{
@@ -174,7 +177,7 @@ export function SaleDetail({
   const knownCustomer =
     !!customer && customer.ref.toLowerCase() === sale.customerRef.toLowerCase();
   const diagnoses = knownCustomer ? customer.diagnoses : [];
-  const counts = diagnosisCounts(diagnoses, now);
+  const counts = diagnosisCounts(diagnoses, koreanDay);
   const usedAttempt = sale.chain?.attempt;
   const usedDiagnosis = diagnoses.find(
     (diagnosis) => diagnosis.attempt === (usedAttempt ?? sale.latestAttempt),
@@ -284,31 +287,31 @@ export function SaleDetail({
             <Facts rows={[["승인 상태", approvalText(sale)]]} />
             {awaitingApproval(sale) && (
               <div className={s.stack}>
-                <label className={s.field}>
-                  승인 사유 (선택)
-                  <select
-                    value={approvalRequest.reason ?? ""}
-                    aria-disabled={busy}
-                    onChange={(event) => {
-                      if (!busy)
-                        updateReview({
-                          reason: (event.target.value ||
-                            undefined) as ApproveRequest["reason"],
-                        });
-                    }}
-                  >
-                    <option value="">선택하지 않음</option>
-                    <option value="correction_reviewed">
-                      응답 정정 사유 검토
-                    </option>
-                    <option value="circumstances_reviewed">
-                      상황 변경 사유 검토
-                    </option>
-                    <option value="reconfirmation_reviewed">
-                      재확인 사유 검토
-                    </option>
-                  </select>
-                </label>
+                <SelectField
+                  label="승인 사유 (선택)"
+                  value={approvalRequest.reason ?? ""}
+                  blocked={busy}
+                  options={[
+                    { value: "", label: "선택하지 않음" },
+                    {
+                      value: "correction_reviewed",
+                      label: "응답 정정 사유 검토",
+                    },
+                    {
+                      value: "circumstances_reviewed",
+                      label: "상황 변경 사유 검토",
+                    },
+                    {
+                      value: "reconfirmation_reviewed",
+                      label: "재확인 사유 검토",
+                    },
+                  ]}
+                  onChange={(value) =>
+                    updateReview({
+                      reason: (value || undefined) as ApproveRequest["reason"],
+                    })
+                  }
+                />
                 <fieldset>
                   <legend>검토 근거 (선택)</legend>
                   {(
@@ -355,7 +358,7 @@ export function SaleDetail({
                     "approve",
                     "관리자 승인 서명을 만들고 있습니다",
                     "관리자 승인을 기록했습니다.",
-                    approvalRequest,
+                    { ...approvalRequest, expectedAttempt: sale.latestAttempt },
                   );
                   if (approved) focusElement("approval-title");
                 }}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import {
   AlertTriangle,
@@ -27,8 +27,10 @@ import type {
   SubscribeRequest,
 } from "@finveric/core/api";
 import { Button } from "../../shared/button.tsx";
+import { SelectField } from "../../shared/SelectField.tsx";
 import type { api, LoadState } from "../../shared/api.ts";
 import {
+  Disclosure,
   Badge,
   ConfirmDialog,
   Empty,
@@ -50,6 +52,7 @@ import {
   type Sale,
 } from "../../shared/sales.ts";
 import ui from "../../shared/ui.module.css";
+import { useKoreanDay } from "../../shared/useKoreanDay.ts";
 import local from "./channel.module.css";
 import type { Run } from "../App.tsx";
 import { ActionBar, PrimaryAction, StepHeader } from "../flow.tsx";
@@ -70,6 +73,7 @@ type Flow = {
   phase: Phase;
   question: number;
   answers: (number | null)[];
+  reassessmentReason: ReassessmentReason | "";
   card: number;
   explanationMs: number;
   cardsRead: boolean;
@@ -183,6 +187,7 @@ export function Enrollment({
       phase: diagnoses.length ? "start" : "question",
       question: 0,
       answers: [],
+      reassessmentReason: "",
       card: 0,
       explanationMs: 0,
       cardsRead: false,
@@ -191,9 +196,9 @@ export function Enrollment({
     }),
   );
   const [confirm, setConfirm] = useState<"stop" | "withdraw">();
-  const [reassessmentReason, setReassessmentReason] = useState<
-    ReassessmentReason | ""
-  >("");
+  const reassessmentHint = useId();
+  const koreanDay = useKoreanDay();
+  const { reassessmentReason } = flow;
   const update = (change: Partial<Flow>) =>
     setFlow((current) => ({ ...current, ...change }));
   useEffect(() => {
@@ -312,7 +317,8 @@ export function Enrollment({
   const protectedSale = latest
     ? isProtectedSale(document, latest, suitable)
     : document.complex;
-  const counts = diagnosisCounts(diagnoses, nowSeconds());
+  const counts = diagnosisCounts(diagnoses, koreanDay);
+  const dailyCount = `${counts.dailyDiagnoses}회 · 그중 재진단 ${counts.dailyReassessments}회`;
   const nextAttempt = counts.cumulativeAttempt + 1;
   const explanationSeconds = Math.min(
     86400,
@@ -344,11 +350,11 @@ export function Enrollment({
       });
   };
   const restart = () => {
-    setReassessmentReason("");
     update({
       phase: "question",
       question: 0,
       answers: rule ? rule.questions.map(() => null) : [],
+      reassessmentReason: "",
       higherRisk: false,
       consent: false,
       cardsRead: false,
@@ -417,8 +423,7 @@ export function Enrollment({
               <Link to={channel.catalog}>다른 상품 보기</Link>
             </Button>
           </div>
-          <details>
-            <summary>기술 정보 보기</summary>
+          <Disclosure label="기술 정보 보기">
             <Facts
               rows={[
                 [
@@ -437,7 +442,7 @@ export function Enrollment({
                 ["최종 확인 블록", confirmTx?.blockNumber ?? "—"],
               ]}
             />
-          </details>
+          </Disclosure>
         </>
       ),
       action: (
@@ -594,10 +599,7 @@ export function Enrollment({
               ["투자성향", profileName(latest.profile)],
               ["권유 가능 위험등급", limitRange(latest.limit)],
               ["누적 진단 회차", `${latest.attempt}회차`],
-              [
-                "오늘 진단 · 한국 시간",
-                `${counts.dailyDiagnoses}회 · 그중 재진단 ${counts.dailyReassessments}회`,
-              ],
+              ["오늘 진단 · 한국 시간", dailyCount],
               ["진단 시각", dateTime(latest.at)],
             ]}
           />
@@ -648,28 +650,30 @@ export function Enrollment({
             · 답변은 판매사가 보관하고, 진단 결과는 고칠 수 없게 기록돼요.
           </p>
           {nextAttempt > 1 && q === 0 && (
-            <label className={s.field}>
-              재진단 사유 (선택)
-              <select
+            <div className={s.field}>
+              <SelectField
+                label="재진단 사유 (선택)"
+                className={s.field}
                 value={reassessmentReason}
-                onChange={(event) => {
-                  if (!isBusy)
-                    setReassessmentReason(
-                      event.target.value as ReassessmentReason | "",
-                    );
-                }}
-                aria-disabled={isBusy}
-              >
-                <option value="">선택하지 않음</option>
-                <option value="correction">잘못 입력한 답변 정정</option>
-                <option value="changed_circumstances">투자 상황 변경</option>
-                <option value="reconfirmation">기존 응답 재확인</option>
-              </select>
-              <span className={s.small}>
+                blocked={isBusy}
+                options={[
+                  { value: "", label: "선택하지 않음" },
+                  { value: "correction", label: "잘못 입력한 답변 정정" },
+                  { value: "changed_circumstances", label: "투자 상황 변경" },
+                  { value: "reconfirmation", label: "기존 응답 재확인" },
+                ]}
+                aria-describedby={reassessmentHint}
+                onChange={(value) =>
+                  update({
+                    reassessmentReason: value as ReassessmentReason | "",
+                  })
+                }
+              />
+              <span className={s.small} id={reassessmentHint}>
                 사유 유형은 판매사가 별도로 보관해요. 진단 결과에는 공개하지
                 않아요.
               </span>
-            </label>
+            </div>
           )}
           <fieldset
             className={s.choices}
@@ -740,9 +744,10 @@ export function Enrollment({
               ["권유 가능 위험등급", limitRange(latest.limit)],
               ["이 상품의 위험등급", gradeName(document.riskGrade)],
               [
-                "진단 회차",
+                "누적 진단 회차",
                 `${latest.attempt}회차${latest.attempt > 1 ? " · 재진단" : ""}`,
               ],
+              ["오늘 진단 · 한국 시간", dailyCount],
               ...(latest.elderly
                 ? ([["고령 투자자", "보호 절차를 함께 적용해요"]] as [
                     string,
@@ -754,8 +759,8 @@ export function Enrollment({
           />
           {latest.attempt >= 3 && (
             <Notice>
-              {latest.attempt}번째 진단이에요. 청약 전에 판매사 관리자가 진단
-              이력을 확인하고 승인해요. 청약 단계에서 승인을 기다려요.
+              FINVERIC의 내부 확인 기준에 따라 누적 3회차부터 판매사 관리자가
+              진단 이력을 검토해요. 청약 단계에서 승인을 기다려요.
             </Notice>
           )}
           <div className={s.secondary}>
@@ -1039,8 +1044,10 @@ export function Enrollment({
         </Notice>
       )}
       {step.content}
-      <details className={s.flowFoot}>
-        <summary>내 진단 기록 {diagnoses.length}회</summary>
+      <Disclosure
+        className={s.flowFoot}
+        label={<>내 진단 기록 {diagnoses.length}회</>}
+      >
         <ol className={s.attempts}>
           {diagnoses.map((diagnosis) => (
             <li key={diagnosis.attempt}>
@@ -1053,7 +1060,7 @@ export function Enrollment({
         <p className={s.small}>
           가입 신청 번호 <code>{sale.id}</code>
         </p>
-      </details>
+      </Disclosure>
       <ActionBar busy={busy}>{step.action}</ActionBar>
       <ConfirmDialog
         open={confirm === "stop"}

@@ -47,7 +47,7 @@ export const saleRoutes: FastifyPluginAsync<{ service: FundService }> = async (
     "/sales/:id/action/approve",
     {
       preValidation: async (req) => {
-        req.body ??= {};
+        if (req.body === undefined) req.body = {};
       },
       schema: { params: saleIdParamsSchema, body: approveBodySchema },
     },

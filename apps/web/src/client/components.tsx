@@ -42,10 +42,12 @@ export function DetailHeading({
   title,
   backTo,
   backLabel,
+  children,
 }: {
   title: string;
   backTo: To;
   backLabel: string;
+  children?: ReactNode;
 }) {
   return (
     <>
@@ -57,7 +59,7 @@ export function DetailHeading({
           </Link>
         </Button>
       </div>
-      <Heading title={title} />
+      <Heading title={title}>{children}</Heading>
     </>
   );
 }
